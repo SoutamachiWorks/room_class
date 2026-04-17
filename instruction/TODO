@@ -1,0 +1,193 @@
+```markdown
+# IMPLEMENTATION TODO LIST
+
+> Cross-reference with the full Project Instruction Document for schema,
+> role matrix, and data synchronization requirements.
+
+---
+
+## AUTH — Login Page
+
+- [x] Build a single login page accessible to all roles (Admin, Teacher, Student)
+- [x] Support dual login identifier:
+  - Username (string)
+  - Employee/Student ID — `teacherId` or `studentId` (numeric or string)
+- [x] Password field with show/hide toggle
+- [x] On submit, validate credentials against the `users` collection in MongoDB
+- [x] On successful login, read the `role` field from the returned user document
+- [x] Implement role-based redirect after login:
+  - `role: admin` → `/dashboard/admin`
+  - `role: teacher` → `/dashboard/teacher`
+  - `role: student` → `/dashboard/student`
+- [x] Store session/token (JWT or Next.js session) with role and userId encoded
+- [x] Protect all dashboard routes with middleware — redirect to login if session is invalid or missing
+- [x] Return a clear error message on invalid credentials (do NOT specify whether the identifier or password was wrong)
+
+---
+
+## ADMIN DASHBOARD
+
+### Account Management
+- [x] Build account list page showing all users (Admin, Teacher, Student) with pagination
+- [x] Implement **Create Teacher** form with fields:
+  - Teacher ID (`teacherId`)
+  - Full Name
+  - Username
+  - Password (hashed with bcrypt before saving)
+  - Email
+  - Phone Number
+- [x] Implement **Create Student** form with fields:
+  - Student ID (`studentId`)
+  - Full Name
+  - Username
+  - Password (hashed with bcrypt before saving)
+  - Email
+  - Phone Number
+  - Class Code (dropdown from existing class codes)
+- [x] Implement **Edit Account** — update any field except role
+- [x] Implement **Delete Account** — soft delete or hard delete with confirmation modal
+- [x] Implement **Toggle Account Status** — active / inactive (inactive accounts cannot log in)
+- [x] Display activity/system logs page (login events, CRUD actions with timestamps and userId)
+
+### Class Code Management
+- [x] Build class code list page
+- [x] Implement **Add Class Code** form: `{ code, label }`
+- [x] Implement **Edit Class Code**
+- [x] Implement **Delete Class Code** — check if any student or subject references it before deletion; show warning if in use
+
+### Subject Management
+- [x] Build subject list page showing: Teacher ID | Subject Name | Class Code
+- [x] Implement **Add Subject** form with fields:
+  - Teacher ID (dropdown/search from existing teachers)
+  - Subject Name (text input)
+  - Class Code (dropdown from existing class codes)
+- [x] Implement **Edit Subject**
+- [x] Implement **Delete Subject**
+- [x] On any subject create/update/delete, ensure full data sync:
+  - Update references in `assignments`, `materials`, and `exams` collections
+  - A teacher can hold multiple subjects; each subject maps to exactly one class
+
+---
+
+## TEACHER DASHBOARD
+
+---
+NOTE: The Material Section, Exam Section, and Assignment Section are all tied to the Subject Management system
+configured by the Admin. This means that when a teacher creates and publishes an assignment, material,
+or exam, the content must be targeted to a specific class — and only students who belong to that class
+code will be able to see and access it.
+
+To support this, whenever a teacher publishes or submits content in any of these three sections, the
+system must present the teacher with two scoped selection steps before publishing:
+
+1. **Select Subject** — A dropdown showing only the subjects assigned to that teacher (as configured
+   by the Admin via the Subject Management panel).
+2. **Select Class** — Based on the selected subject, a second dropdown shows the class code(s) linked
+   to that subject.
+
+This two-step selection ensures that content is always delivered to the correct class. For example, if
+a teacher handles "Mathematics" for class 1A and "Physics" for class 2B, publishing a Mathematics
+assignment will only make it visible to students in class 1A — students in class 2B will never see it.
+
+On the student side, the system must filter all incoming assignments, materials, and exams by matching
+the student's class code against the class code selected by the teacher at the time of publishing. Only
+content where the class codes match should be returned and displayed to the student.
+---
+
+### Material Section
+- [x] Display list of materials created by the logged-in teacher (scoped by `teacherId`)
+- [x] Implement **Create Material** form:
+  - Text input box (rich text or plain textarea)
+  - Multi-file upload input (accept multiple files; store as array of file references)
+- [x] Implement **Edit Material** — update text and/or replace/add/remove files
+- [x] Implement **Delete Material** — with confirmation modal; also delete associated files from storage
+
+### Assignment Section
+- [x] Display list of assignments created by the logged-in teacher
+- [x] Implement **Create Assignment** form:
+  - Text input (instructions)
+  - Multi-file upload
+- [x] Implement **Edit Assignment**
+- [x] Implement **Delete Assignment** — delete assignment files AND any student submissions associated with itssions or mark them as orphaned
+
+### Exam Section
+- [ ] Display list of exam forms created by the logged-in teacher with status badge: `draft` | `published`
+- [ ] Implement **Exam Form Builder** (modeled after Google Forms):
+  - Add question blocks dynamically
+  - Each question block supports the following types (all optional, rendered in this fixed order):
+    1. **Multiple Choice** — input for question text + add/remove answer options + mark correct answer
+    2. **Essay** — input for question prompt (free-text answer by student)
+    3. **File Upload** — input for question prompt (file submission by student)
+  - Allow reordering of question blocks via drag-and-drop or up/down controls
+  - Set **total questions created** and **random display count** (randomCount must be ≤ totalQuestions; enforce validation)
+- [ ] Implement **Save (Draft)** — saves exam to DB with `status: 'draft'`; NOT visible to students
+- [ ] Implement **Publish** — updates exam `status` to `'published'`; becomes visible to students
+- [ ] Implement **Unpublish** — revert `status` back to `'draft'` if needed
+- [ ] Implement **Edit Exam Form** — edit questions, options, and randomization settings (only if status is `draft`)
+- [ ] Implement **Delete Exam Form** — with confirmation; also clean up related `examSessions`
+
+---
+
+## STUDENT DASHBOARD
+
+### Assignment Section
+- [ ] Display list of assignments from the student's linked subject(s) and class
+- [ ] For each assignment, show submission status: `not submitted` | `submitted`
+- [ ] Implement **Submit Assignment**:
+  - Text input box (student's answer/response)
+  - Multi-file upload input
+  - Save as a `submission` document linked to `assignmentId` and `studentId`
+- [ ] Implement **Edit Submission** — update text and/or files (only before deadline if deadline logic is added)
+- [ ] Implement **Delete Submission** — with confirmation
+
+### Material Section
+- [ ] Display list of materials linked to the student's subject(s) and class
+- [ ] Show material text content and list of attached files
+- [ ] Each file has a **Download** button — trigger file download from storage URL
+- [ ] Students have NO create, edit, or delete access in this section
+
+### Exam Section
+
+#### Pre-Exam: Notification Permission Gate
+- [ ] Before a student can enter any exam tab/page, show a **Notification Permission Modal**:
+  - Prompt: "You must enable browser notifications to take this exam."
+  - Call `Notification.requestPermission()` from the browser API
+  - If permission is **denied** → block access to the exam; show a message asking them to enable notifications in browser settings
+  - If permission is **granted** → allow entry and store permission state in session
+
+#### Exam Session & Tab-Exit Detection
+- [ ] When student starts an exam, create an `examSession` document:
+  ```
+  { examId, studentId, exitCount: 0, startedAt, status: 'in-progress' }
+  ```
+- [ ] Implement **tab visibility detection** using the `document.visibilitychange` event:
+  - Start a timer when `document.hidden === true`
+  - If the student remains outside the tab for **≥ 15 seconds**:
+    - Increment `exitCount` in the `examSession` document (server-side PATCH request)
+    - Send a browser push notification: *"Warning: You left the exam tab. [X] violation(s) recorded."*
+  - If the student returns within 15 seconds, cancel the timer — do NOT increment `exitCount`
+- [ ] Lockout rule:
+  - If `exitCount >= 2` → set session `status: 'locked'`
+  - Redirect student to a lockout page: *"You have been removed from this exam session due to multiple tab exits. Please contact your teacher."*
+  - Locked sessions cannot be resumed; a teacher must reset or create a new session if applicable
+- [ ] Implement **Answer Submission**:
+  - Collect answers for all displayed questions (multiple choice selection, essay text, uploaded files)
+  - On submit, save answers to the `examSession` document and set `status: 'submitted'`
+
+#### Exam Question Randomization (enforce server-side)
+- [ ] On exam start, server fetches the exam's full question list and `randomCount`
+- [ ] Server randomly selects `randomCount` questions from the full list using a shuffle algorithm (e.g. Fisher-Yates)
+- [ ] Return only the selected and shuffled questions to the client
+- [ ] Each student session gets its own randomized set — do NOT reuse the same order across sessions
+
+---
+
+## MANDATORY — Data Synchronization Rules
+
+- [ ] All assignments, materials, and exams must be scoped by `subjectId`
+- [ ] `subjectId` links to a `{ teacherId, subjectName, classCode }` document
+- [ ] When a subject is updated or deleted by Admin, cascade the change to all referencing documents or mark them as unlinked
+- [ ] Students only see content (assignments, materials, exams) that belongs to their class code
+- [ ] Teachers only see and manage content they created (filter by `teacherId`)
+- [ ] Apply server-side RBAC middleware on every API route — reject requests where the session role does not match the required role for that route
+```
