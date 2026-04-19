@@ -209,6 +209,9 @@ export default function LoginPage() {
 
         {/* Footer */}
         <div className={styles.loginFooter}>
+          <a href="/dokumentasi" style={{ display: 'inline-block', marginBottom: '16px', fontSize: '0.875rem', fontWeight: 600, color: '#3B82F6', textDecoration: 'none', background: '#EFF6FF', padding: '8px 16px', borderRadius: '20px' }}>
+             📖 Buka Panduan Pengujian (Testing)
+          </a>
           <p className={styles.footerText}>
             © 2026 <span className={styles.footerBrand}>RoomClass</span> — Sistem Manajemen Kelas
           </p>
