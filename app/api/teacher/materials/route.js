@@ -83,6 +83,7 @@ export async function POST(request) {
  
      const formData = await request.formData();
      const subjectId = formData.get('subjectId');
+     const title = formData.get('title') || '';
      const text = formData.get('text');
      const files = formData.getAll('files'); // Extract multi-files Array
  
@@ -122,6 +123,7 @@ export async function POST(request) {
      const newMaterial = {
          teacherId,
          subjectId,
+         title,
          text,
          files: processedFiles,
          createdAt: new Date(),

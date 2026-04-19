@@ -1,0 +1,138 @@
+import { NextResponse } from 'next/server';
+import { ObjectId } from 'mongodb';
+import { getDb } from '@/lib/mongodb';
+import { requireRole, handleAuthError } from '@/lib/auth';
+
+/**
+ * GET /api/teacher/exams
+ * Retrieves all exams created by the logged-in teacher, joined with subject info.
+ */
+export async function GET(request) {
+  try {
+    const teacher = await requireRole(request, 'teacher');
+    const db = await getDb();
+
+    const userDoc = await db.collection('users').findOne({ _id: new ObjectId(teacher.userId) });
+    const teacherId = userDoc?.teacherId;
+
+    if (!teacherId) return NextResponse.json({ error: 'Identifikasi guru gagal' }, { status: 403 });
+
+    const pipeline = [
+      { $match: { teacherId } },
+      {
+        $addFields: {
+          subjectObjectId: { $toObjectId: '$subjectId' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'subjects',
+          localField: 'subjectObjectId',
+          foreignField: '_id',
+          as: 'subjectDetails',
+        },
+      },
+      {
+        $unwind: {
+          path: '$subjectDetails',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      { $sort: { createdAt: -1 } },
+    ];
+
+    const exams = await db.collection('exams').aggregate(pipeline).toArray();
+
+    return NextResponse.json({ exams });
+  } catch (err) {
+    const { status, error } = handleAuthError(err);
+    return NextResponse.json({ error }, { status });
+  }
+}
+
+/**
+ * POST /api/teacher/exams
+ * Creates a new exam form. Accepts JSON body.
+ */
+export async function POST(request) {
+  try {
+    const teacher = await requireRole(request, 'teacher');
+    const db = await getDb();
+
+    const userDoc = await db.collection('users').findOne({ _id: new ObjectId(teacher.userId) });
+    const teacherId = userDoc?.teacherId;
+
+    if (!teacherId) return NextResponse.json({ error: 'Identifikasi guru gagal' }, { status: 403 });
+
+    const body = await request.json();
+    const { title, subjectId, questions, isRandomized } = body;
+
+    // Validation
+    if (!title || typeof title !== 'string') {
+      return NextResponse.json({ error: 'Judul ujian wajib diisi.' }, { status: 400 });
+    }
+    if (!subjectId) {
+      return NextResponse.json({ error: 'Mata pelajaran wajib dipilih.' }, { status: 400 });
+    }
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return NextResponse.json({ error: 'Ujian harus memiliki minimal 1 soal.' }, { status: 400 });
+    }
+
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      if (!q.multipleChoice && !q.essay && !q.fileUpload) {
+        return NextResponse.json({ error: `Soal #${i + 1}: Minimal harus ada 1 tipe pertanyaan.` }, { status: 400 });
+      }
+      if (q.multipleChoice) {
+        if (!q.multipleChoice.questionText) {
+          return NextResponse.json({ error: `Soal #${i + 1}: Teks soal pilihan ganda wajib diisi.` }, { status: 400 });
+        }
+        if (!q.multipleChoice.options || q.multipleChoice.options.length < 2) {
+          return NextResponse.json({ error: `Soal #${i + 1}: Minimal butuh 2 opsi jawaban.` }, { status: 400 });
+        }
+        if (q.multipleChoice.correctAnswer === null || q.multipleChoice.correctAnswer === undefined) {
+          return NextResponse.json({ error: `Soal #${i + 1}: Jawaban benar harus dipilih.` }, { status: 400 });
+        }
+      }
+      if (q.essay && !q.essay.questionText) {
+        return NextResponse.json({ error: `Soal #${i + 1}: Teks soal esai wajib diisi.` }, { status: 400 });
+      }
+      if (q.fileUpload && !q.fileUpload.questionText) {
+        return NextResponse.json({ error: `Soal #${i + 1}: Teks soal file upload wajib diisi.` }, { status: 400 });
+      }
+    }
+
+    // Verify subject ownership
+    const verifySubject = await db.collection('subjects').findOne({ _id: new ObjectId(subjectId), teacherId });
+    if (!verifySubject) {
+      return NextResponse.json({ error: 'Mata pelajaran tidak valid untuk akun Anda.' }, { status: 403 });
+    }
+
+    // Normalize question order
+    const normalizedQuestions = questions.map((q, idx) => ({
+      order: idx + 1,
+      multipleChoice: q.multipleChoice || null,
+      essay: q.essay || null,
+      fileUpload: q.fileUpload || null,
+    }));
+
+    const newExam = {
+      teacherId,
+      subjectId,
+      title,
+      questions: normalizedQuestions,
+      isRandomized: !!isRandomized,
+      status: 'draft',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const result = await db.collection('exams').insertOne(newExam);
+
+    return NextResponse.json({ success: true, id: result.insertedId }, { status: 201 });
+  } catch (err) {
+    console.error('Exam creation error:', err);
+    const { status, error } = handleAuthError(err);
+    return NextResponse.json({ error }, { status });
+  }
+}

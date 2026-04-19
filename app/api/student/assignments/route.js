@@ -1,0 +1,81 @@
+import { NextResponse } from 'next/server';
+import { ObjectId } from 'mongodb';
+import { getDb } from '@/lib/mongodb';
+import { requireRole, handleAuthError } from '@/lib/auth';
+
+/**
+ * GET /api/student/assignments
+ * Returns all assignments scoped to the student's classCode.
+ * Also checks if the student has already submitted for each assignment.
+ */
+export async function GET(request) {
+  try {
+    const student = await requireRole(request, 'student');
+    const db = await getDb();
+
+    const userDoc = await db.collection('users').findOne({ _id: new ObjectId(student.userId) });
+    const classCode = userDoc?.classCode;
+    const studentId = userDoc?.studentId;
+
+    if (!classCode || !studentId) {
+      return NextResponse.json({ error: 'Profil siswa tidak lengkap (classCode/studentId hilang).' }, { status: 403 });
+    }
+
+    // Find all subjects that match the student's classCode
+    const matchingSubjects = await db.collection('subjects').find({ classCode }).toArray();
+    const subjectIds = matchingSubjects.map(s => s._id.toString());
+
+    if (subjectIds.length === 0) {
+      return NextResponse.json({ assignments: [] });
+    }
+
+    // Get assignments linked to those subjects
+    const pipeline = [
+      { $match: { subjectId: { $in: subjectIds } } },
+      {
+        $addFields: {
+          subjectObjectId: { $toObjectId: '$subjectId' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'subjects',
+          localField: 'subjectObjectId',
+          foreignField: '_id',
+          as: 'subjectDetails',
+        },
+      },
+      {
+        $unwind: {
+          path: '$subjectDetails',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      { $sort: { createdAt: -1 } },
+    ];
+
+    const assignments = await db.collection('assignments').aggregate(pipeline).toArray();
+
+    // Fetch this student's submissions to map status
+    const assignmentIds = assignments.map(a => a._id.toString());
+    const submissions = await db.collection('submissions')
+      .find({ studentId, assignmentId: { $in: assignmentIds } })
+      .toArray();
+
+    const submissionMap = {};
+    for (const sub of submissions) {
+      submissionMap[sub.assignmentId] = sub;
+    }
+
+    // Attach submission info to each assignment
+    const result = assignments.map(a => ({
+      ...a,
+      submission: submissionMap[a._id.toString()] || null,
+    }));
+
+    return NextResponse.json({ assignments: result });
+  } catch (err) {
+    const { status, error } = handleAuthError(err);
+    return NextResponse.json({ error }, { status });
+  }
+}

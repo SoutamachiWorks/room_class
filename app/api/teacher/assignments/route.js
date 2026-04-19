@@ -80,6 +80,7 @@ export async function POST(request) {
      const formData = await request.formData();
      const subjectId = formData.get('subjectId');
      const text = formData.get('text');
+     const deadlineRaw = formData.get('deadline');
      const files = formData.getAll('files');
  
      if (!subjectId || !text) {
@@ -118,6 +119,7 @@ export async function POST(request) {
          teacherId,
          subjectId,
          text,
+         deadline: deadlineRaw ? new Date(deadlineRaw) : null,
          files: processedFiles,
          createdAt: new Date(),
          updatedAt: new Date()

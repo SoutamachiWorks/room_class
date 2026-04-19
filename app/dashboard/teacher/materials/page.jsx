@@ -19,6 +19,7 @@ export default function MaterialsPage() {
   const [selectedMaterial, setSelectedMaterial] = useState(null);
 
   // Form State Configurations -> FormData approach Native
+  const [formTitle, setFormTitle] = useState('');
   const [formText, setFormText] = useState('');
   const [formSubjectId, setFormSubjectId] = useState('');
   const [formClassCode, setFormClassCode] = useState(''); // Read-only derived logically
@@ -85,6 +86,7 @@ export default function MaterialsPage() {
     setFormError('');
 
     if (existingConfig) {
+      setFormTitle(existingConfig.title || '');
       setFormText(existingConfig.text || '');
       setFormSubjectId(existingConfig.subjectId || '');
       
@@ -94,6 +96,7 @@ export default function MaterialsPage() {
       setRetainedOldFiles(existingConfig.files || []);
       setAttachedFiles([]); // Purge new intent files
     } else {
+      setFormTitle('');
       setFormText('');
       setFormSubjectId('');
       setFormClassCode('');
@@ -125,6 +128,7 @@ export default function MaterialsPage() {
     try {
       // Construction of Multiparts Frameworks Payload
       const formData = new FormData();
+      formData.append('title', formTitle);
       formData.append('text', formText);
       
       if (!isEdit) {
@@ -232,9 +236,9 @@ export default function MaterialsPage() {
               <thead>
                 <tr>
                   <th style={{ width: '15%' }}>Penanda Waktu</th>
-                  <th style={{ width: '25%' }}>Pemetaan Ruang Kelas</th>
-                  <th style={{ width: '35%' }}>Deskripsi Modul</th>
-                  <th>Berkas/File Fisik</th>
+                  <th style={{ width: '25%' }}>Lokus Mapel</th>
+                  <th style={{ width: '20%' }}>Judul Materi</th>
+                  <th style={{ width: '25%' }}>Deskripsi / Berkas</th>
                   <th style={{ textAlign: 'center' }}>Operasional</th>
                 </tr>
               </thead>
@@ -252,14 +256,15 @@ export default function MaterialsPage() {
                       </div>
                     </td>
                     <td>
-                      <div style={{ fontSize: '0.875rem', whiteSpace: 'pre-wrap', maxHeight: '80px', overflowY: 'auto' }}>
-                         {mat.text}
-                      </div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1E293B' }}>{mat.title || 'Tanpa Judul'}</div>
                     </td>
                     <td>
+                      <div style={{ fontSize: '0.8125rem', whiteSpace: 'pre-wrap', maxHeight: '60px', overflowY: 'auto', marginBottom: '8px' }}>
+                         {mat.text}
+                      </div>
                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                           {(mat.files || []).map((f, i) => (
-                             <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', padding: '4px 8px', background: '#F3F4F6', borderRadius: '4px', fontSize: '0.6875rem', color: '#4B5563', textDecoration: 'none', border: '1px solid #E5E7EB' }}>
+                             <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', padding: '2px 6px', background: '#F3F4F6', borderRadius: '4px', fontSize: '0.6875rem', color: '#4B5563', textDecoration: 'none', border: '1px solid #E5E7EB' }}>
                                 📎 {f.originalName}
                              </a>
                           ))}
@@ -322,6 +327,18 @@ export default function MaterialsPage() {
                     style={{ background: '#F3F4F6', fontWeight: 600, color: 'var(--color-primary)' }}
                  />
               </div>
+           </div>
+
+           <div className={styles.fieldGroup}>
+              <label className={styles.fieldLabel}>Judul Materi Khusus Sistem*</label>
+              <input 
+                 type="text"
+                 value={formTitle}
+                 onChange={e => setFormTitle(e.target.value)}
+                 className={styles.input}
+                 required
+                 placeholder="Misal: Modul 1: Struktur Data Array Dasar"
+              />
            </div>
 
            <div className={styles.fieldGroup}>

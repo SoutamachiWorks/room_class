@@ -37,6 +37,7 @@ export async function PUT(request, { params }) {
       }
 
       const formData = await request.formData();
+      const title = formData.get('title') || '';
       const text = formData.get('text');
       const retainedFilesJSON = formData.get('retainedFiles'); // Array of file names we want to KEEP
       const files = formData.getAll('files'); // New uploaded Files
@@ -97,6 +98,7 @@ export async function PUT(request, { params }) {
         { _id: new ObjectId(id) },
         {
            $set: {
+              title,
               text,
               files: finalFilesArray,
               updatedAt: new Date()
