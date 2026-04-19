@@ -17,16 +17,67 @@
   display: flex;
   flex-direction: column;
   padding: 28px 0;
-  overflow-y: auto;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.sidebarCollapsed {
+  width: 68px;
+  min-width: 68px;
 }
 
 .sidebarLogo {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 24px;
+  padding: 0 14px;
   margin-bottom: 36px;
+  overflow: hidden;
+  white-space: nowrap;
+  justify-content: space-between;
 }
+
+/* Toggle collapse button */
+.collapseBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--transition-fast), color var(--transition-fast), transform 0.25s ease;
+}
+
+.collapseBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.collapseBtn svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.25s ease;
+}
+
+.collapseBtnRotated svg {
+  transform: rotate(180deg);
+}
+
+.logoGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
 
 .logoBox {
   width: 40px;
@@ -50,12 +101,23 @@
   font-weight: 700;
   color: var(--color-text-white);
   letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.2s ease, width 0.25s ease;
+}
+
+.logoTextHidden {
+  opacity: 0;
+  width: 0;
+  pointer-events: none;
 }
 
 /* Nav section */
 .navSection {
   flex: 1;
-  padding: 0 12px;
+  padding: 0 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .navLabel {
@@ -67,6 +129,17 @@
   padding: 0 12px;
   margin-bottom: 8px;
   margin-top: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.2s ease;
+}
+
+.navLabelHidden {
+  opacity: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
 }
 
 .navLabel:first-child {
@@ -86,6 +159,9 @@
   cursor: pointer;
   text-decoration: none;
   margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  position: relative; /* for tooltip */
 }
 
 .navLink:hover {
@@ -108,6 +184,45 @@
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+}
+
+/* Link label text */
+.navLinkText {
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.15s ease, max-width 0.25s ease;
+  max-width: 200px;
+}
+
+.navLinkTextHidden {
+  opacity: 0;
+  max-width: 0;
+  pointer-events: none;
+}
+
+/* Tooltip shown in collapsed mode */
+.navLink[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(15, 23, 42, 0.92);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 999;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  transition: opacity 0.15s ease;
+}
+
+.navLink[data-tooltip]:hover::after {
+  opacity: 1;
 }
 
 /* Sidebar footer */
