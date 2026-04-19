@@ -47,6 +47,9 @@
   --radius-circle: 50%;
   --radius-input: 12px;
 
+  /* Borders */
+  --color-border: #F0F1F3;
+
   /* Shadows */
   --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.03);
   --shadow-card-hover: 0 14px 40px rgba(0, 0, 0, 0.06);
@@ -63,6 +66,43 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s ease;
   --transition-slow: 0.4s ease;
+}
+
+/* ── Dark Mode Token Overrides ────────────────────────────────────────────── */
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg-app: #0F1117;
+  --bg-sidebar: #161B27;
+  --bg-card: #1C2232;
+  --bg-card-dark: #0F1117;
+
+  /* Accent — stay consistent */
+  --color-primary: #78A3FF;
+  --color-primary-hover: #5B8BF5;
+  --color-primary-light: rgba(120, 163, 255, 0.15);
+  --color-solid-dark: #FFFFFF;
+
+  /* Typography */
+  --color-heading: #F0F3FA;
+  --color-text: #C8D0E0;
+  --color-subtext: #6B7280;
+  --color-text-light: #8A8D93;
+  --color-text-white: #FFFFFF;
+
+  /* Status — slightly adjusted for dark backgrounds */
+  --color-success-bg: rgba(25, 135, 84, 0.18);
+  --color-success-text: #4ADE80;
+  --color-process-bg: rgba(107, 114, 128, 0.2);
+  --color-process-text: #9CA3AF;
+  --color-failed-bg: rgba(220, 53, 69, 0.18);
+  --color-failed-text: #F87171;
+
+  /* Shadows — more visible on dark */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.45);
+
+  /* Borders */
+  --color-border: rgba(255, 255, 255, 0.08);
 }
 
 html,
@@ -112,7 +152,293 @@ img {
   border-radius: var(--radius-button);
 }
 
-/* Utility Classes */
+/* ── Theme transition (smooth color changes) ───────────────────────────────── */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
+/* Exception: don't slow down animations */
+[class*="spinner"],
+[class*="skeleton"],
+[class*="pulse"],
+[class*="shimmer"] {
+  transition: none !important;
+}
+
+/* ── Dark mode overrides for hardcoded colors ──────────────────────────────── */
+[data-theme="dark"] body {
+  color-scheme: dark;
+}
+
+/* ── Hardcoded light border colors ────────────────────────────────────────── */
+[data-theme="dark"] [style*="border-bottom: 1px solid #F0F1F3"],
+[data-theme="dark"] [style*="border: 1px solid #F0F1F3"],
+[data-theme="dark"] [style*="border: 1.5px solid #F0F1F3"],
+[data-theme="dark"] [style*="border: 2px solid #F0F1F3"],
+[data-theme="dark"] [style*="border-color: #F0F1F3"] {
+  border-color: var(--color-border) !important;
+}
+
+/* ── Table: header + row borders + hover ──────────────────────────────────── */
+[data-theme="dark"] table thead tr,
+[data-theme="dark"] .table thead tr {
+  border-bottom-color: var(--color-border) !important;
+}
+
+[data-theme="dark"] table th,
+[data-theme="dark"] .table th {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-bottom-color: var(--color-border) !important;
+}
+
+[data-theme="dark"] table td,
+[data-theme="dark"] .table td {
+  border-bottom-color: var(--color-border) !important;
+}
+
+[data-theme="dark"] table tbody tr:hover td,
+[data-theme="dark"] table tr:hover td,
+[data-theme="dark"] .table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* ── Hardcoded white/near-white backgrounds ───────────────────────────────── */
+/* #FAFAFA, #FAFABFF, white, #F9FAFB — used in table headers, inputs, buttons */
+[data-theme="dark"] [style*="background: #FAFBFF"],
+[data-theme="dark"] [style*="background:#FAFBFF"] {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* ── Input / select / textarea ────────────────────────────────────────────── */
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: var(--color-text) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color-scheme: dark;
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] select:focus {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: var(--color-primary) !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--color-subtext) !important;
+  opacity: 1;
+}
+
+/* ── #F3F4F6 — used as pill/chip/cancel-btn/tab background ───────────────── */
+[data-theme="dark"] .roleTabs,
+[data-theme="dark"] [class*="roleTabs"] {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+[data-theme="dark"] [class*="tabBtnActive"] {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: var(--color-heading) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Cancel / secondary buttons with #F3F4F6 bg */
+[data-theme="dark"] [class*="btnCancel"],
+[data-theme="dark"] [class*="btnSecondary"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--color-text) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] [class*="btnCancel"]:hover,
+[data-theme="dark"] [class*="btnSecondary"]:hover {
+  background: rgba(255, 255, 255, 0.13) !important;
+  color: var(--color-heading) !important;
+}
+
+/* iconBtn hover (#F3F4F6) */
+[data-theme="dark"] [class*="iconBtn"]:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ── Pagination buttons (white bg + #E5E7EB border) ─────────────────────── */
+[data-theme="dark"] [class*="pageBtn"] {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: var(--color-text) !important;
+}
+
+[data-theme="dark"] [class*="pageBtn"]:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* ── Admin: search input focused (white bg) ───────────────────────────────── */
+[data-theme="dark"] [class*="searchInput"]:focus {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── Role badges: hardcoded light pastel ─────────────────────────────────── */
+/* Admin badge: #E1E8FF / #4A7AFA */
+[data-theme="dark"] [class*="badgeAdmin"] {
+  background: rgba(74, 122, 250, 0.2) !important;
+  color: #93B4FF !important;
+}
+
+/* Teacher badge: #FDE68A / #B45309 */
+[data-theme="dark"] [class*="badgeTeacher"] {
+  background: rgba(180, 83, 9, 0.25) !important;
+  color: #FCD34D !important;
+}
+
+/* Student badge: #D1F0D9 / #198754 → use existing success var */
+[data-theme="dark"] [class*="badgeStudent"] {
+  background: var(--color-success-bg) !important;
+  color: var(--color-success-text) !important;
+}
+
+/* ── Attendance status badge light-mode pastels ───────────────────────────── */
+/* badgeSakit: #EFF6FF / #2563EB */
+[data-theme="dark"] [class*="badgeSakit"],
+[data-theme="dark"] [class*="cardSakit"],
+[data-theme="dark"] [class*="recapSakit"] {
+  background: rgba(37, 99, 235, 0.2) !important;
+  color: #93C5FD !important;
+}
+
+/* badgeIzin: #FFF7ED / #EA580C */
+[data-theme="dark"] [class*="badgeIzin"],
+[data-theme="dark"] [class*="cardIzin"],
+[data-theme="dark"] [class*="recapIzin"] {
+  background: rgba(234, 88, 12, 0.2) !important;
+  color: #FB923C !important;
+}
+
+/* ── Attendance form dropdowns and notes ─────────────────────────────────── */
+[data-theme="dark"] [class*="statusSelect"],
+[data-theme="dark"] [class*="noteInput"] {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: var(--color-text) !important;
+}
+
+/* Save button in attendance table rows */
+[data-theme="dark"] [class*="btnSave"] {
+  background: rgba(120, 163, 255, 0.15) !important;
+  color: var(--color-primary) !important;
+}
+
+[data-theme="dark"] [class*="btnSave"]:hover {
+  background: rgba(120, 163, 255, 0.25) !important;
+}
+
+/* ── Score / grade colors ─────────────────────────────────────────────────── */
+[data-theme="dark"] [style*="background: #FFF3CD"],
+[data-theme="dark"] [class*="scoreOrange"] {
+  background: rgba(133, 100, 4, 0.25) !important;
+  color: #FCD34D !important;
+}
+
+/* ── Subject chip backgrounds ─────────────────────────────────────────────── */
+[data-theme="dark"] [class*="subjectChip"] {
+  background: rgba(120, 163, 255, 0.15) !important;
+  color: var(--color-primary) !important;
+}
+
+/* ── Dropdown menu dropdown item hover ────────────────────────────────────── */
+[data-theme="dark"] [class*="dropdownItem"]:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+/* ── Student / teacher misc task borders ─────────────────────────────────── */
+[data-theme="dark"] [style*="border: 1.5px solid #F0F1F3"],
+[data-theme="dark"] [style*="border: 2px solid #F0F1F3"] {
+  border-color: var(--color-border) !important;
+}
+
+/* ── Skeleton shimmer in dark ─────────────────────────────────────────────── */
+[data-theme="dark"] [class*="skeleton"] {
+  background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.06) 75%) !important;
+  background-size: 200% 100% !important;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* ── Manual badge (attendance) ─────────────────────────────────────────────── */
+[data-theme="dark"] [class*="manualBadge"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--color-subtext) !important;
+}
+
+/* ── Modals with hardcoded backgrounds ─────────────────────────────────────── */
+[data-theme="dark"] [class*="modal"],
+[data-theme="dark"] [class*="modalOverlay"] > div {
+  background: var(--bg-card) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* ── Status indicator (check-in time etc) ─────────────────────────────────── */
+[data-theme="dark"] [class*="checkInTime"] {
+  color: var(--color-success-text) !important;
+}
+
+/* ── Login page input field ────────────────────────────────────────────────── */
+[data-theme="dark"] [class*="inputField"] {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] [class*="inputField"]:focus {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── Login footer border ───────────────────────────────────────────────────── */
+[data-theme="dark"] [class*="loginFooter"] {
+  border-top-color: var(--color-border) !important;
+}
+
+/* ── FAFAFA — table header/hover backgrounds (admin/teacher tables) ──────── */
+[data-theme="dark"] .table th,
+[data-theme="dark"] table th {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+[data-theme="dark"] .table tr:hover td,
+[data-theme="dark"] table tr:hover td {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* ── white — input:focus background used in admin/login ──────────────────── */
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── FDE68A teacher badge ──────────────────────────────────────── */
+[data-theme="dark"] [class*="badgeTeacher"] {
+  background: rgba(251, 191, 36, 0.15) !important;
+  color: #FCD34D !important;
+}
+
+/* ── D1D5DB hover border (pagination) ──────────────────────────────────────── */
+[data-theme="dark"] [class*="pageBtn"]:hover {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* ── #F0F0F0 login footer border (harder to match via [style]) ──────────── */
+[data-theme="dark"] [class*="loginCard"] {
+  border-color: var(--color-border) !important;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

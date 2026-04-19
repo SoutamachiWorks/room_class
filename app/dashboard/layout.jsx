@@ -1,8 +1,9 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import ThemeToggle from '@/components/ThemeToggle';
 import styles from './dashboard.module.css';
 
 // Navigation config per role
@@ -14,8 +15,20 @@ const navConfig = {
         title: 'Menu Utama',
         links: [
           {
-            label: 'Manajemen Akun',
+            label: 'Dashboard',
             href: '/dashboard/admin',
+            icon: (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+              </svg>
+            ),
+          },
+          {
+            label: 'Semua Pengguna',
+            href: '/dashboard/admin/users',
             icon: (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -127,6 +140,17 @@ const navConfig = {
               </svg>
             ),
           },
+          {
+            label: 'Absensi',
+            href: '/dashboard/teacher/attendance',
+            icon: (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <polyline points="16 11 18 13 22 9" />
+              </svg>
+            ),
+          },
         ],
       },
     ],
@@ -181,6 +205,19 @@ const navConfig = {
               </svg>
             ),
           },
+          {
+            label: 'Absensi',
+            href: '/dashboard/student/attendance',
+            icon: (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+                <path d="M9 16l2 2 4-4" />
+              </svg>
+            ),
+          },
         ],
       },
     ],
@@ -192,6 +229,18 @@ export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -263,17 +312,6 @@ export default function DashboardLayout({ children }) {
             </div>
           ))}
         </nav>
-
-        <div className={styles.sidebarFooter}>
-          <button className={styles.logoutBtn} onClick={handleLogout}>
-            <svg className={styles.navIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            Keluar
-          </button>
-        </div>
       </aside>
 
       {/* Main Area */}
@@ -285,7 +323,42 @@ export default function DashboardLayout({ children }) {
             <span className={styles.greetingName}>{user?.fullName}</span>
           </div>
           <div className={styles.topBarRight}>
+            <ThemeToggle />
             <span className={styles.roleBadge}>{nav.label}</span>
+            <div className={styles.accountMenu} ref={dropdownRef}>
+              <button
+                type="button"
+                className={styles.topBarAvatar}
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                title="Menu Akun"
+              >
+                {user?.fullName?.charAt(0)?.toUpperCase() || '?'}
+              </button>
+
+              {isDropdownOpen && (
+                <div className={styles.dropdownMenu}>
+                  <Link
+                    href={`/dashboard/${user?.role}/account`}
+                    className={styles.dropdownItem}
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.dropdownIcon}>
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    Akun Saya
+                  </Link>
+                  <button className={`${styles.dropdownItem} ${styles.dropdownLogout}`} onClick={handleLogout}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.dropdownIcon}>
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    Keluar
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

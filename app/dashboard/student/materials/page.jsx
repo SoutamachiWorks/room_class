@@ -60,32 +60,32 @@ export default function StudentMaterialsPage() {
                    key={idx} 
                    onClick={() => setSelectedSubject(subjectName)}
                    style={{ 
-                     background: 'white', 
+                     background: 'var(--bg-card)', 
                      borderRadius: '16px', 
-                     border: '1px solid #E2E8F0',
+                     border: '1px solid var(--color-border)',
                      overflow: 'hidden',
                      cursor: 'pointer',
                      transition: 'all 0.2s ease',
-                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                     boxShadow: 'var(--shadow-card)'
                    }}
                    onMouseEnter={e => {
                       e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)';
+                      e.currentTarget.style.boxShadow = 'var(--shadow-card-hover)';
                    }}
                    onMouseLeave={e => {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                      e.currentTarget.style.boxShadow = 'var(--shadow-card)';
                    }}
                  >
                    <div style={{ height: '120px', background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
                      <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 48, height: 48, opacity: 0.8 }}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                    </div>
                    <div style={{ padding: '20px' }}>
-                     <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: '#1E293B', margin: '0 0 8px 0', lineHeight: 1.3 }}>{subjectName}</h3>
-                     <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748B', display: 'block', marginBottom: '16px' }}>Kelas: <span style={{ color: '#3B82F6' }}>{classCode}</span></span>
-                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #F1F5F9', paddingTop: '16px' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94A3B8' }}>{groupItems.length} Materi Tersedia</span>
-                        <div style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '6px 16px', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 700 }}>Akses</div>
+                     <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--color-heading)', margin: '0 0 8px 0', lineHeight: 1.3 }}>{subjectName}</h3>
+                     <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-subtext)', display: 'block', marginBottom: '16px' }}>Kelas: <span style={{ color: 'var(--color-primary)' }}>{classCode}</span></span>
+                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-subtext)' }}>{groupItems.length} Materi Tersedia</span>
+                        <div style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '6px 16px', borderRadius: '6px', fontSize: '0.8125rem', fontWeight: 700 }}>Akses</div>
                      </div>
                    </div>
                  </div>
@@ -95,17 +95,17 @@ export default function StudentMaterialsPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Header Subject Details */}
-            <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #E2E8F0', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--color-border)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                <button 
                   onClick={() => setSelectedSubject(null)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem', padding: 0 }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: 'var(--color-subtext)', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem', padding: 0 }}
                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
                   Kembali ke Daftar Mapel
                </button>
                <div>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1E293B', margin: '0 0 4px 0' }}>{selectedSubject}</h2>
-                  <span style={{ fontSize: '0.875rem', color: '#64748B' }}>Daftar Modul & Materi Referensi Aktif</span>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-heading)', margin: '0 0 4px 0' }}>{selectedSubject}</h2>
+                  <span style={{ fontSize: '0.875rem', color: 'var(--color-subtext)' }}>Daftar Modul & Materi Referensi Aktif</span>
                </div>
             </div>
 
@@ -125,19 +125,19 @@ export default function StudentMaterialsPage() {
                                  onClick={() => setExpandedMaterialId(mat._id)}
                                  style={{
                                     padding: '16px',
-                                    background: isSelected ? 'linear-gradient(to right, #EFF6FF, #ffffff)' : 'white',
-                                    border: isSelected ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
-                                    borderLeft: isSelected ? '4px solid #3B82F6' : '1px solid #E2E8F0',
+                                    background: isSelected ? 'var(--color-primary-light)' : 'var(--bg-card)',
+                                    border: isSelected ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+                                    borderLeft: isSelected ? '4px solid var(--color-primary)' : '1px solid var(--color-border)',
                                     borderRadius: '8px',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s ease',
-                                    boxShadow: isSelected ? '0 2px 4px rgba(59, 130, 246, 0.05)' : 'none',
+                                    boxShadow: isSelected ? '0 2px 4px rgba(120, 163, 255, 0.15)' : 'none',
                                  }}
                               >
-                                 <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: isSelected ? '#1E40AF' : '#334155', marginBottom: '6px' }}>
+                                 <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: isSelected ? 'var(--color-primary)' : 'var(--color-heading)', marginBottom: '6px' }}>
                                     {mat.title || 'Materi Pembelajaran'}
                                  </div>
-                                 <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 500 }}>
+                                 <div style={{ fontSize: '0.75rem', color: 'var(--color-subtext)', fontWeight: 500 }}>
                                     {new Date(mat.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                                  </div>
                               </div>
@@ -146,23 +146,23 @@ export default function StudentMaterialsPage() {
                      </div>
 
                      {/* Right Pane: Material Details */}
-                     <div style={{ flex: 1, background: 'white', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.02)' }}>
+                     <div style={{ flex: 1, background: 'var(--bg-card)', border: '1px solid var(--color-border)', borderRadius: '16px', padding: '32px', boxShadow: 'var(--shadow-card)' }}>
                         {selectedMat ? (
                            <>
-                              <div style={{ fontSize: '0.8125rem', color: '#64748B', fontWeight: 600, marginBottom: '12px', display: 'inline-block', background: '#F8FAFC', padding: '6px 12px', borderRadius: '6px', border: '1px solid #F1F5F9' }}>
+                              <div style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)', fontWeight: 600, marginBottom: '12px', display: 'inline-block', background: 'var(--color-primary-light)', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
                                  Diunggah pada: {new Date(selectedMat.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                               </div>
-                              <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0F172A', marginBottom: '24px', lineHeight: 1.3 }}>
+                              <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-heading)', marginBottom: '24px', lineHeight: 1.3 }}>
                                  {selectedMat.title || 'Materi Pembelajaran'}
                               </h2>
                               
-                              <div style={{ fontSize: '1rem', color: '#334155', whiteSpace: 'pre-wrap', lineHeight: 1.8, marginBottom: '40px' }}>
+                              <div style={{ fontSize: '1rem', color: 'var(--color-text)', whiteSpace: 'pre-wrap', lineHeight: 1.8, marginBottom: '40px' }}>
                                  {selectedMat.text}
                               </div>
 
                               {selectedMat.files && selectedMat.files.length > 0 && (
-                                 <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '24px' }}>
-                                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#1E293B', marginBottom: '16px' }}>
+                                 <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '24px' }}>
+                                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-heading)', marginBottom: '16px' }}>
                                        Lampiran Berkas ({selectedMat.files.length})
                                     </h3>
                                     <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
@@ -176,17 +176,17 @@ export default function StudentMaterialsPage() {
                                                 alignItems: 'center',
                                                 gap: '8px',
                                                 padding: '12px 20px',
-                                                background: '#EFF6FF',
+                                                background: 'var(--color-primary-light)',
                                                 borderRadius: '8px',
                                                 fontSize: '0.875rem',
                                                 fontWeight: 600,
-                                                color: '#2563EB',
+                                                color: 'var(--color-primary)',
                                                 textDecoration: 'none',
-                                                border: '1px solid #BFDBFE',
+                                                border: '1px solid var(--color-border)',
                                                 transition: 'all 0.2s',
                                              }}
-                                             onMouseEnter={e => { e.currentTarget.style.background = '#DBEAFE'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                                             onMouseLeave={e => { e.currentTarget.style.background = '#EFF6FF'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                                             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(120,163,255,0.2)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                                             onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-primary-light)'; e.currentTarget.style.transform = 'translateY(0)'; }}
                                           >
                                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
                                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>

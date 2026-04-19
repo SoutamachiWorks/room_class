@@ -256,7 +256,7 @@ export default function MaterialsPage() {
                       </div>
                     </td>
                     <td>
-                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#1E293B' }}>{mat.title || 'Tanpa Judul'}</div>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-heading)' }}>{mat.title || 'Tanpa Judul'}</div>
                     </td>
                     <td>
                       <div style={{ fontSize: '0.8125rem', whiteSpace: 'pre-wrap', maxHeight: '60px', overflowY: 'auto', marginBottom: '8px' }}>
@@ -264,11 +264,11 @@ export default function MaterialsPage() {
                       </div>
                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                           {(mat.files || []).map((f, i) => (
-                             <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', padding: '2px 6px', background: '#F3F4F6', borderRadius: '4px', fontSize: '0.6875rem', color: '#4B5563', textDecoration: 'none', border: '1px solid #E5E7EB' }}>
+                             <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', padding: '2px 6px', background: 'var(--color-primary-light)', borderRadius: '4px', fontSize: '0.6875rem', color: 'var(--color-primary)', textDecoration: 'none', border: '1px solid var(--color-border)' }}>
                                 📎 {f.originalName}
                              </a>
                           ))}
-                          {(!mat.files || mat.files.length === 0) && <span style={{fontSize: '0.75rem', color: '#9CA3AF'}}>-</span>}
+                          {(!mat.files || mat.files.length === 0) && <span style={{fontSize: '0.75rem', color: 'var(--color-subtext)'}}>-</span>}
                        </div>
                     </td>
                     <td style={{ textAlign: 'center' }}>
@@ -308,7 +308,7 @@ export default function MaterialsPage() {
                     className={styles.input} 
                     required 
                     disabled={!!selectedMaterial} // Block subject swapping safely natively maintaining sync
-                    style={selectedMaterial ? { background: '#F3F4F6', color: '#9CA3AF' } : { appearance: 'auto' }}
+                    style={selectedMaterial ? { background: 'rgba(255,255,255,0.05)', color: 'var(--color-subtext)' } : { appearance: 'auto' }}
                  >
                     <option value="" disabled>Pilih Subjek Anda...</option>
                     {teacherSubjects.map(sub => (
@@ -324,7 +324,7 @@ export default function MaterialsPage() {
                     value={formClassCode ? `Terkunci: Kelas [${formClassCode}]` : 'Harap Setel Subjek'} 
                     disabled 
                     className={styles.input}
-                    style={{ background: '#F3F4F6', fontWeight: 600, color: 'var(--color-primary)' }}
+                    style={{ background: 'var(--color-primary-light)', fontWeight: 600, color: 'var(--color-primary)' }}
                  />
               </div>
            </div>
@@ -373,14 +373,14 @@ export default function MaterialsPage() {
               <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                  
                  {retainedOldFiles.map((prevFl) => (
-                    <div key={prevFl.filename} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F0FDF4', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid #BBF7D0' }}>
+                    <div key={prevFl.filename} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(16, 185, 129, 0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                        <span>📎 {prevFl.originalName} (Lawas)</span>
                        <button type="button" onClick={() => removeRetainedFile(prevFl.filename)} style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Tarik/Hapus Disk</button>
                     </div>
                  ))}
 
                  {attachedFiles.map((fl, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#EFF6FF', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid #BFDBFE' }}>
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(120,163,255,0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid rgba(120,163,255,0.3)' }}>
                        <span>📄 {fl.name} (Baru Disematkan)</span>
                        <button type="button" onClick={() => removeAttachedFile(idx)} style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Batalkan</button>
                     </div>

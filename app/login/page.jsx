@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import ThemeToggle from '@/components/ThemeToggle';
 import styles from './login.module.css';
 
 export default function LoginPage() {
@@ -42,6 +43,9 @@ export default function LoginPage() {
 
   return (
     <div className={styles.loginWrapper}>
+      <div style={{ position: 'absolute', top: 24, right: 24, zIndex: 10 }}>
+        <ThemeToggle />
+      </div>
       <div className={styles.loginCard}>
         {/* Logo Section */}
         <div className={styles.logoSection}>

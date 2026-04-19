@@ -26,7 +26,7 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
 
   return (
     <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+      <div className={`${styles.modal} ${styles.confirmModal}`} onClick={(e) => e.stopPropagation()}>
         <div className={`${styles.confirmIcon} ${styles.confirmIconDanger}`}>
           <svg
             xmlns="http://www.w3.org/2000/svg"

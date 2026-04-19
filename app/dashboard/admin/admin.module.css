@@ -56,7 +56,7 @@
 
 .filterSection {
   padding: 20px 24px;
-  border-bottom: 1px solid #F0F1F3;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -84,8 +84,8 @@
   width: 100%;
   height: 42px;
   padding: 0 14px 0 40px;
-  background: #F9FAFB;
-  border: 1px solid #E5E7EB;
+  background: var(--bg-app);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-button);
   font-size: 0.875rem;
   color: var(--color-text);
@@ -95,13 +95,13 @@
 
 .searchInput:focus {
   border-color: var(--color-primary);
-  background: white;
+  background: var(--bg-card);
   box-shadow: 0 0 0 3px rgba(120, 163, 255, 0.1);
 }
 
 .roleTabs {
   display: flex;
-  background: #F3F4F6;
+  background: var(--bg-app);
   padding: 4px;
   border-radius: var(--radius-button);
 }
@@ -120,10 +120,9 @@
 }
 
 .tabBtnActive {
-  composes: tabBtn;
-  background: white;
+  background: var(--bg-card);
   color: var(--color-heading);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Table */
@@ -144,15 +143,15 @@
   text-transform: uppercase;
   color: var(--color-subtext);
   letter-spacing: 0.05em;
-  background: #FAFAFA;
-  border-bottom: 1px solid #F0F1F3;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .table td {
   padding: 16px 24px;
   font-size: 0.875rem;
   color: var(--color-text);
-  border-bottom: 1px solid #F0F1F3;
+  border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
 }
 
@@ -161,7 +160,7 @@
 }
 
 .table tr:hover td {
-  background: #FAFAFA;
+  background: var(--bg-app);
 }
 
 /* Cell content */
@@ -231,7 +230,7 @@
 }
 
 .iconBtn:hover {
-  background: #F3F4F6;
+  background: var(--bg-app);
   color: var(--color-heading);
 }
 
@@ -246,7 +245,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid #F0F1F3;
+  border-top: 1px solid var(--color-border);
 }
 
 .pageInfo {
@@ -262,16 +261,16 @@
 .pageBtn {
   padding: 6px 12px;
   border-radius: 6px;
-  border: 1px solid #E5E7EB;
-  background: white;
+  border: 1px solid var(--color-border);
+  background: var(--bg-card);
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--color-text);
 }
 
 .pageBtn:hover:not(:disabled) {
-  background: #F9FAFB;
-  border-color: #D1D5DB;
+  background: var(--bg-app);
+  border-color: rgba(255,255,255,0.2);
 }
 
 .pageBtn:disabled {
@@ -314,9 +313,9 @@
   width: 100%;
   height: 44px;
   padding: 0 14px;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-input);
-  background: #F9FAFB;
+  background: var(--bg-app);
   font-size: 0.9375rem;
   color: var(--color-text);
   outline: none;
@@ -325,7 +324,7 @@
 
 .input:focus {
   border-color: var(--color-primary);
-  background: white;
+  background: var(--bg-card);
   box-shadow: 0 0 0 3px rgba(120, 163, 255, 0.1);
 }
 
@@ -352,11 +351,12 @@
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-subtext);
-  background: #F3F4F6;
+  background: var(--bg-app);
+  border: 1px solid var(--color-border);
 }
 
 .btnCancel:hover {
-  background: #E5E7EB;
+  background: var(--bg-card);
   color: var(--color-heading);
 }
 

@@ -64,11 +64,11 @@ export default function ActivityLogsPage() {
         {/* Filters */}
         <div className={styles.filterSection}>
           <div className={styles.roleTabs}>
-            <button className={actionFilter === '' ? styles.tabBtnActive : styles.tabBtn} onClick={() => { setActionFilter(''); setPage(1); }}>Semua Aksi</button>
-            <button className={actionFilter === 'create' ? styles.tabBtnActive : styles.tabBtn} onClick={() => { setActionFilter('create'); setPage(1); }}>Create</button>
-            <button className={actionFilter === 'update' ? styles.tabBtnActive : styles.tabBtn} onClick={() => { setActionFilter('update'); setPage(1); }}>Update</button>
-            <button className={actionFilter === 'delete' ? styles.tabBtnActive : styles.tabBtn} onClick={() => { setActionFilter('delete'); setPage(1); }}>Delete</button>
-            <button className={actionFilter === 'status_change' ? styles.tabBtnActive : styles.tabBtn} onClick={() => { setActionFilter('status_change'); setPage(1); }}>Status Change</button>
+            <button className={`${styles.tabBtn} ${actionFilter === '' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter(''); setPage(1); }}>Semua Aksi</button>
+            <button className={`${styles.tabBtn} ${actionFilter === 'create' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter('create'); setPage(1); }}>Create</button>
+            <button className={`${styles.tabBtn} ${actionFilter === 'update' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter('update'); setPage(1); }}>Update</button>
+            <button className={`${styles.tabBtn} ${actionFilter === 'delete' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter('delete'); setPage(1); }}>Delete</button>
+            <button className={`${styles.tabBtn} ${actionFilter === 'status_change' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter('status_change'); setPage(1); }}>Status Change</button>
           </div>
         </div>
 

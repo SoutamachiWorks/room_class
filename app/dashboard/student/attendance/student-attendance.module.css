@@ -1,0 +1,183 @@
+/* ── Student Attendance History Styles ───────────────────────────────────── */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin: 0;
+}
+
+.pageSubtitle {
+  font-size: 0.875rem;
+  color: var(--color-subtext);
+  margin: 4px 0 0;
+}
+
+.errorBanner {
+  padding: 12px 16px;
+  background: var(--color-failed-bg);
+  color: var(--color-failed-text);
+  border-radius: 12px;
+  font-size: 0.875rem;
+}
+
+/* ── Stats Row ────────────────────────────────────────────────────────────── */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 700px) { .statsGrid { grid-template-columns: repeat(2, 1fr); } }
+
+.statCard {
+  padding: 20px 24px;
+  border-radius: var(--radius-card);
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
+.statValue {
+  font-size: 2.2rem;
+  font-weight: 700;
+  display: block;
+}
+
+.statLabel {
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: block;
+  margin-top: 4px;
+}
+
+.cardHadir { background: var(--color-success-bg); }
+.cardHadir .statValue { color: var(--color-success-text); }
+.cardHadir .statLabel { color: var(--color-success-text); }
+
+.cardSakit { background: #EFF6FF; }
+.cardSakit .statValue { color: #2563EB; }
+.cardSakit .statLabel { color: #2563EB; }
+
+.cardIzin { background: #FFF7ED; }
+.cardIzin .statValue { color: #EA580C; }
+.cardIzin .statLabel { color: #EA580C; }
+
+.cardAlpha { background: var(--color-failed-bg); }
+.cardAlpha .statValue { color: var(--color-failed-text); }
+.cardAlpha .statLabel { color: var(--color-failed-text); }
+
+/* ── Card ─────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  padding: 28px 32px;
+  box-shadow: var(--shadow-card);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.cardTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin: 0;
+}
+
+.cardSubtitle {
+  font-size: 0.8rem;
+  color: var(--color-subtext);
+  margin: 4px 0 0;
+}
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+.tableWrapper { overflow-x: auto; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table thead tr { border-bottom: 2px solid var(--color-border); }
+.table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-subtext);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.table tbody tr { border-bottom: 1px solid var(--color-border); transition: background var(--transition-fast); }
+.table tbody tr:last-child { border-bottom: none; }
+.table tbody tr:hover { background: var(--bg-app); }
+.table td { padding: 12px 14px; vertical-align: middle; color: var(--color-text); }
+
+.subjectChip {
+  padding: 4px 10px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.manualBadge {
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--bg-app);
+  color: var(--color-subtext);
+  margin-left: 6px;
+}
+
+/* ── Status Badges ───────────────────────────────────────────────────────── */
+.badgeHadir  { padding: 4px 12px; background: var(--color-success-bg); color: var(--color-success-text); border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+.badgeSakit  { padding: 4px 12px; background: #EFF6FF; color: #2563EB; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+.badgeIzin   { padding: 4px 12px; background: #FFF7ED; color: #EA580C; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+.badgeAlpha  { padding: 4px 12px; background: var(--color-failed-bg); color: var(--color-failed-text); border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+
+/* ── Empty ───────────────────────────────────────────────────────────────── */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px;
+  color: var(--color-subtext);
+  font-size: 0.875rem;
+  gap: 12px;
+  text-align: center;
+}
+
+/* ── Skeleton ─────────────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-app) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+.skeletonList { display: flex; flex-direction: column; gap: 10px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }

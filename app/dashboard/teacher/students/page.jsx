@@ -7,18 +7,19 @@ export default function TeacherStudentsPage() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchStudents = async () => {
+    try {
+      const res = await fetch('/api/teacher/students');
+      const data = await res.json();
+      if (res.ok) setStudents(data.students || []);
+    } catch (err) {
+      console.error('Failed to fetch students', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchStudents = async () => {
-      try {
-        const res = await fetch('/api/teacher/students');
-        const data = await res.json();
-        if (res.ok) setStudents(data.students || []);
-      } catch (err) {
-        console.error('Failed to fetch students', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchStudents();
   }, []);
 

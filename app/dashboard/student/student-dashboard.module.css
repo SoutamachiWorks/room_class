@@ -1,0 +1,522 @@
+/* ── Student Dashboard Styles ─────────────────────────────────────────────── */
+
+/* ── Attendance Active Widget ─────────────────────────────────────────────── */
+.attendanceWidget {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1A1A2E 0%, #16213E 50%, #0F3460 100%);
+  border-radius: var(--radius-card);
+  padding: 28px 32px;
+  box-shadow: 0 12px 40px rgba(120, 163, 255, 0.25);
+}
+
+.attendancePulse {
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: rgba(120, 163, 255, 0.12);
+  animation: expandPulse 2s ease-in-out infinite;
+}
+
+@keyframes expandPulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.2); opacity: 0.2; }
+}
+
+.attendanceContent {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.attendanceInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.attendanceLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #6EE7B7;
+  text-transform: uppercase;
+}
+
+.attendanceLive::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6EE7B7;
+  animation: blink 1.2s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.attendanceSubject {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.attendanceTimer {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+.attendanceTimer strong {
+  color: #78A3FF;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.attendanceAction {
+  flex-shrink: 0;
+}
+
+.btnCheckIn {
+  padding: 14px 32px;
+  background: linear-gradient(135deg, #78A3FF, #5B8BF5);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: 0 8px 24px rgba(120, 163, 255, 0.4);
+  white-space: nowrap;
+}
+
+.btnCheckIn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 30px rgba(120, 163, 255, 0.5);
+}
+
+.btnCheckIn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.checkedInBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  background: rgba(110, 231, 183, 0.15);
+  border: 2px solid rgba(110, 231, 183, 0.4);
+  border-radius: var(--radius-button);
+  color: #6EE7B7;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Page Header ─────────────────────────────────────────────────────────── */
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin: 0;
+}
+
+.pageSubtitle {
+  font-size: 0.875rem;
+  color: var(--color-subtext);
+  margin: 4px 0 0;
+}
+
+.errorBanner {
+  padding: 12px 16px;
+  background: var(--color-failed-bg);
+  color: var(--color-failed-text);
+  border-radius: 12px;
+  font-size: 0.875rem;
+}
+
+/* ── Main Grid: Left + Right ─────────────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Card Widget ─────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  padding: 24px 28px;
+  box-shadow: var(--shadow-card);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.cardTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin: 0;
+}
+
+.cardSubtitle {
+  font-size: 0.78rem;
+  color: var(--color-subtext);
+  margin: 3px 0 0;
+}
+
+.cardAction {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.cardAction:hover { opacity: 0.7; }
+
+/* ── To-Do Task List ─────────────────────────────────────────────────────── */
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.taskItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: var(--bg-card);
+  text-decoration: none;
+  transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+
+.taskItem:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  transform: translateX(2px);
+}
+
+.taskUrgent {
+  border-color: rgba(220, 53, 69, 0.25);
+  background: rgba(253, 224, 221, 0.3);
+}
+
+.taskUrgent:hover {
+  border-color: var(--color-failed-text);
+  background: rgba(253, 224, 221, 0.5);
+  transform: translateX(2px);
+}
+
+.taskLeft {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.taskDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.dotBlue { background: var(--color-primary); }
+.dotRed  { background: var(--color-failed-text); }
+
+.taskTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-heading);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.taskMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.subjectTag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.deadlineText {
+  font-size: 0.72rem;
+  color: var(--color-subtext);
+}
+
+/* ── Exam List ───────────────────────────────────────────────────────────── */
+.examList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.examItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--bg-card);
+  text-decoration: none;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.examItem:hover {
+  border-color: #6EE7B7;
+  background: rgba(110, 231, 183, 0.07);
+}
+
+.examIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(110, 231, 183, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.examIcon svg {
+  width: 18px;
+  height: 18px;
+  stroke: #059669;
+}
+
+.examBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.examTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.examMeta {
+  font-size: 0.75rem;
+  color: var(--color-subtext);
+  margin-top: 2px;
+}
+
+/* ── Grade List ──────────────────────────────────────────────────────────── */
+.gradeList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gradeItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+}
+
+.gradeBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.gradeTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gradeMeta {
+  font-size: 0.75rem;
+  color: var(--color-subtext);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.lateBadge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: var(--color-failed-bg);
+  color: var(--color-failed-text);
+}
+
+.scoreCircle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.scoreGreen  { background: var(--color-success-bg); color: var(--color-success-text); }
+.scoreOrange { background: rgba(245, 158, 11, 0.2); color: #F59E0B; }
+.scoreRed    { background: var(--color-failed-bg);  color: var(--color-failed-text); }
+
+/* ── Badges ──────────────────────────────────────────────────────────────── */
+.badgeGreen {
+  padding: 4px 10px;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badgeRed {
+  padding: 4px 10px;
+  background: var(--color-failed-bg);
+  color: var(--color-failed-text);
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badgeOrange {
+  padding: 4px 10px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #F59E0B;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badgeBlue {
+  padding: 4px 10px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badgeGray {
+  padding: 4px 10px;
+  background: var(--color-process-bg);
+  color: var(--color-process-text);
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Empty State ─────────────────────────────────────────────────────────── */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 24px;
+  color: var(--color-subtext);
+  font-size: 0.875rem;
+  gap: 10px;
+  text-align: center;
+}
+
+/* ── Skeleton ─────────────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-app) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeletonList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
