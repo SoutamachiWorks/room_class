@@ -102,8 +102,8 @@ export default function TeacherSubmissionPage({ params }) {
         </div>
       </div>
 
-      <div className={styles.contentCard} style={{ padding: '24px' }}>
-        <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', background: 'var(--bg-card)', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', gap: '16px', background: 'transparent' }}>
             <div style={{ flex: 1 }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-subtext)', display: 'block', marginBottom: '8px' }}>Aturan Batas Waktu Terkunci:</span>
                 <span className={`${styles.badge} ${assignmentMeta?.deadline ? styles.statusInactive : styles.statusActive}`}>
@@ -117,7 +117,9 @@ export default function TeacherSubmissionPage({ params }) {
                 </strong>
             </div>
         </div>
+      </div>
 
+      <div className={styles.contentCard}>
         <div className={styles.tableContainer}>
           {loading ? (
              <div className={styles.loadingBox}>
@@ -143,11 +145,11 @@ export default function TeacherSubmissionPage({ params }) {
 
                   return (
                       <tr key={student._id}>
-                        <td>
+                        <td data-label="Siswa">
                           <div style={{ fontWeight: 600, color: 'var(--color-text)' }}>{student.name || 'Nama Tidak Tersedia'}</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', marginTop: '4px' }}>[{student.studentId}]</div>
                         </td>
-                        <td>
+                        <td data-label="Jawaban / File">
                           {sub ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                  {sub.text && (
@@ -164,7 +166,7 @@ export default function TeacherSubmissionPage({ params }) {
                                                 onClick={() => handleDownloadAllSelected(sub.files)} 
                                                 style={{ fontSize: '0.75rem', padding: '4px 10px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-primary)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
                                              >
-                                                Unduh Semua Lampiran 👇
+                                                Unduh Semua 👇
                                              </button>
                                         </div>
                                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -179,13 +181,13 @@ export default function TeacherSubmissionPage({ params }) {
                                  )}
                               </div>
                           ) : (
-                             <span style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)', fontStyle: 'italic' }}>Belum Mengerjakan Penugasan</span>
+                             <span style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)', fontStyle: 'italic' }}>Belum Mengerjakan</span>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Keterangan">
                            {sub ? (
                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Terkumpul Secara Fisik:</span>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Dikumpulkan:</span>
                                   <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>{new Date(sub.submittedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                                   {sub.isLate && (
                                       <span style={{ padding: '4px 8px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '4px', fontSize: '0.6875rem', fontWeight: 600, display: 'inline-block', marginTop: '4px', alignSelf: 'flex-start' }}>Terlambat</span>
@@ -195,7 +197,7 @@ export default function TeacherSubmissionPage({ params }) {
                                <span>-</span>
                            )}
                         </td>
-                        <td style={{ textAlign: 'center' }}>
+                        <td data-label="Nilai">
                             {sub ? (
                                 isGrading ? (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
@@ -208,8 +210,8 @@ export default function TeacherSubmissionPage({ params }) {
                                             autoFocus
                                         />
                                         <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                                            <button onClick={() => setGradingStudentId(null)} disabled={gradeLoading} style={{ flex: 1, padding: '6px', background: 'var(--bg-app)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>Batal</button>
-                                            <button onClick={() => submitGrade(student.studentId)} disabled={gradeLoading} style={{ flex: 1, padding: '6px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>Simpan</button>
+                                            <button onClick={() => setGradingStudentId(null)} disabled={gradeLoading} style={{ flex: 1, padding: '6px', background: 'var(--bg-app)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', minHeight: '44px' }}>Batal</button>
+                                            <button onClick={() => submitGrade(student.studentId)} disabled={gradeLoading} style={{ flex: 1, padding: '6px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', minHeight: '44px' }}>Simpan</button>
                                         </div>
                                     </div>
                                 ) : (
@@ -219,18 +221,18 @@ export default function TeacherSubmissionPage({ params }) {
                                                 {sub.score} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-success)' }}>/ 100</span>
                                             </div>
                                         ) : (
-                                            <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)', fontStyle: 'italic' }}>Belum Ditelaah</span>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)', fontStyle: 'italic' }}>Belum Dinilai</span>
                                         )}
                                         <button 
                                             onClick={() => { setGradingStudentId(student.studentId); setGradeInput(sub.score || ''); }}
-                                            style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                                            style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', minHeight: '44px' }}
                                         >
                                             Ubah / Setel Nilai
                                         </button>
                                     </div>
                                 )
                             ) : (
-                                <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>Terkunci (Belum Ada File)</span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>-</span>
                             )}
                         </td>
                       </tr>

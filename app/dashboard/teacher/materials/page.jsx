@@ -245,20 +245,20 @@ export default function MaterialsPage() {
               <tbody>
                 {materials.map((mat) => (
                   <tr key={mat._id}>
-                    <td>
+                    <td data-label="Tanggal">
                       <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{new Date(mat.createdAt).toLocaleDateString('id-ID')}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>{new Date(mat.createdAt).toLocaleTimeString('id-ID')}</div>
                     </td>
-                    <td>
+                    <td data-label="Mapel">
                       <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{mat.subjectDetails?.subjectName || 'Subjek Sinkronisasi Fail'}</div>
                       <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>
                         <span className={`${styles.badge} ${styles.badgeStudent}`}>{mat.subjectDetails?.classCode || 'NO-REF-CODE'}</span>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Judul">
                       <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-heading)' }}>{mat.title || 'Tanpa Judul'}</div>
                     </td>
-                    <td>
+                    <td data-label="Deskripsi / Berkas">
                       <div style={{ fontSize: '0.8125rem', whiteSpace: 'pre-wrap', maxHeight: '60px', overflowY: 'auto', marginBottom: '8px' }}>
                         {mat.text}
                       </div>
@@ -271,7 +271,7 @@ export default function MaterialsPage() {
                         {(!mat.files || mat.files.length === 0) && <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>-</span>}
                       </div>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Aksi" style={{ textAlign: 'center' }}>
                       <div className={styles.actionBtns} style={{ justifyContent: 'center' }}>
                         <button className={styles.iconBtn} onClick={() => handleOpenForm(mat)}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>

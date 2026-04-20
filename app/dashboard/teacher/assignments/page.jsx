@@ -241,11 +241,11 @@ export default function AssignmentPage() {
               <tbody>
                 {assignments.map((asm) => (
                   <tr key={asm._id}>
-                    <td>
+                    <td data-label="Tanggal">
                       <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{new Date(asm.createdAt).toLocaleDateString('id-ID')}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>{new Date(asm.createdAt).toLocaleTimeString('id-ID')}</div>
                     </td>
-                    <td>
+                    <td data-label="Mapel / Kelas">
                       <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{asm.subjectDetails?.subjectName || 'Subjek FailSync'}</div>
                       <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>
                         <span className={`${styles.badge} ${styles.badgeStudent}`}>{asm.subjectDetails?.classCode || 'NO-REF'}</span>
@@ -254,22 +254,23 @@ export default function AssignmentPage() {
                         {asm.deadline ? `Batas Akhir: ${new Date(asm.deadline).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}` : 'Tidak Ada Batas Waktu'}
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Instruksi">
                       <div style={{ fontSize: '0.875rem', whiteSpace: 'pre-wrap', maxHeight: '80px', overflowY: 'auto' }}>
                         {asm.text}
                       </div>
                     </td>
-                    <td>
+                    <td data-label="File Lampiran">
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {(asm.files || []).map((f, i) => (
-                          <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', padding: '4px 8px', background: '#FEF3C7', borderRadius: '4px', fontSize: '0.6875rem', color: '#92400E', textDecoration: 'none', border: '1px solid #FDE68A' }}>
-                            📑 {f.originalName}
+                          <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 10px', background: '#FEF3C7', borderRadius: '6px', fontSize: '0.75rem', color: '#92400E', textDecoration: 'none', border: '1px solid #FDE68A', maxWidth: '200px' }} title={f.originalName}>
+                            <span style={{ flexShrink: 0 }}>📑</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.originalName}</span>
                           </a>
                         ))}
                         {(!asm.files || asm.files.length === 0) && <span style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>-</span>}
                       </div>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Aksi" style={{ textAlign: 'center' }}>
                       <div className={styles.actionBtns} style={{ justifyContent: 'center' }}>
                         <button
                           className={styles.iconBtn}

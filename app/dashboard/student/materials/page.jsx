@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import styles from '../../admin/admin.module.css';
+import localStyles from './student-materials.module.css';
 
 export default function StudentMaterialsPage() {
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [expandedMaterialId, setExpandedMaterialId] = useState(null);
+  const [isMobileDetailView, setIsMobileDetailView] = useState(false);
 
   const fetchMaterials = useCallback(async () => {
     setLoading(true);
@@ -32,10 +34,13 @@ export default function StudentMaterialsPage() {
         <h1 className={styles.pageTitle}>Materi Pelajaran</h1>
       </div>
 
-      <div className={styles.contentCard} style={{ padding: '24px' }}>
-        <p style={{ color: 'var(--color-subtext)', fontSize: '0.875rem', marginBottom: '24px' }}>
+      <div style={{ marginBottom: '24px' }}>
+        <p style={{ color: 'var(--color-subtext)', fontSize: '0.875rem' }}>
           Materi yang dipublikasikan oleh guru untuk kelas Anda. Klik file untuk mengunduh.
         </p>
+      </div>
+
+      <div>
 
         {loading ? (
           <div className={styles.loadingBox}>
@@ -58,7 +63,11 @@ export default function StudentMaterialsPage() {
                return (
                  <div 
                    key={idx} 
-                   onClick={() => setSelectedSubject(subjectName)}
+                   onClick={() => {
+                     setSelectedSubject(subjectName);
+                     setExpandedMaterialId(null);
+                     setIsMobileDetailView(false);
+                   }}
                    style={{ 
                      background: 'var(--bg-card)', 
                      borderRadius: '16px', 
@@ -97,7 +106,11 @@ export default function StudentMaterialsPage() {
             {/* Header Subject Details */}
             <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--color-border)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                <button 
-                  onClick={() => setSelectedSubject(null)}
+                  onClick={() => {
+                    setSelectedSubject(null);
+                    setExpandedMaterialId(null);
+                    setIsMobileDetailView(false);
+                  }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: 'var(--color-subtext)', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem', padding: 0 }}
                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
@@ -114,15 +127,18 @@ export default function StudentMaterialsPage() {
                const selectedMat = subjectMaterials.find(m => m._id === expandedMaterialId) || subjectMaterials[0];
 
                return (
-                  <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', minHeight: '500px' }}>
+                  <div className={`${localStyles.splitContainer} ${isMobileDetailView ? localStyles.detailActive : ''}`}>
                      {/* Left Sidebar: List of Material Titles */}
-                     <div style={{ width: '320px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                     <div className={localStyles.sidebar}>
                         {subjectMaterials.map(mat => {
                            const isSelected = selectedMat && selectedMat._id === mat._id;
                            return (
                               <div
                                  key={mat._id}
-                                 onClick={() => setExpandedMaterialId(mat._id)}
+                                 onClick={() => {
+                                    setExpandedMaterialId(mat._id);
+                                    setIsMobileDetailView(true);
+                                 }}
                                  style={{
                                     padding: '16px',
                                     background: isSelected ? 'var(--color-primary-light)' : 'var(--bg-card)',
@@ -146,9 +162,16 @@ export default function StudentMaterialsPage() {
                      </div>
 
                      {/* Right Pane: Material Details */}
-                     <div style={{ flex: 1, background: 'var(--bg-card)', border: '1px solid var(--color-border)', borderRadius: '16px', padding: '32px', boxShadow: 'var(--shadow-card)' }}>
+                     <div className={localStyles.contentPane}>
                         {selectedMat ? (
                            <>
+                              <div className={localStyles.mobileBackNav}>
+                                 <button onClick={() => setIsMobileDetailView(false)} className={localStyles.mobileBackBtn}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                                    Kembali ke Daftar Materi
+                                 </button>
+                              </div>
+
                               <div style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)', fontWeight: 600, marginBottom: '12px', display: 'inline-block', background: 'var(--color-primary-light)', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
                                  Diunggah pada: {new Date(selectedMat.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                               </div>
@@ -156,7 +179,7 @@ export default function StudentMaterialsPage() {
                                  {selectedMat.title || 'Materi Pembelajaran'}
                               </h2>
                               
-                              <div style={{ fontSize: '1rem', color: 'var(--color-text)', whiteSpace: 'pre-wrap', lineHeight: 1.8, marginBottom: '40px' }}>
+                              <div style={{ fontSize: '1rem', color: 'var(--color-text)', whiteSpace: 'pre-wrap', lineHeight: 1.8, marginBottom: '40px', wordBreak: 'break-word' }}>
                                  {selectedMat.text}
                               </div>
 
@@ -171,22 +194,7 @@ export default function StudentMaterialsPage() {
                                              key={i}
                                              href={f.url}
                                              download={f.originalName}
-                                             style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '8px',
-                                                padding: '12px 20px',
-                                                background: 'var(--color-primary-light)',
-                                                borderRadius: '8px',
-                                                fontSize: '0.875rem',
-                                                fontWeight: 600,
-                                                color: 'var(--color-primary)',
-                                                textDecoration: 'none',
-                                                border: '1px solid var(--color-border)',
-                                                transition: 'all 0.2s',
-                                             }}
-                                             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(120,163,255,0.2)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                                             onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-primary-light)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                                             className={localStyles.fileItem}
                                           >
                                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
                                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>

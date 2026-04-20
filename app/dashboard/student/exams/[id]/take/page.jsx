@@ -310,23 +310,42 @@ export default function TakeExamPage() {
 
   return (
     <>
+      {/* Sticky exam header with timer */}
       <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        background: 'var(--bg-card)',
+        borderBottom: '1px solid var(--color-border)',
+        padding: '14px 20px',
+        margin: '-28px -32px 24px -32px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '24px',
         flexWrap: 'wrap',
-        gap: '12px',
+        gap: '10px',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
       }}>
-        <div>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-heading)' }}>{examTitle}</h1>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)', marginTop: '4px' }}>
-            {questions.length} soal • Durasi Pengerjaan: {examDuration ? `${examDuration} Menit` : 'Tanpa Batas'} • Pelanggaran: {exitCount}/2
+        <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+          <h1 style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-heading)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{examTitle}</h1>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-subtext)', marginTop: '2px', margin: '2px 0 0' }}>
+            {questions.length} soal • Pelanggaran: {exitCount}/2
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
           {timeLeft !== null && (
-            <div style={{ padding: '6px 14px', background: timeLeft < 60 ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-app)', borderRadius: '8px', fontSize: '1rem', fontWeight: 700, color: timeLeft < 60 ? 'var(--color-danger)' : 'var(--color-primary)', border: `1px solid ${timeLeft < 60 ? 'rgba(239, 68, 68, 0.4)' : 'var(--color-border)'}` }}>
+            <div style={{
+              padding: '8px 16px',
+              background: timeLeft < 60 ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-app)',
+              borderRadius: '10px',
+              fontSize: '1.1rem',
+              fontWeight: 700,
+              color: timeLeft < 60 ? 'var(--color-danger)' : 'var(--color-primary)',
+              border: `1px solid ${timeLeft < 60 ? 'rgba(239, 68, 68, 0.4)' : 'var(--color-border)'}`,
+              fontVariantNumeric: 'tabular-nums',
+              minWidth: '80px',
+              textAlign: 'center',
+            }}>
               ⏱️ {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
             </div>
           )}
@@ -335,8 +354,8 @@ export default function TakeExamPage() {
               ⚠️ {exitCount} pelanggaran
             </div>
           )}
-          <button className={styles.btnPrimary} onClick={handleSubmit} disabled={submitting}>
-            {submitting ? 'Mengirim...' : 'Kumpulkan Jawaban'}
+          <button className={styles.btnPrimary} onClick={handleSubmit} disabled={submitting} style={{ minHeight: '44px' }}>
+            {submitting ? 'Mengirim...' : 'Kumpulkan'}
           </button>
         </div>
       </div>
@@ -345,7 +364,7 @@ export default function TakeExamPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {questions.map((q) => (
-          <div key={q.displayOrder} className={styles.contentCard} style={{ padding: '24px' }}>
+          <div key={q.displayOrder} className={styles.contentCard} style={{ padding: 'clamp(16px, 4vw, 24px)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
               <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary), #5B8BF5)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.875rem', flexShrink: 0 }}>
                 {q.displayOrder}
@@ -355,13 +374,33 @@ export default function TakeExamPage() {
 
             {q.multipleChoice && (
               <div style={{ marginBottom: q.essay || q.fileUpload ? '20px' : '0' }}>
-                <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '12px', lineHeight: 1.6 }}>{q.multipleChoice.questionText}</p>
+                <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '12px', lineHeight: 1.6, wordBreak: 'break-word' }}>{q.multipleChoice.questionText}</p>
+                {q.multipleChoice.imageUrl && (
+                  <img
+                    src={q.multipleChoice.imageUrl}
+                    alt="Gambar soal"
+                    style={{ maxWidth: '100%', height: 'auto', borderRadius: '12px', marginBottom: '12px', border: '1px solid var(--color-border)' }}
+                  />
+                )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {q.multipleChoice.options.map((opt, idx) => {
                     const isSelected = answers[q.displayOrder]?.mcAnswer === idx;
                     return (
-                      <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`, background: isSelected ? 'rgba(120, 163, 255, 0.15)' : 'var(--bg-app)', cursor: 'pointer', transition: 'all 0.15s', fontSize: '0.875rem' }}>
-                        <input type="radio" name={`mc-${q.displayOrder}`} checked={isSelected} onChange={() => updateAnswer(q.displayOrder, 'mcAnswer', idx)} style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px' }} />
+                      <label key={idx} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '14px 16px',
+                        borderRadius: '12px',
+                        border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                        background: isSelected ? 'rgba(120, 163, 255, 0.15)' : 'var(--bg-app)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                        fontSize: '0.875rem',
+                        minHeight: '44px',
+                        wordBreak: 'break-word',
+                      }}>
+                        <input type="radio" name={`mc-${q.displayOrder}`} checked={isSelected} onChange={() => updateAnswer(q.displayOrder, 'mcAnswer', idx)} style={{ accentColor: 'var(--color-primary)', width: '18px', height: '18px', flexShrink: 0 }} />
                         {opt}
                       </label>
                     );
@@ -372,14 +411,14 @@ export default function TakeExamPage() {
 
             {q.essay && (
               <div style={{ marginBottom: q.fileUpload ? '20px' : '0' }}>
-                <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '10px', lineHeight: 1.6 }}>{q.essay.questionText}</p>
-                <textarea className={styles.input} style={{ height: '120px', paddingTop: '12px', resize: 'vertical' }} placeholder="Tuliskan jawaban Anda di sini..." value={answers[q.displayOrder]?.essayAnswer || ''} onChange={(e) => updateAnswer(q.displayOrder, 'essayAnswer', e.target.value)} />
+                <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '10px', lineHeight: 1.6, wordBreak: 'break-word' }}>{q.essay.questionText}</p>
+                <textarea className={styles.input} style={{ height: '120px', paddingTop: '12px', resize: 'vertical', fontSize: '1rem' }} placeholder="Tuliskan jawaban Anda di sini..." value={answers[q.displayOrder]?.essayAnswer || ''} onChange={(e) => updateAnswer(q.displayOrder, 'essayAnswer', e.target.value)} />
               </div>
             )}
 
             {q.fileUpload && (
               <div>
-                <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '10px', lineHeight: 1.6 }}>{q.fileUpload.questionText}</p>
+                <p style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '10px', lineHeight: 1.6, wordBreak: 'break-word' }}>{q.fileUpload.questionText}</p>
                 <input type="file" multiple className={styles.input} style={{ paddingTop: '10px' }} onChange={(e) => updateFileAnswer(q.displayOrder, Array.from(e.target.files))} />
                 {fileAnswers[q.displayOrder] && fileAnswers[q.displayOrder].length > 0 && (
                   <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -395,7 +434,7 @@ export default function TakeExamPage() {
       </div>
 
       <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'center' }}>
-        <button className={styles.btnPrimary} style={{ padding: '14px 40px', fontSize: '0.9375rem' }} onClick={handleSubmit} disabled={submitting}>
+        <button className={styles.btnPrimary} style={{ padding: '14px 40px', fontSize: '0.9375rem', minHeight: '52px', width: '100%', maxWidth: '400px', justifyContent: 'center' }} onClick={handleSubmit} disabled={submitting}>
           {submitting ? 'Mengirim Jawaban...' : 'Kumpulkan Jawaban'}
         </button>
       </div>

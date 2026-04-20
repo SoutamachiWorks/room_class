@@ -251,7 +251,7 @@ export default function SubjectManagementPage() {
               <tbody>
                 {subjects.map((sub) => (
                   <tr key={sub._id}>
-                    <td>
+                    <td data-label="Mata Pelajaran">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                          <div className={styles.avatar} style={{ background: '#E1E8FF', color: '#4A7AFA', fontSize: '1rem', width: '42px', height: '42px' }}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
@@ -259,20 +259,20 @@ export default function SubjectManagementPage() {
                          <div style={{ fontWeight: 600, color: 'var(--color-heading)', fontSize: '0.9375rem' }}>{sub.subjectName}</div>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Guru Pengampu">
                       <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}>{sub.teacherName}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>ID Induk: {sub.teacherId}</div>
                     </td>
-                    <td>
+                    <td data-label="Kelas">
                        <span className={`${styles.badge} ${styles.badgeStudent}`}>{sub.classCode}</span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Aksi" style={{ textAlign: 'center' }}>
                        <div className={styles.actionBtns} style={{ justifyContent: 'center' }}>
-                          <button className={styles.iconBtn} onClick={() => handleOpenForm(sub)} aria-label="Mutasi Parameter">
+                          <button className={styles.iconBtn} onClick={() => handleOpenForm(sub)} aria-label="Edit">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                           </button>
                           
-                          <button className={`${styles.iconBtn} ${styles.iconBtnDanger}`} onClick={() => { setSelectedSubject(sub); setIsDeleteOpen(true); }} aria-label="Burn Data">
+                          <button className={`${styles.iconBtn} ${styles.iconBtnDanger}`} onClick={() => { setSelectedSubject(sub); setIsDeleteOpen(true); }} aria-label="Hapus">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                           </button>
                        </div>

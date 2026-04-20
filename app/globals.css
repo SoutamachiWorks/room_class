@@ -46,18 +46,18 @@
   --color-warning: #D97706;
 
   /* Border Radius */
-  --radius-container: 30px;
-  --radius-card: 24px;
-  --radius-button: 9999px;
+  --radius-container: 24px;
+  --radius-card: 16px;
+  --radius-button: 8px; /* Used by general buttons instead of full pill */
   --radius-circle: 50%;
-  --radius-input: 12px;
+  --radius-input: 10px;
 
   /* Borders */
-  --color-border: #F0F1F3;
+  --color-border: #EBF0F5;
 
   /* Shadows */
-  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.03);
-  --shadow-card-hover: 0 14px 40px rgba(0, 0, 0, 0.06);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.03);
+  --shadow-card-hover: 0 6px 16px rgba(0, 0, 0, 0.05);
 
   /* Spacing */
   --spacing-xs: 8px;

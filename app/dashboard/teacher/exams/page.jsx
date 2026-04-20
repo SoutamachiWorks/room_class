@@ -149,10 +149,10 @@ export default function ExamsPage() {
               <tbody>
                 {exams.map((exam) => (
                   <tr key={exam._id}>
-                    <td>
+                    <td data-label="Judul">
                       <div style={{ fontWeight: 600, color: 'var(--color-heading)' }}>{exam.title}</div>
                     </td>
-                    <td>
+                    <td data-label="Mapel">
                       <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
                         {exam.subjectDetails?.subjectName || '-'}
                       </div>
@@ -162,20 +162,20 @@ export default function ExamsPage() {
                         </span>
                       </div>
                     </td>
-                    <td style={{ textAlign: 'center', fontWeight: 600 }}>
+                    <td data-label="Soal" style={{ textAlign: 'center', fontWeight: 600 }}>
                       {exam.questions?.length || 0}
                     </td>
-                    <td style={{ textAlign: 'center', fontWeight: 600 }}>
+                    <td data-label="Acak" style={{ textAlign: 'center', fontWeight: 600 }}>
                       {exam.randomCount || exam.questions?.length || 0}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Status" style={{ textAlign: 'center' }}>
                       {exam.status === 'published' ? (
                         <span className={`${styles.badge} ${styles.statusActive}`}>Published</span>
                       ) : (
                         <span className={`${styles.badge} ${styles.statusInactive}`}>Draft</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Akses Nilai" style={{ textAlign: 'center' }}>
                       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                         <button
                           onClick={() => handleToggleVisibility(exam)}
@@ -197,12 +197,12 @@ export default function ExamsPage() {
                         </button>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Tanggal">
                       <div style={{ fontSize: '0.8125rem' }}>
                         {new Date(exam.createdAt).toLocaleDateString('id-ID')}
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Aksi">
                       <div className={styles.actionBtns} style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
                         {/* Monitor Results */}
                         <button

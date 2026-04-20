@@ -191,12 +191,12 @@ function StudentExamsContent() {
 
                   return (
                     <tr key={exam._id}>
-                      <td>
+                      <td data-label="Tanggal">
                         <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
                           {new Date(exam.createdAt).toLocaleDateString('id-ID')}
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Judul Ujian">
                         <div style={{ fontWeight: 700, color: 'var(--color-heading)' }}>{exam.title}</div>
                         {exam.deadline && (
                           <div style={{ fontSize: '0.75rem', marginTop: '4px', color: sessionStatus === 'expired' ? 'var(--color-danger)' : 'var(--color-subtext)', fontWeight: sessionStatus === 'expired' ? 600 : 400 }}>
@@ -204,7 +204,7 @@ function StudentExamsContent() {
                           </div>
                         )}
                       </td>
-                      <td>
+                      <td data-label="Mapel">
                         <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
                           {exam.subjectDetails?.subjectName || '-'}
                         </div>
@@ -214,16 +214,16 @@ function StudentExamsContent() {
                           </span>
                         </div>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
+                      <td data-label="Soal" style={{ textAlign: 'center' }}>
                         <span style={{ fontWeight: 600 }}>{exam.randomCount || exam.totalQuestions}</span>
                         <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}> soal</span>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
+                      <td data-label="Status" style={{ textAlign: 'center' }}>
                         <span className={badge.className} style={badge.style || {}}>
                           {badge.label}
                         </span>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
+                      <td data-label="Nilai / Aksi" style={{ textAlign: 'center' }}>
                         {sessionStatus === 'available' && (
                           <button
                             className={styles.btnPrimary}

@@ -182,12 +182,12 @@ export default function StudentAssignmentsPage() {
               <tbody>
                 {assignments.map((asm) => (
                   <tr key={asm._id}>
-                    <td>
+                    <td data-label="Tanggal">
                       <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
                         {new Date(asm.createdAt).toLocaleDateString('id-ID')}
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Mata Pelajaran">
                       <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
                         {asm.subjectDetails?.subjectName || '-'}
                       </div>
@@ -197,36 +197,38 @@ export default function StudentAssignmentsPage() {
                         </span>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Instruksi">
                       <div style={{ fontSize: '0.875rem', whiteSpace: 'pre-wrap', maxHeight: '80px', overflowY: 'auto' }}>
                         {asm.text}
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Lampiran">
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {(asm.files || []).map((f, i) => (
                           <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
-                            style={{ display: 'inline-flex', padding: '4px 8px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '4px', fontSize: '0.6875rem', color: 'var(--color-warning)', textDecoration: 'none', border: '1px solid rgba(245, 158, 11, 0.3)' }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 10px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '6px', fontSize: '0.75rem', color: 'var(--color-warning)', textDecoration: 'none', border: '1px solid rgba(245, 158, 11, 0.3)', maxWidth: '200px' }}
+                            title={f.originalName}
                           >
-                            📎 {f.originalName}
+                            <span style={{ flexShrink: 0 }}>📎</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.originalName}</span>
                           </a>
                         ))}
                         {(!asm.files || asm.files.length === 0) && <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>-</span>}
                       </div>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Batas Akhir">
                       <div style={{ fontSize: '0.75rem', fontWeight: 600, color: asm.deadline ? 'var(--color-danger)' : 'var(--color-subtext)' }}>
                         {asm.deadline ? new Date(asm.deadline).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : 'Tidak Ada'}
                       </div>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Nilai">
                       {asm.submission?.score !== undefined && asm.submission?.score !== null && (
                         <div style={{ marginTop: '8px', padding: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 700, borderRadius: '4px', fontSize: '0.875rem' }}>
                           {asm.submission.score}/100
                         </div>
                       )}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Status">
                       {asm.submission ? (
                         <span className={`${styles.badge} ${styles.statusActive}`} style={asm.submission?.isLate ? { background: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)', border: '1px solid rgba(239, 68, 68, 0.3)' } : {}}>
                           {asm.submission?.isLate ? 'Terlambat Dikumpulkan' : 'Sudah Dikumpulkan'}
@@ -235,7 +237,7 @@ export default function StudentAssignmentsPage() {
                         <span className={`${styles.badge} ${styles.statusInactive}`}>Belum dikumpulkan</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Aksi">
                       <div className={styles.actionBtns} style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
                         {!asm.submission ? (
                           /* Submit button */

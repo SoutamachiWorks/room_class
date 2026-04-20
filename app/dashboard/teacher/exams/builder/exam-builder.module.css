@@ -465,7 +465,6 @@
   color: var(--color-subtext);
 }
 
-/* Correct answer indicator */
 .correctLabel {
   font-size: 0.6875rem;
   font-weight: 700;
@@ -473,3 +472,114 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
+
+/* ===========================
+   MOBILE RESPONSIVE (≤768px)
+   =========================== */
+@media (max-width: 768px) {
+  .builderHeader {
+    padding: 20px 16px;
+    border-radius: 16px;
+    margin-bottom: 16px;
+  }
+
+  .builderTitle {
+    font-size: 1.15rem;
+    margin-bottom: 16px;
+  }
+
+  /* Question blocks */
+  .questionBlock {
+    padding: 18px 16px;
+    margin-bottom: 12px;
+    border-radius: 16px;
+  }
+
+  /* Touch-friendly action buttons */
+  .qActionBtn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+
+  .questionActions {
+    gap: 8px;
+  }
+
+  /* Type sections */
+  .typeSection {
+    padding: 14px 12px;
+    border-radius: 12px;
+  }
+
+  /* MC option rows */
+  .optionRow {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .optionInput {
+    flex: 1 1 100%;
+    height: 44px;
+    font-size: 1rem;
+    order: 1;
+  }
+
+  .optionRadio {
+    order: 0;
+  }
+
+  .optionRemoveBtn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    order: 2;
+  }
+
+  .addOptionBtn {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  /* Input font-size 16px to prevent iOS zoom */
+  .input {
+    font-size: 1rem;
+  }
+
+  .typeContent textarea {
+    font-size: 1rem;
+  }
+
+  /* Footer buttons */
+  .builderFooter {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btnCancel,
+  .btnSave {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* Random row */
+  .randomRow {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .randomInput {
+    height: 44px;
+    font-size: 1rem;
+  }
+
+  /* Add question button */
+  .addQuestionBtn {
+    min-height: 52px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+}
+

@@ -231,8 +231,10 @@ export default function DashboardLayout({ children }) {
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
 
+  // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -242,6 +244,21 @@ export default function DashboardLayout({ children }) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Auto-close mobile menu on navigation
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -284,8 +301,16 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className={styles.dashboardRoot} suppressHydrationWarning>
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className={styles.mobileOverlay}
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className={`${styles.sidebar} ${isCollapsed ? styles.sidebarCollapsed : ''}`}>
+      <aside className={`${styles.sidebar} ${isCollapsed ? styles.sidebarCollapsed : ''} ${isMobileMenuOpen ? styles.sidebarMobileOpen : ''}`}>
         <div className={styles.sidebarLogo}>
           <div className={styles.logoGroup}>
             <div className={styles.logoBox}>
@@ -296,6 +321,7 @@ export default function DashboardLayout({ children }) {
             </div>
             <span className={`${styles.logoText} ${isCollapsed ? styles.logoTextHidden : ''}`}>RoomClass</span>
           </div>
+          {/* Desktop collapse button — hidden on mobile */}
           <button
             className={`${styles.collapseBtn} ${isCollapsed ? styles.collapseBtnRotated : ''}`}
             onClick={() => setIsCollapsed(c => !c)}
@@ -303,6 +329,17 @@ export default function DashboardLayout({ children }) {
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          {/* Mobile close button */}
+          <button
+            className={styles.mobileCloseBtn}
+            onClick={() => setIsMobileMenuOpen(false)}
+            title="Tutup menu"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
@@ -317,6 +354,7 @@ export default function DashboardLayout({ children }) {
                   href={link.href}
                   className={isActive(link.href) ? styles.navLinkActive : styles.navLink}
                   data-tooltip={isCollapsed ? link.label : undefined}
+                  onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <span className={styles.navIcon}>{link.icon}</span>
                   <span className={`${styles.navLinkText} ${isCollapsed ? styles.navLinkTextHidden : ''}`}>
@@ -333,6 +371,19 @@ export default function DashboardLayout({ children }) {
       <div className={styles.mainArea}>
         {/* Top Bar */}
         <header className={styles.topBar}>
+          {/* Hamburger — mobile only */}
+          <button
+            className={styles.hamburgerBtn}
+            onClick={() => setIsMobileMenuOpen(true)}
+            title="Buka menu"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+
           <div className={styles.greeting}>
             <span className={styles.greetingText}>Selamat datang kembali,</span>
             <span className={styles.greetingName}>{user?.fullName}</span>

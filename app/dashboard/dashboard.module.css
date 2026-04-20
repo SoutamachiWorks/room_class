@@ -71,6 +71,32 @@
   transform: rotate(180deg);
 }
 
+/* Mobile close button — hidden on desktop */
+.mobileCloseBtn {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.mobileCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.mobileCloseBtn svg {
+  width: 18px;
+  height: 18px;
+}
+
 .logoGroup {
   display: flex;
   align-items: center;
@@ -264,15 +290,43 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 32px;
+  padding: 16px 32px;
   background: var(--bg-card);
-  border-bottom: 1px solid var(--color-border);
-  min-height: 72px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03); /* Extremely subtle separator */
+  min-height: 64px;
+  gap: 12px;
+}
+
+/* Hamburger — hidden on desktop */
+.hamburgerBtn {
+  display: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  background: var(--bg-app);
+  color: var(--color-heading);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+}
+
+.hamburgerBtn:hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.hamburgerBtn svg {
+  width: 22px;
+  height: 22px;
 }
 
 .greeting {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .greetingText {
@@ -286,12 +340,16 @@
   font-weight: 700;
   color: var(--color-heading);
   margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topBarRight {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-shrink: 0;
 }
 
 .accountMenu {
@@ -419,4 +477,121 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Mobile Overlay */
+.mobileOverlay {
+  display: none;
+}
+
+/* ===========================
+   MOBILE RESPONSIVE (≤768px)
+   =========================== */
+@media (max-width: 768px) {
+  /* Sidebar becomes off-screen drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    min-width: 280px;
+    z-index: 1001;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding-top: 20px;
+  }
+
+  /* Override collapsed state on mobile — always show full sidebar in drawer */
+  .sidebar.sidebarCollapsed {
+    width: 280px;
+    min-width: 280px;
+  }
+
+  .sidebarMobileOpen {
+    transform: translateX(0);
+  }
+
+  /* Hide desktop collapse button on mobile */
+  .collapseBtn {
+    display: none;
+  }
+
+  /* Show mobile close button */
+  .mobileCloseBtn {
+    display: flex;
+  }
+
+  /* Ensure text is always visible in mobile drawer */
+  .sidebar .logoTextHidden,
+  .sidebar .navLabelHidden,
+  .sidebar .navLinkTextHidden {
+    opacity: 1;
+    width: auto;
+    max-width: 200px;
+    height: auto;
+    margin-bottom: 8px;
+    margin-top: 24px;
+    padding: 0 12px;
+    pointer-events: auto;
+  }
+
+  .sidebar .navLabel:first-child.navLabelHidden {
+    margin-top: 0;
+  }
+
+  /* Mobile overlay backdrop */
+  .mobileOverlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+
+  /* Show hamburger */
+  .hamburgerBtn {
+    display: flex;
+  }
+
+  /* Header adjustments */
+  .topBar {
+    padding: 12px 16px;
+    min-height: 60px;
+  }
+
+  /* Hide greeting sub-text on mobile */
+  .greetingText {
+    display: none;
+  }
+
+  .greetingName {
+    font-size: 1rem;
+  }
+
+  /* Shrink gap in top bar right */
+  .topBarRight {
+    gap: 10px;
+  }
+
+  /* Hide role badge on mobile to save space */
+  .roleBadge {
+    display: none;
+  }
+
+  /* Content padding */
+  .content {
+    padding: 16px;
+  }
+
+  /* Ensure nav links are big enough for touch */
+  .navLink {
+    padding: 14px 12px;
+    min-height: 44px;
+  }
 }

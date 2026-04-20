@@ -520,3 +520,85 @@
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* ===========================
+   MOBILE RESPONSIVE (≤768px)
+   =========================== */
+@media (max-width: 768px) {
+  .page {
+    gap: 16px;
+  }
+
+  .pageHeader {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .pageTitle {
+    font-size: 1.25rem;
+  }
+
+  /* Attendance widget — stack vertically */
+  .attendanceWidget {
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+
+  .attendanceContent {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .attendanceSubject {
+    font-size: 1.1rem;
+  }
+
+  .attendanceAction {
+    width: 100%;
+  }
+
+  .btnCheckIn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+    padding: 16px 24px;
+    font-size: 1rem;
+    min-height: 52px;
+  }
+
+  .checkedInBox {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Main grid — single column */
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Cards */
+  .card {
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+
+  .cardHeader {
+    margin-bottom: 16px;
+  }
+
+  /* Task items */
+  .taskItem {
+    padding: 12px 14px;
+  }
+
+  /* Exam items */
+  .examItem {
+    padding: 10px 12px;
+  }
+
+  /* Grade list */
+  .gradeItem {
+    padding: 10px 12px;
+  }
+}

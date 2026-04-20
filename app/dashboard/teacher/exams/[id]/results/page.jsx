@@ -125,19 +125,19 @@ export default function ExamResultsPage() {
               <tbody>
                 {sessions.map((sess) => (
                   <tr key={sess._id}>
-                    <td>
+                    <td data-label="Siswa">
                       <div style={{ fontWeight: 600, color: 'var(--color-heading)' }}>{sess.studentInfo?.fullName || 'Siswa Dihapus'}</div>
                       <div style={{ fontSize: '0.75rem', marginTop: '2px' }}>
                         <span className={`${styles.badge} ${styles.badgeStudent}`}>{sess.studentInfo?.classCode || '-'}</span>
                       </div>
                     </td>
-                    <td style={{ textAlign: 'center', fontSize: '0.875rem' }}>
+                    <td data-label="Waktu Mulai" style={{ textAlign: 'center', fontSize: '0.875rem' }}>
                       {new Date(sess.startedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Status" style={{ textAlign: 'center' }}>
                       {getStatusBadge(sess.status)}
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Pelanggaran" style={{ textAlign: 'center' }}>
                       <span style={{ 
                         fontWeight: 700, 
                         color: sess.exitCount >= 2 ? '#DC3545' : sess.exitCount === 1 ? '#D97706' : 'var(--color-subtext)'
@@ -145,7 +145,7 @@ export default function ExamResultsPage() {
                         {sess.exitCount || 0} kali
                       </span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
+                    <td data-label="Koreksi" style={{ textAlign: 'center' }}>
                       {sess.status === 'submitted' ? (
                         sess.gradingStatus === 'pending-manual' ? (
                           <span style={{ fontSize: '0.8125rem', color: '#D97706', fontWeight: 600 }}>Perlu Dikoreksi</span>
@@ -160,7 +160,7 @@ export default function ExamResultsPage() {
                         <span style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)' }}>-</span>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Aksi">
                       <div className={styles.actionBtns} style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
                         {sess.status === 'submitted' && (
                           <button

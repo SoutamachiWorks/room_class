@@ -55,19 +55,19 @@ export default function TeacherStudentsPage() {
               <tbody>
                 {students.map((student) => (
                   <tr key={student._id}>
-                    <td>
+                    <td data-label="Nama">
                       <div style={{ fontWeight: 600, color: 'var(--color-heading)' }}>{student.fullName}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>{student.email}</div>
                     </td>
-                    <td>
+                    <td data-label="NPM / NIS">
                       <span style={{ fontWeight: 600 }}>{student.studentId}</span>
                     </td>
-                    <td>
+                    <td data-label="Kode Kelas">
                       <span className={`${styles.badge} ${styles.badgeStudent}`}>
                         {student.classCode}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Kelas Anda">
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {student.mappedSubjects?.map((sub, i) => (
                           <div key={i} style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)' }}>
