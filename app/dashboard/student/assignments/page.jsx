@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { uploadWithProgress } from '@/lib/xhrUpload';
 import styles from '../../admin/admin.module.css';
 
 export default function StudentAssignmentsPage() {
@@ -26,6 +27,7 @@ export default function StudentAssignmentsPage() {
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const fetchAssignments = useCallback(async () => {
     setLoading(true);
@@ -55,10 +57,10 @@ export default function StudentAssignmentsPage() {
       setRetainedOldFiles(existingSubmission.files || []);
       setAttachedFiles([]);
     } else {
-      setFormText('');
       setRetainedOldFiles([]);
       setAttachedFiles([]);
     }
+    setUploadProgress(0);
     setIsFormOpen(true);
   };
 
@@ -82,11 +84,22 @@ export default function StudentAssignmentsPage() {
     }
 
     try {
+      // 10MB limit validation for normal student homework Submissions
+      const MAX_SIZE = 10 * 1024 * 1024;
+      let totalSize = 0;
+      for (const obj of attachedFiles) totalSize += obj.size;
+      
+      if (totalSize > MAX_SIZE) {
+         setFormError('Sistem menolak! Total batasan memori untuk jawaban Anda melebihi angka 10 MB.');
+         setFormLoading(false);
+         return;
+      }
+
       const formData = new FormData();
       formData.append('text', formText);
 
       if (isEdit) {
-        const keepArray = retainedOldFiles.map(f => f.filename);
+        const keepArray = retainedOldFiles.map(f => f.fileKey || f.filename);
         formData.append('retainedFiles', JSON.stringify(keepArray));
       } else {
         formData.append('assignmentId', selectedAssignment._id);
@@ -101,19 +114,16 @@ export default function StudentAssignmentsPage() {
         : '/api/student/submissions';
       const method = isEdit ? 'PUT' : 'POST';
 
-      const res = await fetch(url, { method, body: formData });
-      const data = await res.json();
+      setUploadProgress(0);
+      const data = await uploadWithProgress(url, formData, method, (val) => setUploadProgress(val));
 
-      if (!res.ok) {
-        setFormError(data.error || 'Gagal mengirim jawaban.');
-      } else {
-        fetchAssignments();
-        handleCloseForm();
-      }
-    } catch {
-      setFormError('Koneksi ke server gagal.');
+      fetchAssignments();
+      handleCloseForm();
+    } catch (err) {
+      setFormError(err.message || 'Koneksi ke server gagal.');
     } finally {
       setFormLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -345,10 +355,11 @@ export default function StudentAssignmentsPage() {
             </div>
           </div>
 
-          <div className={styles.formActions} style={{ marginTop: '24px' }}>
+          <div className={styles.formActions} style={{ marginTop: '24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {formLoading && uploadProgress > 0 && <span style={{ color: '#10B981', fontSize: '0.875rem', fontWeight: 600 }}>Terkirim... {uploadProgress}%</span>}
             <button type="button" onClick={handleCloseForm} className={styles.btnCancel} disabled={formLoading}>Batal</button>
             <button type="submit" className={styles.btnSubmit} disabled={formLoading}>
-              {formLoading ? 'Mengirim...' : (editingSubmission ? 'Perbarui Jawaban' : 'Kirim Jawaban')}
+              {formLoading ? 'Memproses...' : (editingSubmission ? 'Perbarui Jawaban' : 'Kirim Jawaban')}
             </button>
           </div>
         </form>

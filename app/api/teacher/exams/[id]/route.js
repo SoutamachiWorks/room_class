@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
+import { deleteFromR2 } from '@/lib/s3Client';
 
 /**
  * GET /api/teacher/exams/[id]
@@ -145,8 +146,26 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Ujian tidak ditemukan.' }, { status: 404 });
     }
 
-    // Cascade: delete all examSessions linked to this exam
-    await db.collection('examSessions').deleteMany({ examId: id });
+    // Cascade: fetch all sessions to properly trash physical cloud files
+    const sessions = await db.collection('examSessions').find({ examId: id }).toArray();
+    for (const session of sessions) {
+       if (session.answers && Array.isArray(session.answers)) {
+          for (const ans of session.answers) {
+             if (ans.uploadedFiles && Array.isArray(ans.uploadedFiles)) {
+                for (const file of ans.uploadedFiles) {
+                   if (file.fileKey) {
+                      await deleteFromR2(file.fileKey);
+                   }
+                }
+             }
+          }
+       }
+    }
+
+    // Drop the collection relational footprints natively
+    if (sessions.length > 0) {
+       await db.collection('examSessions').deleteMany({ examId: id });
+    }
 
     // Delete the exam itself
     await db.collection('exams').deleteOne({ _id: new ObjectId(id) });

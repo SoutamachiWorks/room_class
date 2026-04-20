@@ -2,18 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
-import { writeFile, unlink, mkdir } from 'fs/promises';
-import { join } from 'path';
-
-const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'assignments');
-const SUBMISSION_DIR = join(process.cwd(), 'public', 'uploads', 'submissions'); // Required for nested cascading
-
-async function ensureUploadDir() {
-  try {
-    await mkdir(UPLOAD_DIR, { recursive: true });
-    await mkdir(SUBMISSION_DIR, { recursive: true }); // Prepared to avoid crashes on cascaded unlinking paths natively
-  } catch (err) {}
-}
+import { uploadToR2, deleteFromR2 } from '@/lib/s3Client';
 
 /**
  * PUT /api/teacher/assignments/[id]
@@ -36,8 +25,6 @@ export async function PUT(request, { params }) {
          return NextResponse.json({ error: 'Entitas tidak ditemukan pada domain Anda.' }, { status: 404 });
       }
 
-      await ensureUploadDir();
-
       const formData = await request.formData();
       const text = formData.get('text');
       const deadlineRaw = formData.get('deadline');
@@ -55,32 +42,26 @@ export async function PUT(request, { params }) {
 
       // Garbage collection over deleted obsolete files cleanly
       const existingFiles = targetDoc.files || [];
-      const filesToDelete = existingFiles.filter(f => !retainedFiles.includes(f.filename));
-      const filesToKeep = existingFiles.filter(f => retainedFiles.includes(f.filename));
+      const filesToDelete = existingFiles.filter(f => !retainedFiles.includes(f.fileKey || f.filename));
+      const filesToKeep = existingFiles.filter(f => retainedFiles.includes(f.fileKey || f.filename));
 
       for (const scrap of filesToDelete) {
-         try {
-            await unlink(join(UPLOAD_DIR, scrap.filename));
-         } catch (e) {}
+         if (scrap.fileKey) {
+            await deleteFromR2(scrap.fileKey);
+         }
       }
 
       const newProcessed = [];
       for (const file of files) {
          if (file && file.name) {
              const buffer = Buffer.from(await file.arrayBuffer());
-             const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-             const cleanOriginal = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-             const filename = `asm-${uniqueSuffix}-${cleanOriginal}`;
-             const pathToFile = join(UPLOAD_DIR, filename);
-
-             await writeFile(pathToFile, buffer);
+             const r2Data = await uploadToR2(buffer, file.name, file.type, 'assignments');
 
              newProcessed.push({
-                 originalName: file.name,
-                 filename: filename,
-                 url: `/uploads/assignments/${filename}`,
-                 size: file.size,
-                 type: file.type
+                 originalName: r2Data.originalName,
+                 fileKey: r2Data.fileKey,
+                 size: r2Data.size,
+                 type: r2Data.mimeType
              });
          }
      }
@@ -136,9 +117,9 @@ export async function DELETE(request, { params }) {
       // --- PHASE 1: Scrub the Teacher's Assignment File Attachments ---
       if (rootAssignment.files && Array.isArray(rootAssignment.files)) {
          for (const file of rootAssignment.files) {
-            try {
-               await unlink(join(UPLOAD_DIR, file.filename));
-            } catch (fsErr) { /* Ignored cleanly on async cascades isolating breaks */ }
+            if (file.fileKey) {
+               await deleteFromR2(file.fileKey);
+            }
          }
       }
 
@@ -146,13 +127,13 @@ export async function DELETE(request, { params }) {
       // 1. Gather all linked submission arrays explicitly fetching file targets
       const connectedSubmissions = await db.collection('submissions').find({ assignmentId: strId }).toArray();
       
-      // 2. Iterate each submission stripping out physical disk payloads cleanly natively
+      // 2. Iterate each submission stripping out active cloud payloads
       for (const stSubmission of connectedSubmissions) {
          if (stSubmission.files && Array.isArray(stSubmission.files)) {
             for (const stFile of stSubmission.files) {
-               try {
-                  await unlink(join(SUBMISSION_DIR, stFile.filename));
-               } catch (fsX) {}
+               if (stFile.fileKey) {
+                  await deleteFromR2(stFile.fileKey);
+               }
             }
          }
       }

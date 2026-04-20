@@ -2,16 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-
-const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'submissions');
-
-async function ensureUploadDir() {
-  try {
-    await mkdir(UPLOAD_DIR, { recursive: true });
-  } catch (err) {}
-}
+import { uploadToR2 } from '@/lib/s3Client';
 
 /**
  * POST /api/student/submissions
@@ -30,8 +21,6 @@ export async function POST(request) {
     if (!studentId || !classCode) {
       return NextResponse.json({ error: 'Profil siswa tidak lengkap.' }, { status: 403 });
     }
-
-    await ensureUploadDir();
 
     const formData = await request.formData();
     const assignmentId = formData.get('assignmentId');
@@ -64,19 +53,13 @@ export async function POST(request) {
     for (const file of files) {
       if (file && file.name) {
         const buffer = Buffer.from(await file.arrayBuffer());
-        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-        const cleanOriginal = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-        const filename = `sub-${uniqueSuffix}-${cleanOriginal}`;
-        const pathToFile = join(UPLOAD_DIR, filename);
-
-        await writeFile(pathToFile, buffer);
+        const r2Data = await uploadToR2(buffer, file.name, file.type, 'submissions');
 
         processedFiles.push({
-          originalName: file.name,
-          filename,
-          url: `/uploads/submissions/${filename}`,
-          size: file.size,
-          type: file.type,
+          originalName: r2Data.originalName,
+          fileKey: r2Data.fileKey,
+          size: r2Data.size,
+          type: r2Data.mimeType,
         });
       }
     }

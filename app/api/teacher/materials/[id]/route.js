@@ -2,16 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
-import { writeFile, unlink, mkdir } from 'fs/promises';
-import { join } from 'path';
-
-const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'materials');
-
-async function ensureUploadDir() {
-  try {
-    await mkdir(UPLOAD_DIR, { recursive: true });
-  } catch (err) {}
-}
+import { uploadToR2, deleteFromR2 } from '@/lib/s3Client';
 
 /**
  * PUT /api/teacher/materials/[id]
@@ -56,37 +47,28 @@ export async function PUT(request, { params }) {
 
       // 1. Identify which old files were explicitly deleted by the user
       const existingFiles = material.files || [];
-      const filesToDelete = existingFiles.filter(f => !retainedFiles.includes(f.filename));
-      const filesToKeep = existingFiles.filter(f => retainedFiles.includes(f.filename));
+      const filesToDelete = existingFiles.filter(f => !retainedFiles.includes(f.fileKey || f.filename));
+      const filesToKeep = existingFiles.filter(f => retainedFiles.includes(f.fileKey || f.filename));
 
-      // Attempt Disk Cleansing
+      // Attempt Bucket Cleansing
       for (const scrap of filesToDelete) {
-         try {
-            await unlink(join(UPLOAD_DIR, scrap.filename));
-         } catch (e) {
-            console.error(`Gagal menghapus physical file ${scrap.filename}`, e);
+         if (scrap.fileKey) {
+             await deleteFromR2(scrap.fileKey);
          }
       }
 
       // 2. Process NEW incoming uploads
-      await ensureUploadDir();
       const newlyProcessed = [];
       for (const file of files) {
          if (file && file.name) {
              const buffer = Buffer.from(await file.arrayBuffer());
-             const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-             const cleanOriginal = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-             const filename = `${uniqueSuffix}-${cleanOriginal}`;
-             const pathToFile = join(UPLOAD_DIR, filename);
-
-             await writeFile(pathToFile, buffer);
+             const r2Data = await uploadToR2(buffer, file.name, file.type, 'materials');
 
              newlyProcessed.push({
-                 originalName: file.name,
-                 filename: filename,
-                 url: `/uploads/materials/${filename}`,
-                 size: file.size,
-                 type: file.type
+                 originalName: r2Data.originalName,
+                 fileKey: r2Data.fileKey,
+                 size: r2Data.size,
+                 type: r2Data.mimeType
              });
          }
      }
@@ -139,13 +121,11 @@ export async function DELETE(request, { params }) {
          return NextResponse.json({ error: 'Tindakan Terlarang (Pelanggaran Wilayah Otoritas Modul)' }, { status: 403 });
       }
 
-      // Disconnect Physical Items
+      // Disconnect Items from Bucket
       if (material.files && Array.isArray(material.files)) {
          for (const file of material.files) {
-            try {
-               await unlink(join(UPLOAD_DIR, file.filename));
-            } catch (fsErr) {
-               console.error(`Cache deletion fault on ${file.filename}`, fsErr);
+            if (file.fileKey) {
+                await deleteFromR2(file.fileKey);
             }
          }
       }

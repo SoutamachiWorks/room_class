@@ -3,6 +3,8 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 
+import { generatePresignedUrl } from '@/lib/s3Client';
+
 /**
  * GET /api/student/assignments
  * Returns all assignments scoped to the student's classCode.
@@ -67,10 +69,23 @@ export async function GET(request) {
       submissionMap[sub.assignmentId] = sub;
     }
 
-    // Attach submission info to each assignment
-    const result = assignments.map(a => ({
-      ...a,
-      submission: submissionMap[a._id.toString()] || null,
+    // Attach submission info to each assignment and convert R2 file paths to presigned URLs
+    let result = await Promise.all(assignments.map(async (a) => {
+      // Sign assignment files
+      if (a.files && a.files.length > 0) {
+        a.files = await Promise.all(a.files.map(async (f) => ({ ...f, url: await generatePresignedUrl(f.fileKey) })));
+      }
+      
+      const sub = submissionMap[a._id.toString()] || null;
+      // Sign submission files if they exist
+      if (sub && sub.files && sub.files.length > 0) {
+        sub.files = await Promise.all(sub.files.map(async (f) => ({ ...f, url: await generatePresignedUrl(f.fileKey) })));
+      }
+
+      return {
+        ...a,
+        submission: sub,
+      };
     }));
 
     return NextResponse.json({ assignments: result });

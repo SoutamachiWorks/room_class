@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { uploadWithProgress } from '@/lib/xhrUpload';
 import styles from '../../admin/admin.module.css'; // Reusing central stylistic grids
 
 export default function MaterialsPage() {
@@ -31,6 +32,7 @@ export default function MaterialsPage() {
 
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Initialization: Fetch Dependency Data & Primary Fetch Core
   useEffect(() => {
@@ -103,6 +105,7 @@ export default function MaterialsPage() {
       setRetainedOldFiles([]);
       setAttachedFiles([]);
     }
+    setUploadProgress(0);
     setIsFormOpen(true);
   };
 
@@ -126,6 +129,17 @@ export default function MaterialsPage() {
     }
 
     try {
+      // Validation: Total file sizes (New Incoming files only checked vs 50MB limit)
+      const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+      let totalSize = 0;
+      for (const f of attachedFiles) totalSize += f.size;
+      
+      if (totalSize > MAX_SIZE) {
+        setFormError('Total ukuran lampiran baru melampaui batas maksimal 50 MB.');
+        setFormLoading(false);
+        return;
+      }
+
       // Construction of Multiparts Frameworks Payload
       const formData = new FormData();
       formData.append('title', formTitle);
@@ -136,7 +150,7 @@ export default function MaterialsPage() {
         formData.append('subjectId', formSubjectId);
       } else {
         // Filter Array Names logic extracting files Teacher retained directly 
-        const keepArray = retainedOldFiles.map(f => f.filename);
+        const keepArray = retainedOldFiles.map(f => f.fileKey || f.filename);
         formData.append('retainedFiles', JSON.stringify(keepArray));
       }
 
@@ -148,23 +162,19 @@ export default function MaterialsPage() {
       const url = isEdit ? `/api/teacher/materials/${selectedMaterial._id}` : '/api/teacher/materials';
       const method = isEdit ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
-        method,
-        body: formData, // Next.js intercepts 'multipart/form-data' content type inherently here organically.
+      setUploadProgress(0);
+      const data = await uploadWithProgress(url, formData, method, (progress) => {
+         setUploadProgress(progress);
       });
 
-      const data = await res.json();
+      fetchMaterials();
+      handleCloseForm();
 
-      if (!res.ok) {
-        setFormError(data.error || 'Terpotong saat kompilasi data transmisi Server.');
-      } else {
-        fetchMaterials();
-        handleCloseForm();
-      }
     } catch (err) {
-      setFormError('Sinyal Payload Form Data gagal terlempar (Jaringan Error).');
+      setFormError(err.message || 'Sinyal Payload Form Data gagal terlempar (Jaringan Error).');
     } finally {
       setFormLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -389,10 +399,11 @@ export default function MaterialsPage() {
             </div>
           </div>
 
-          <div className={styles.formActions} style={{ marginTop: '32px' }}>
+          <div className={styles.formActions} style={{ marginTop: '32px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {formLoading && uploadProgress > 0 && <span style={{ color: '#10B981', fontSize: '0.875rem', fontWeight: 600 }}>Mengunggah... {uploadProgress}%</span>}
             <button type="button" onClick={handleCloseForm} className={styles.btnCancel} disabled={formLoading}>Tarik Sinyal</button>
             <button type="submit" className={styles.btnSubmit} disabled={formLoading}>
-              {formLoading ? 'Mengkompresi Alur Array Berkas...' : 'Publikasi Jaringan'}
+              {formLoading ? 'Mengkompresi...' : 'Publikasi Jaringan'}
             </button>
           </div>
         </form>

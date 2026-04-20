@@ -2,17 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-
-// Storage allocation parameter mapping securely to physical filesystem
-const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'assignments');
-
-async function ensureUploadDir() {
-  try {
-    await mkdir(UPLOAD_DIR, { recursive: true });
-  } catch (err) {}
-}
+import { uploadToR2, generatePresignedUrl } from '@/lib/s3Client';
 
 /**
  * GET /api/teacher/assignments
@@ -52,7 +42,18 @@ export async function GET(request) {
        { $sort: { createdAt: -1 } }
     ];
 
-    const assignments = await db.collection('assignments').aggregate(pipeline).toArray();
+    let assignments = await db.collection('assignments').aggregate(pipeline).toArray();
+
+    assignments = await Promise.all(assignments.map(async (asm) => {
+       if (asm.files && asm.files.length > 0) {
+           asm.files = await Promise.all(asm.files.map(async (f) => ({
+               ...f,
+               url: await generatePresignedUrl(f.fileKey)
+           })));
+       }
+       return asm;
+    }));
+
     return NextResponse.json({ assignments });
 
   } catch (err) {
@@ -75,8 +76,6 @@ export async function POST(request) {
  
      if (!teacherId) return NextResponse.json({ error: 'Auth Limit Terlewati' }, { status: 403 });
  
-     await ensureUploadDir();
- 
      const formData = await request.formData();
      const subjectId = formData.get('subjectId');
      const text = formData.get('text');
@@ -97,20 +96,14 @@ export async function POST(request) {
      for (const file of files) {
          if (file && file.name) {
              const buffer = Buffer.from(await file.arrayBuffer());
-             const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
              
-             const cleanOriginal = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-             const filename = `asm-${uniqueSuffix}-${cleanOriginal}`;
-             const pathToFile = join(UPLOAD_DIR, filename);
- 
-             await writeFile(pathToFile, buffer);
+             const r2Data = await uploadToR2(buffer, file.name, file.type, 'assignments');
  
              processedFiles.push({
-                 originalName: file.name,
-                 filename: filename,
-                 url: `/uploads/assignments/${filename}`,
-                 size: file.size,
-                 type: file.type
+                 originalName: r2Data.originalName,
+                 fileKey: r2Data.fileKey,
+                 size: r2Data.size,
+                 type: r2Data.mimeType
              });
          }
      }

@@ -3,6 +3,8 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 
+import { generatePresignedUrl } from '@/lib/s3Client';
+
 /**
  * GET /api/teacher/exams/[id]/sessions/[sessionId]
  * Fetch the details of a student's submitted exam to review/grade.
@@ -38,14 +40,22 @@ export async function GET(request, { params }) {
 
     const student = await db.collection('users').findOne({ studentId: session.studentId });
 
-    // Merging questions with answers
-    const reviewData = session.answers.map(ans => {
+    // Merging questions with answers & singing files
+    const reviewData = await Promise.all(session.answers.map(async (ans) => {
       const originalQuestion = exam.questions.find(q => q.order === ans.originalOrder);
+      
+      if (ans.uploadedFiles && ans.uploadedFiles.length > 0) {
+         ans.uploadedFiles = await Promise.all(ans.uploadedFiles.map(async (f) => ({
+             ...f,
+             url: await generatePresignedUrl(f.fileKey)
+         })));
+      }
+
       return {
         ...ans,
         questionDetails: originalQuestion || null
       };
-    });
+    }));
 
     return NextResponse.json({
       session: {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { uploadWithProgress } from '@/lib/xhrUpload';
 import styles from '../../admin/admin.module.css'; // Utilizing central styles inherently isolating dependencies cleanly
 
 export default function AssignmentPage() {
@@ -31,6 +32,7 @@ export default function AssignmentPage() {
 
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Initializing the Subject arrays fetching data inherently limiting the mapping natively
   useEffect(() => {
@@ -101,6 +103,7 @@ export default function AssignmentPage() {
       setRetainedOldFiles([]);
       setAttachedFiles([]);
     }
+    setUploadProgress(0);
     setIsFormOpen(true);
   };
 
@@ -123,6 +126,17 @@ export default function AssignmentPage() {
     }
 
     try {
+      // 50MB constraint threshold mapping explicitly
+      const MAX_SIZE = 50 * 1024 * 1024;
+      let totalSize = 0;
+      for (const obj of attachedFiles) totalSize += obj.size;
+      
+      if (totalSize > MAX_SIZE) {
+         setFormError('Sistem menolak muatan disk! Ukuran lampiran tugas Anda lebih besar dari 50 MB.');
+         setFormLoading(false);
+         return;
+      }
+
       const formData = new FormData();
       formData.append('text', formText);
       if (formDeadline) {
@@ -132,7 +146,7 @@ export default function AssignmentPage() {
       if (!isEdit) {
         formData.append('subjectId', formSubjectId);
       } else {
-        const keepArray = retainedOldFiles.map(f => f.filename);
+        const keepArray = retainedOldFiles.map(f => f.fileKey || f.filename);
         formData.append('retainedFiles', JSON.stringify(keepArray));
       }
 
@@ -143,23 +157,18 @@ export default function AssignmentPage() {
       const url = isEdit ? `/api/teacher/assignments/${selectedAssignment._id}` : '/api/teacher/assignments';
       const method = isEdit ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
-        method,
-        body: formData,
+      setUploadProgress(0);
+      const data = await uploadWithProgress(url, formData, method, (val) => {
+         setUploadProgress(val);
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setFormError(data.error || 'Galat kompilasi server logis.');
-      } else {
-        fetchAssignments();
-        handleCloseForm();
-      }
+      fetchAssignments();
+      handleCloseForm();
     } catch (err) {
-      setFormError('Sinyal kompilasi API terpanggang timeout.');
+      setFormError(err.message || 'Sinyal kompilasi API terpanggang timeout.');
     } finally {
       setFormLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -396,10 +405,11 @@ export default function AssignmentPage() {
             </div>
           </div>
 
-          <div className={styles.formActions} style={{ marginTop: '32px' }}>
+          <div className={styles.formActions} style={{ marginTop: '32px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {formLoading && uploadProgress > 0 && <span style={{ color: '#10B981', fontSize: '0.875rem', fontWeight: 600 }}>Mengunggah... {uploadProgress}%</span>}
             <button type="button" onClick={handleCloseForm} className={styles.btnCancel} disabled={formLoading}>Batalkan Opsi</button>
             <button type="submit" className={styles.btnSubmit} disabled={formLoading}>
-              {formLoading ? 'Merekatkan Arus Sinkronisasi...' : 'Publish Penugasan'}
+              {formLoading ? 'Merekatkan...' : 'Publish Penugasan'}
             </button>
           </div>
         </form>

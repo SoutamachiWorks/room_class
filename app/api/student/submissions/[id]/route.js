@@ -2,16 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
-import { writeFile, unlink, mkdir } from 'fs/promises';
-import { join } from 'path';
-
-const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'submissions');
-
-async function ensureUploadDir() {
-  try {
-    await mkdir(UPLOAD_DIR, { recursive: true });
-  } catch (err) {}
-}
+import { uploadToR2, deleteFromR2 } from '@/lib/s3Client';
 
 /**
  * PUT /api/student/submissions/[id]
@@ -36,8 +27,6 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'Submission tidak ditemukan atau bukan milik Anda.' }, { status: 404 });
     }
 
-    await ensureUploadDir();
-
     const formData = await request.formData();
     const text = formData.get('text');
     const retainedFilesJSON = formData.get('retainedFiles');
@@ -52,32 +41,26 @@ export async function PUT(request, { params }) {
 
     // Garbage collect removed files
     const existingFiles = existing.files || [];
-    const filesToDelete = existingFiles.filter(f => !retainedFiles.includes(f.filename));
-    const filesToKeep = existingFiles.filter(f => retainedFiles.includes(f.filename));
+    const filesToDelete = existingFiles.filter(f => !retainedFiles.includes(f.fileKey || f.filename));
+    const filesToKeep = existingFiles.filter(f => retainedFiles.includes(f.fileKey || f.filename));
 
     for (const scrap of filesToDelete) {
-      try {
-        await unlink(join(UPLOAD_DIR, scrap.filename));
-      } catch (e) {}
+      if (scrap.fileKey) {
+        await deleteFromR2(scrap.fileKey);
+      }
     }
 
     const newProcessed = [];
     for (const file of files) {
       if (file && file.name) {
         const buffer = Buffer.from(await file.arrayBuffer());
-        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-        const cleanOriginal = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-        const filename = `sub-${uniqueSuffix}-${cleanOriginal}`;
-        const pathToFile = join(UPLOAD_DIR, filename);
-
-        await writeFile(pathToFile, buffer);
+        const r2Data = await uploadToR2(buffer, file.name, file.type, 'submissions');
 
         newProcessed.push({
-          originalName: file.name,
-          filename,
-          url: `/uploads/submissions/${filename}`,
-          size: file.size,
-          type: file.type,
+          originalName: r2Data.originalName,
+          fileKey: r2Data.fileKey,
+          size: r2Data.size,
+          type: r2Data.mimeType,
         });
       }
     }
@@ -135,12 +118,12 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Submission tidak ditemukan atau bukan milik Anda.' }, { status: 404 });
     }
 
-    // Delete physical files
+    // Delete physical files from R2
     if (existing.files && Array.isArray(existing.files)) {
       for (const file of existing.files) {
-        try {
-          await unlink(join(UPLOAD_DIR, file.filename));
-        } catch (e) {}
+        if (file.fileKey) {
+           await deleteFromR2(file.fileKey);
+        }
       }
     }
 

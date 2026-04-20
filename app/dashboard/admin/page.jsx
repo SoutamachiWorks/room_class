@@ -64,23 +64,26 @@ export default function AdminHomePage() {
     async function load() {
       try {
         // Fetch real user counts from existing API
-        const [allRes, teacherRes, studentRes, classRes] = await Promise.all([
+        const [allRes, teacherRes, studentRes, classRes, storageRes] = await Promise.all([
           fetch('/api/admin/users?limit=1&role='),
           fetch('/api/admin/users?limit=1&role=teacher'),
           fetch('/api/admin/users?limit=1&role=student'),
           fetch('/api/admin/class-codes'),
+          fetch('/api/admin/storage'),
         ]);
 
         const allData     = allRes.ok     ? await allRes.json()     : {};
         const teacherData = teacherRes.ok ? await teacherRes.json() : {};
         const studentData = studentRes.ok ? await studentRes.json() : {};
         const classData   = classRes.ok   ? await classRes.json()   : {};
+        const storageData = storageRes.ok ? await storageRes.json() : { totalBytes: 0 };
 
         setStats({
           total:    allData.pagination?.totalCount     ?? 0,
           teachers: teacherData.pagination?.totalCount ?? 0,
           students: studentData.pagination?.totalCount ?? 0,
           classes:  (classData.classCodes ?? classData.data ?? []).length,
+          storageBytes: storageData.totalBytes ?? 0,
         });
 
         // Show first 6 classes with their info
@@ -169,7 +172,7 @@ export default function AdminHomePage() {
                 </svg>
               }
               label="Penggunaan Storage"
-              value="2.4 GB"
+              value={`${(stats?.storageBytes ? (stats.storageBytes / (1024 * 1024 * 1024)) : 0).toFixed(2)} GB`}
               sub="dari 10 GB kapasitas"
               accent="#A78BFA"
             />
@@ -178,18 +181,18 @@ export default function AdminHomePage() {
       </div>
 
       {/* ── Storage Bar (decorative) ── */}
-      {!loading && (
+      {!loading && stats && (
         <div className={styles.storageCard}>
           <div className={styles.storageHeader}>
             <span className={styles.storageTitle}>Penggunaan Penyimpanan Server</span>
-            <span className={styles.storagePercent}>24%</span>
+            <span className={styles.storagePercent}>{Math.min(100, (stats.storageBytes / (10 * 1024 * 1024 * 1024) * 100)).toFixed(1)}%</span>
           </div>
           <div className={styles.storageBar}>
-            <div className={styles.storageBarFill} style={{ width: '24%' }} />
+            <div className={styles.storageBarFill} style={{ width: `${Math.min(100, (stats.storageBytes / (10 * 1024 * 1024 * 1024) * 100))}%` }} />
           </div>
           <div className={styles.storageFooter}>
-            <span>2.4 GB terpakai</span>
-            <span>7.6 GB tersedia</span>
+            <span>{((stats.storageBytes) / (1024 * 1024 * 1024)).toFixed(2)} GB terpakai</span>
+            <span>{(10 - (stats.storageBytes / (1024 * 1024 * 1024))).toFixed(2)} GB tersedia</span>
           </div>
         </div>
       )}

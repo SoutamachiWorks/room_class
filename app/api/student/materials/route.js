@@ -3,6 +3,8 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 
+import { generatePresignedUrl } from '@/lib/s3Client';
+
 /**
  * GET /api/student/materials
  * Returns all materials scoped to the student's classCode.
@@ -52,7 +54,17 @@ export async function GET(request) {
       { $sort: { createdAt: -1 } },
     ];
 
-    const materials = await db.collection('materials').aggregate(pipeline).toArray();
+    let materials = await db.collection('materials').aggregate(pipeline).toArray();
+
+    materials = await Promise.all(materials.map(async (mat) => {
+       if (mat.files && mat.files.length > 0) {
+           mat.files = await Promise.all(mat.files.map(async (f) => ({
+               ...f,
+               url: await generatePresignedUrl(f.fileKey)
+           })));
+       }
+       return mat;
+    }));
 
     return NextResponse.json({ materials });
   } catch (err) {

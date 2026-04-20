@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { uploadWithProgress } from '@/lib/xhrUpload';
 import styles from '../../../../admin/admin.module.css';
 
 export default function TakeExamPage() {
@@ -21,6 +22,7 @@ export default function TakeExamPage() {
   const [startedAt, setStartedAt] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null); // in seconds
   const [locked, setLocked] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // New state to enforce user gesture for Fullscreen
   const [fullscreenGranted, setFullscreenGranted] = useState(false);
@@ -218,6 +220,22 @@ export default function TakeExamPage() {
     setError('');
 
     try {
+      // 10MB limit enforcement across ALL file inputs organically globally.
+      const MAX_SIZE = 10 * 1024 * 1024;
+      let totalSize = 0;
+      for (const q of questions) {
+        const files = fileAnswers[q.displayOrder];
+        if (files) {
+           for (const f of files) totalSize += f.size;
+        }
+      }
+
+      if (totalSize > MAX_SIZE) {
+         setError('Gagal. Total lampiran berkas ujian melampaui batas maksimal sebesar 10 MB.');
+         setSubmitting(false);
+         return;
+      }
+
       const formData = new FormData();
       formData.append('sessionId', sessionId);
 
@@ -242,24 +260,22 @@ export default function TakeExamPage() {
         }
       }
 
-      const res = await fetch(`/api/student/exams/${examId}/submit`, { method: 'POST', body: formData });
-      const data = await res.json();
+      const url = `/api/student/exams/${examId}/submit`;
+      setUploadProgress(0);
+      const data = await uploadWithProgress(url, formData, 'POST', (val) => setUploadProgress(val));
 
-      if (!res.ok) {
-        if (data.locked) {
-          if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-          router.replace('/dashboard/student/exams/lockout');
-          return;
-        }
-        setError(data.error || 'Gagal mengumpulkan jawaban.');
-      } else {
-        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-        router.replace('/dashboard/student/exams?submitted=1');
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      router.replace('/dashboard/student/exams?submitted=1');
+    } catch (err) {
+      if (err.payload && err.payload.locked) {
+         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+         router.replace('/dashboard/student/exams/lockout');
+         return;
       }
-    } catch {
-      setError('Koneksi ke server gagal.');
+      setError(err.message || 'Koneksi ke server gagal.');
     } finally {
       setSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -433,7 +449,8 @@ export default function TakeExamPage() {
         ))}
       </div>
 
-      <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'center' }}>
+      <div style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+        {submitting && uploadProgress > 0 && <span style={{ color: '#10B981', fontSize: '0.875rem', fontWeight: 600 }}>Terkirim... {uploadProgress}%</span>}
         <button className={styles.btnPrimary} style={{ padding: '14px 40px', fontSize: '0.9375rem', minHeight: '52px', width: '100%', maxWidth: '400px', justifyContent: 'center' }} onClick={handleSubmit} disabled={submitting}>
           {submitting ? 'Mengirim Jawaban...' : 'Kumpulkan Jawaban'}
         </button>
