@@ -59,7 +59,7 @@ export async function PUT(request, { params }) {
     }
 
     const body = await request.json();
-    const { title, questions, isRandomized } = body;
+    const { title, questions, isRandomized, duration, deadline } = body;
 
     if (!title) {
       return NextResponse.json({ error: 'Judul ujian wajib diisi.' }, { status: 400 });
@@ -109,6 +109,8 @@ export async function PUT(request, { params }) {
           title,
           questions: normalizedQuestions,
           isRandomized: !!isRandomized,
+          duration: duration ? parseInt(duration, 10) : null,
+          deadline: deadline ? new Date(deadline) : null,
           updatedAt: new Date(),
         },
       }

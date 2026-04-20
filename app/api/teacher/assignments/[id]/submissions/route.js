@@ -47,7 +47,7 @@ export async function GET(request, { params }) {
          return {
             _id: student._id.toString(),
             studentId: student.studentId,
-            name: student.name,
+            name: student.fullName,
             classCode: student.classCode,
             submission: subInfo ? {
                ...subInfo,

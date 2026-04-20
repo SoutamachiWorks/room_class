@@ -39,6 +39,11 @@
   --color-process-text: #6B7280;
   --color-failed-bg: #FDE0DD;
   --color-failed-text: #DC3545;
+  
+  /* Aliases for quick access */
+  --color-success: #198754;
+  --color-danger: #DC3545;
+  --color-warning: #D97706;
 
   /* Border Radius */
   --radius-container: 30px;
@@ -96,6 +101,11 @@
   --color-process-text: #9CA3AF;
   --color-failed-bg: rgba(220, 53, 69, 0.18);
   --color-failed-text: #F87171;
+
+  /* Aliases for quick access */
+  --color-success: #4ADE80;
+  --color-danger: #F87171;
+  --color-warning: #FBBF24;
 
   /* Shadows — more visible on dark */
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
@@ -209,8 +219,19 @@ img {
 /* ── Hardcoded white/near-white backgrounds ───────────────────────────────── */
 /* #FAFAFA, #FAFABFF, white, #F9FAFB — used in table headers, inputs, buttons */
 [data-theme="dark"] [style*="background: #FAFBFF"],
-[data-theme="dark"] [style*="background:#FAFBFF"] {
+[data-theme="dark"] [style*="background:#FAFBFF"],
+[data-theme="dark"] [style*="background: #FAFAFA"],
+[data-theme="dark"] [style*="background:#FAFAFA"] {
   background: rgba(255, 255, 255, 0.04) !important;
+}
+
+[data-theme="dark"] [style*="background: #F0F7FF"],
+[data-theme="dark"] [style*="background:#F0F7FF"] {
+  background: rgba(120, 163, 255, 0.15) !important;
+}
+
+[data-theme="dark"] [style*="border: 2px solid #E5E7EB"] {
+  border-color: var(--color-border) !important;
 }
 
 /* ── Input / select / textarea ────────────────────────────────────────────── */
@@ -437,6 +458,17 @@ img {
 /* ── #F0F0F0 login footer border (harder to match via [style]) ──────────── */
 [data-theme="dark"] [class*="loginCard"] {
   border-color: var(--color-border) !important;
+}
+
+/* ── Exam builder UI cards ─────────────────────────────────────────────── */
+[data-theme="dark"] [class*="typeSection"] {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: var(--color-border) !important;
+}
+
+[data-theme="dark"] [class*="randomRow"] {
+  background: rgba(120, 163, 255, 0.1) !important;
+  border-color: rgba(120, 163, 255, 0.2) !important;
 }
 
 .visually-hidden {

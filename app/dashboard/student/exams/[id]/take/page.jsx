@@ -10,6 +10,7 @@ export default function TakeExamPage() {
 
   const [loading, setLoading] = useState(true);
   const [examTitle, setExamTitle] = useState('');
+  const [examDuration, setExamDuration] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [exitCount, setExitCount] = useState(0);
@@ -17,10 +18,16 @@ export default function TakeExamPage() {
   const [fileAnswers, setFileAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [startedAt, setStartedAt] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null); // in seconds
   const [locked, setLocked] = useState(false);
 
   // New state to enforce user gesture for Fullscreen
   const [fullscreenGranted, setFullscreenGranted] = useState(false);
+
+  // Auto-submit ref to avoid closure issues
+  const submittingRef = useRef(false);
+  submittingRef.current = submitting;
 
   // Tab visibility tracking
   const handleViolation = useCallback(async () => {
@@ -117,6 +124,17 @@ export default function TakeExamPage() {
         setQuestions(data.questions || []);
         setExitCount(data.exitCount || 0);
         setExamTitle(data.examTitle || 'Ujian');
+        setExamDuration(data.examDuration || null);
+        setStartedAt(data.startedAt || null);
+
+        if (data.examDuration && data.startedAt) {
+          const start = new Date(data.startedAt).getTime();
+          const durationMs = data.examDuration * 60 * 1000;
+          const end = start + durationMs;
+          const now = Date.now();
+          const remainingSeconds = Math.max(0, Math.floor((end - now) / 1000));
+          setTimeLeft(remainingSeconds);
+        }
 
         if (data.exitCount >= 2) {
           router.replace('/dashboard/student/exams/lockout');
@@ -131,6 +149,32 @@ export default function TakeExamPage() {
 
     startExam();
   }, [examId, router]);
+
+  // Timer effect
+  useEffect(() => {
+    if (timeLeft === null || locked || !fullscreenGranted) return;
+
+    if (timeLeft <= 0) {
+      // Time is up, auto submit
+      if (!submittingRef.current) {
+        alert('Waktu ujian telah habis! Jawaban Anda akan otomatis dikumpulkan.');
+        handleSubmitAuto();
+      }
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timeLeft, locked, fullscreenGranted]);
 
   const requestFullscreenAndContinue = async () => {
     try {
@@ -154,6 +198,12 @@ export default function TakeExamPage() {
     setFileAnswers(prev => ({ ...prev, [questionOrder]: files }));
   };
 
+  const handleSubmitAuto = async () => {
+    if (submittingRef.current) return;
+    setSubmitting(true);
+    await processSubmit();
+  };
+
   const handleSubmit = async () => {
     if (submitting) return;
 
@@ -161,6 +211,10 @@ export default function TakeExamPage() {
     if (!confirmed) return;
 
     setSubmitting(true);
+    await processSubmit();
+  };
+
+  const processSubmit = async () => {
     setError('');
 
     try {
@@ -267,12 +321,17 @@ export default function TakeExamPage() {
         <div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-heading)' }}>{examTitle}</h1>
           <p style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)', marginTop: '4px' }}>
-            {questions.length} soal • Pelanggaran: {exitCount}/2
+            {questions.length} soal • Durasi Pengerjaan: {examDuration ? `${examDuration} Menit` : 'Tanpa Batas'} • Pelanggaran: {exitCount}/2
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {timeLeft !== null && (
+            <div style={{ padding: '6px 14px', background: timeLeft < 60 ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-app)', borderRadius: '8px', fontSize: '1rem', fontWeight: 700, color: timeLeft < 60 ? 'var(--color-danger)' : 'var(--color-primary)', border: `1px solid ${timeLeft < 60 ? 'rgba(239, 68, 68, 0.4)' : 'var(--color-border)'}` }}>
+              ⏱️ {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+            </div>
+          )}
           {exitCount > 0 && (
-            <div style={{ padding: '6px 14px', background: '#FEF3C7', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600, color: '#92400E', border: '1px solid #FDE68A' }}>
+            <div style={{ padding: '6px 14px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-warning)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
               ⚠️ {exitCount} pelanggaran
             </div>
           )}
@@ -301,7 +360,7 @@ export default function TakeExamPage() {
                   {q.multipleChoice.options.map((opt, idx) => {
                     const isSelected = answers[q.displayOrder]?.mcAnswer === idx;
                     return (
-                      <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', border: `2px solid ${isSelected ? 'var(--color-primary)' : '#E5E7EB'}`, background: isSelected ? '#F0F7FF' : '#FAFAFA', cursor: 'pointer', transition: 'all 0.15s', fontSize: '0.875rem' }}>
+                      <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px', border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`, background: isSelected ? 'rgba(120, 163, 255, 0.15)' : 'var(--bg-app)', cursor: 'pointer', transition: 'all 0.15s', fontSize: '0.875rem' }}>
                         <input type="radio" name={`mc-${q.displayOrder}`} checked={isSelected} onChange={() => updateAnswer(q.displayOrder, 'mcAnswer', idx)} style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px' }} />
                         {opt}
                       </label>
@@ -325,7 +384,7 @@ export default function TakeExamPage() {
                 {fileAnswers[q.displayOrder] && fileAnswers[q.displayOrder].length > 0 && (
                   <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {fileAnswers[q.displayOrder].map((f, i) => (
-                      <span key={i} style={{ padding: '4px 10px', background: '#EFF6FF', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid #BFDBFE', color: 'var(--color-primary)' }}>📄 {f.name}</span>
+                      <span key={i} style={{ padding: '4px 10px', background: 'var(--bg-input)', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid var(--color-border)', color: 'var(--color-primary)' }}>📄 {f.name}</span>
                     ))}
                   </div>
                 )}

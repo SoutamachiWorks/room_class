@@ -22,13 +22,12 @@ export default function ExamBuilderPage() {
   const searchParams = useSearchParams();
   const editId = searchParams.get('id');
 
-  // Meta
   const [title, setTitle] = useState('');
   const [subjectId, setSubjectId] = useState('');
   const [classCode, setClassCode] = useState('');
   const [isRandomized, setIsRandomized] = useState(false);
-
-  // Dependencies
+  const [duration, setDuration] = useState('');
+  const [deadline, setDeadline] = useState('');
   const [teacherSubjects, setTeacherSubjects] = useState([]);
   const [dependenciesLoaded, setDependenciesLoaded] = useState(false);
 
@@ -75,6 +74,15 @@ export default function ExamBuilderPage() {
         setTitle(exam.title || '');
         setSubjectId(exam.subjectId || '');
         setIsRandomized(!!exam.isRandomized);
+        setDuration(exam.duration ? exam.duration.toString() : '');
+        if (exam.deadline) {
+          const d = new Date(exam.deadline);
+          if (!isNaN(d.getTime())) {
+            const tzOffset = d.getTimezoneOffset() * 60000;
+            const localISOTime = new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+            setDeadline(localISOTime);
+          }
+        }
 
         // Resolve class code from subject
         const targetSub = teacherSubjects.find(s => s._id === exam.subjectId);
@@ -250,6 +258,8 @@ export default function ExamBuilderPage() {
       subjectId,
       questions: cleanQuestions,
       isRandomized,
+      duration: duration ? parseInt(duration, 10) : null,
+      deadline: deadline ? new Date(deadline).toISOString() : null,
     };
 
     try {
@@ -326,7 +336,7 @@ export default function ExamBuilderPage() {
               value={subjectId}
               onChange={handleSubjectChange}
               disabled={!!editId}
-              style={editId ? { background: '#F3F4F6', color: '#9CA3AF' } : { appearance: 'auto' }}
+              style={editId ? { background: 'var(--bg-card-dark)', color: 'var(--color-subtext)', opacity: 0.7 } : { appearance: 'auto' }}
             >
               <option value="" disabled>Pilih Mata Pelajaran...</option>
               {teacherSubjects.map(sub => (
@@ -342,13 +352,13 @@ export default function ExamBuilderPage() {
               className={styles.input}
               value={classCode ? `Terkunci: ${classCode}` : 'Pilih mata pelajaran'}
               disabled
-              style={{ background: '#F3F4F6', fontWeight: 600, color: 'var(--color-primary)' }}
+              style={{ background: 'var(--bg-card-dark)', fontWeight: 600, color: 'var(--color-primary)', opacity: 0.7 }}
             />
           </div>
         </div>
 
         <div className={styles.metaGrid}>
-          <div className={styles.fieldGroup} style={{ gridColumn: 'span 2' }}>
+          <div className={styles.fieldGroup} style={{ gridColumn: 'span 1' }}>
             <label className={styles.fieldLabel} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span>Acak Urutan Soal Ujian</span>
               <label className={styles.toggleSwitch} style={{ margin: 0 }}>
@@ -361,7 +371,34 @@ export default function ExamBuilderPage() {
               </label>
             </label>
             <span style={{ fontSize: '0.85rem', color: 'var(--color-subtext)', marginTop: '4px', display: 'block' }}>
-              {isRandomized ? 'Ya, urutan soal akan diacak untuk setiap siswa.' : 'Tidak, urutan soal akan tetap sama untuk semua siswa.'}
+              {isRandomized ? 'Ya, acak untuk setiap siswa.' : 'Tidak diacak otomatis.'}
+            </span>
+          </div>
+
+          <div className={styles.fieldGroup} style={{ gridColumn: 'span 1' }}>
+            <label className={styles.fieldLabel}>Durasi Pengerjaan (Menit)</label>
+            <input
+              type="number"
+              min="1"
+              max="600"
+              className={styles.input}
+              value={duration}
+              onChange={e => setDuration(e.target.value)}
+              placeholder="Contoh: 90 (Kosong = Tanpa batas waktu)"
+            />
+          </div>
+
+          <div className={styles.fieldGroup} style={{ gridColumn: 'span 1' }}>
+            <label className={styles.fieldLabel}>Batas Akhir Pengerjaan (Deadline)</label>
+            <input
+              type="datetime-local"
+              className={styles.input}
+              value={deadline}
+              onChange={e => setDeadline(e.target.value)}
+              style={!deadline ? { color: 'var(--color-subtext)' } : {}}
+            />
+            <span style={{ fontSize: '0.85rem', color: 'var(--color-subtext)', marginTop: '4px', display: 'block' }}>
+              Kosongkan jika tidak ada batas akhir hari/waktu.
             </span>
           </div>
         </div>

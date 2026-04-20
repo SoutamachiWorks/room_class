@@ -106,7 +106,7 @@ export default function GradingPage() {
             <div key={idx} className={styles.contentCard} style={{ padding: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                 <span style={{ fontWeight: 600, fontSize: '1.2rem', color: 'var(--color-primary)' }}>Soal #{ans.questionOrder}</span>
-                <div style={{ background: '#F3F4F6', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ background: 'var(--bg-app)', padding: '8px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Skor Soal (0-100):</span>
                   <input
                     type="number"
@@ -122,7 +122,8 @@ export default function GradingPage() {
                       border: '1px solid var(--color-border)',
                       textAlign: 'center',
                       fontWeight: 700,
-                      color: scores[ans.questionOrder] > 0 ? '#198754' : '#DC3545'
+                      color: scores[ans.questionOrder] > 0 ? 'var(--color-success-text)' : 'var(--color-failed-text)',
+                      background: 'var(--bg-card)'
                     }}
                   />
                 </div>
@@ -130,16 +131,16 @@ export default function GradingPage() {
 
               <div style={{ fontSize: '1rem', marginBottom: '20px', lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: qd.multipleChoice?.questionText || qd.essay?.questionText || qd.fileUpload?.questionText }} />
 
-              <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #94A3B8' }}>
+              <div style={{ background: 'var(--bg-app)', padding: '16px', borderRadius: '8px', borderLeft: '4px solid var(--color-subtext)' }}>
                 <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-subtext)', marginBottom: '8px' }}>Jawaban Siswa:</div>
                 
                 {qd.multipleChoice && (
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '1.1rem', color: ans.mcAnswer === qd.multipleChoice.correctAnswer ? '#198754' : '#DC3545' }}>
+                    <div style={{ fontWeight: 600, fontSize: '1.1rem', color: ans.mcAnswer === qd.multipleChoice.correctAnswer ? 'var(--color-success-text)' : 'var(--color-failed-text)' }}>
                       {ans.mcAnswer ? `Opsi ${String(ans.mcAnswer).toUpperCase()}` : 'Tidak Menjawab'}
                     </div>
                     {ans.mcAnswer !== qd.multipleChoice.correctAnswer && qd.multipleChoice.correctAnswer && (
-                      <div style={{ fontSize: '0.875rem', color: '#198754', marginTop: '4px' }}>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--color-success-text)', marginTop: '4px' }}>
                         Kunci Jawaban Benar: Opsi {String(qd.multipleChoice.correctAnswer).toUpperCase()}
                       </div>
                     )}
@@ -157,7 +158,7 @@ export default function GradingPage() {
                     {ans.uploadedFiles?.length > 0 ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {ans.uploadedFiles.map((file, i) => (
-                          <a key={i} href={file.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#2563EB', textDecoration: 'none', fontSize: '0.875rem', background: '#DBEAFE', padding: '6px 12px', borderRadius: '4px', width: 'fit-content' }}>
+                          <a key={i} href={file.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)', textDecoration: 'none', fontSize: '0.875rem', background: 'var(--color-primary-light)', padding: '6px 12px', borderRadius: '4px', width: 'fit-content' }}>
                             📁 {file.originalName}
                           </a>
                         ))}
@@ -173,7 +174,7 @@ export default function GradingPage() {
         })}
       </div>
 
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#FFF', padding: '16px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.05)', zIndex: 100 }}>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--bg-card)', padding: '16px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.05)', zIndex: 100 }}>
         <div style={{ marginRight: '24px', textAlign: 'right' }}>
           <div style={{ fontSize: '0.875rem', color: 'var(--color-subtext)' }}>Kalkulasi Nilai Akhir</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-primary)' }}>{avgScore} / 100</div>

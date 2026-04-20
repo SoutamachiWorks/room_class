@@ -23,7 +23,7 @@ export default function MaterialsPage() {
   const [formText, setFormText] = useState('');
   const [formSubjectId, setFormSubjectId] = useState('');
   const [formClassCode, setFormClassCode] = useState(''); // Read-only derived logically
-  
+
   // File Array management (Native arrays)
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [retainedOldFiles, setRetainedOldFiles] = useState([]); // Used solely for PUT deletions
@@ -38,7 +38,7 @@ export default function MaterialsPage() {
       try {
         const subjectsRes = await fetch('/api/teacher/subjects');
         const subjectsData = await subjectsRes.json();
-        
+
         if (subjectsRes.ok) setTeacherSubjects(subjectsData.subjects || []);
         setDependenciesLoaded(true);
       } catch (e) {
@@ -69,13 +69,13 @@ export default function MaterialsPage() {
   const handleSubjectChange = (e) => {
     const sId = e.target.value;
     setFormSubjectId(sId);
-    
+
     // Reverse lookup to inject class code automatically into UI
     const targetSub = teacherSubjects.find(sub => sub._id === sId);
     if (targetSub) {
-       setFormClassCode(targetSub.classCode);
+      setFormClassCode(targetSub.classCode);
     } else {
-       setFormClassCode('');
+      setFormClassCode('');
     }
   };
 
@@ -89,7 +89,7 @@ export default function MaterialsPage() {
       setFormTitle(existingConfig.title || '');
       setFormText(existingConfig.text || '');
       setFormSubjectId(existingConfig.subjectId || '');
-      
+
       const targetSub = teacherSubjects.find(sub => sub._id === existingConfig.subjectId);
       setFormClassCode(targetSub ? targetSub.classCode : existingConfig.subjectDetails?.classCode || '');
 
@@ -130,19 +130,19 @@ export default function MaterialsPage() {
       const formData = new FormData();
       formData.append('title', formTitle);
       formData.append('text', formText);
-      
+
       if (!isEdit) {
-         // Subject IDs strictly lock defensively passing POST requests cleanly
-         formData.append('subjectId', formSubjectId);
+        // Subject IDs strictly lock defensively passing POST requests cleanly
+        formData.append('subjectId', formSubjectId);
       } else {
-         // Filter Array Names logic extracting files Teacher retained directly 
-         const keepArray = retainedOldFiles.map(f => f.filename);
-         formData.append('retainedFiles', JSON.stringify(keepArray));
+        // Filter Array Names logic extracting files Teacher retained directly 
+        const keepArray = retainedOldFiles.map(f => f.filename);
+        formData.append('retainedFiles', JSON.stringify(keepArray));
       }
 
       // Appending all the Fresh Array files cleanly natively
       for (const fileItem of attachedFiles) {
-         formData.append('files', fileItem);
+        formData.append('files', fileItem);
       }
 
       const url = isEdit ? `/api/teacher/materials/${selectedMaterial._id}` : '/api/teacher/materials';
@@ -175,7 +175,7 @@ export default function MaterialsPage() {
     try {
       const res = await fetch(`/api/teacher/materials/${selectedMaterial._id}`, { method: 'DELETE' });
       const data = await res.json();
-      
+
       if (res.ok) {
         fetchMaterials();
         setIsDeleteOpen(false);
@@ -193,11 +193,11 @@ export default function MaterialsPage() {
 
   // Safe UI removal function over File Array Iterators directly isolating state
   const removeRetainedFile = (fileName) => {
-      setRetainedOldFiles(prev => prev.filter(f => f.filename !== fileName));
+    setRetainedOldFiles(prev => prev.filter(f => f.filename !== fileName));
   };
-  
+
   const removeAttachedFile = (idx) => {
-      setAttachedFiles(prev => prev.filter((_, i) => i !== idx));
+    setAttachedFiles(prev => prev.filter((_, i) => i !== idx));
   };
 
 
@@ -208,9 +208,9 @@ export default function MaterialsPage() {
         <div className={styles.headerActions}>
           <button className={styles.btnPrimary} onClick={() => handleOpenForm()} disabled={!dependenciesLoaded}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <line x1="12" y1="8" x2="12" y2="16"/>
-              <line x1="8" y1="12" x2="16" y2="12"/>
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="12" y1="8" x2="12" y2="16" />
+              <line x1="8" y1="12" x2="16" y2="12" />
             </svg>
             Publikasi Modul Baru
           </button>
@@ -219,16 +219,16 @@ export default function MaterialsPage() {
 
       <div className={styles.contentCard} style={{ padding: '24px' }}>
         <p style={{ color: 'var(--color-subtext)', fontSize: '0.875rem', marginBottom: '24px' }}>
-           Material Section ini mengikat secara esensial pada pengaturan Subjek. Materi yang Anda publish berstatus **LIVE** terbatas pada parameter kode kelas spesifik siswa.
+          Material Section ini mengikat secara esensial pada pengaturan Subjek. Materi yang Anda publish berstatus **LIVE** terbatas pada parameter kode kelas spesifik siswa.
         </p>
-        
+
         {/* Dynamic Display Arrays */}
         <div className={styles.tableContainer}>
           {loading ? (
-             <div className={styles.loadingBox}>
-               <div className="spinner"></div> 
-               Mengenkripsi Direktori Server...
-             </div>
+            <div className={styles.loadingBox}>
+              <div className="spinner"></div>
+              Mengenkripsi Direktori Server...
+            </div>
           ) : materials.length === 0 ? (
             <div className={styles.emptyState}>Modul masih steril. Belum ada materi terekam di sistem pangkalan Anda.</div>
           ) : (
@@ -252,7 +252,7 @@ export default function MaterialsPage() {
                     <td>
                       <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{mat.subjectDetails?.subjectName || 'Subjek Sinkronisasi Fail'}</div>
                       <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>
-                         <span className={`${styles.badge} ${styles.badgeStudent}`}>{mat.subjectDetails?.classCode || 'NO-REF-CODE'}</span>
+                        <span className={`${styles.badge} ${styles.badgeStudent}`}>{mat.subjectDetails?.classCode || 'NO-REF-CODE'}</span>
                       </div>
                     </td>
                     <td>
@@ -260,26 +260,26 @@ export default function MaterialsPage() {
                     </td>
                     <td>
                       <div style={{ fontSize: '0.8125rem', whiteSpace: 'pre-wrap', maxHeight: '60px', overflowY: 'auto', marginBottom: '8px' }}>
-                         {mat.text}
+                        {mat.text}
                       </div>
-                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          {(mat.files || []).map((f, i) => (
-                             <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', padding: '2px 6px', background: 'var(--color-primary-light)', borderRadius: '4px', fontSize: '0.6875rem', color: 'var(--color-primary)', textDecoration: 'none', border: '1px solid var(--color-border)' }}>
-                                📎 {f.originalName}
-                             </a>
-                          ))}
-                          {(!mat.files || mat.files.length === 0) && <span style={{fontSize: '0.75rem', color: 'var(--color-subtext)'}}>-</span>}
-                       </div>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {(mat.files || []).map((f, i) => (
+                          <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', padding: '2px 6px', background: 'var(--color-primary-light)', borderRadius: '4px', fontSize: '0.6875rem', color: 'var(--color-primary)', textDecoration: 'none', border: '1px solid var(--color-border)' }}>
+                            📎 {f.originalName}
+                          </a>
+                        ))}
+                        {(!mat.files || mat.files.length === 0) && <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>-</span>}
+                      </div>
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                       <div className={styles.actionBtns} style={{ justifyContent: 'center' }}>
-                          <button className={styles.iconBtn} onClick={() => handleOpenForm(mat)}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                          </button>
-                          <button className={`${styles.iconBtn} ${styles.iconBtnDanger}`} onClick={() => { setSelectedMaterial(mat); setIsDeleteOpen(true); }}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                          </button>
-                       </div>
+                      <div className={styles.actionBtns} style={{ justifyContent: 'center' }}>
+                        <button className={styles.iconBtn} onClick={() => handleOpenForm(mat)}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        </button>
+                        <button className={`${styles.iconBtn} ${styles.iconBtnDanger}`} onClick={() => { setSelectedMaterial(mat); setIsDeleteOpen(true); }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -296,105 +296,105 @@ export default function MaterialsPage() {
         title={selectedMaterial ? 'Injeksi / Mutasi Parametrik Modul' : 'Distribusi Berkas Fisik Kelas'}
       >
         <form onSubmit={handleSubmit} className={styles.form}>
-           {formError && <div className={styles.formError}>{formError}</div>}
+          {formError && <div className={styles.formError}>{formError}</div>}
 
-           <div className={styles.formRow}>
-              <div className={styles.fieldGroup}>
-                 <label className={styles.fieldLabel}>Integrasi Mata Pelajaran*</label>
-                 <select 
-                    name="subjectId" 
-                    value={formSubjectId} 
-                    onChange={handleSubjectChange} 
-                    className={styles.input} 
-                    required 
-                    disabled={!!selectedMaterial} // Block subject swapping safely natively maintaining sync
-                    style={selectedMaterial ? { background: 'rgba(255,255,255,0.05)', color: 'var(--color-subtext)' } : { appearance: 'auto' }}
-                 >
-                    <option value="" disabled>Pilih Subjek Anda...</option>
-                    {teacherSubjects.map(sub => (
-                       <option key={sub._id} value={sub._id}>{sub.subjectName}</option>
-                    ))}
-                 </select>
-              </div>
+          <div className={styles.formRow}>
+            <div className={styles.fieldGroup}>
+              <label className={styles.fieldLabel}>Integrasi Mata Pelajaran*</label>
+              <select
+                name="subjectId"
+                value={formSubjectId}
+                onChange={handleSubjectChange}
+                className={styles.input}
+                required
+                disabled={!!selectedMaterial} // Block subject swapping safely natively maintaining sync
+                style={selectedMaterial ? { background: 'rgba(255,255,255,0.05)', color: 'var(--color-subtext)' } : { appearance: 'auto' }}
+              >
+                <option value="" disabled>Pilih Subjek Anda...</option>
+                {teacherSubjects.map(sub => (
+                  <option key={sub._id} value={sub._id}>{sub.subjectName}</option>
+                ))}
+              </select>
+            </div>
 
-              <div className={styles.fieldGroup}>
-                 <label className={styles.fieldLabel}>Mapping Kode Kelas Tertutup</label>
-                 <input 
-                    type="text"
-                    value={formClassCode ? `Terkunci: Kelas [${formClassCode}]` : 'Harap Setel Subjek'} 
-                    disabled 
-                    className={styles.input}
-                    style={{ background: 'var(--color-primary-light)', fontWeight: 600, color: 'var(--color-primary)' }}
-                 />
-              </div>
-           </div>
-
-           <div className={styles.fieldGroup}>
-              <label className={styles.fieldLabel}>Judul Materi Khusus Sistem*</label>
-              <input 
-                 type="text"
-                 value={formTitle}
-                 onChange={e => setFormTitle(e.target.value)}
-                 className={styles.input}
-                 required
-                 placeholder="Misal: Modul 1: Struktur Data Array Dasar"
+            <div className={styles.fieldGroup}>
+              <label className={styles.fieldLabel}>Mapping Kode Kelas Tertutup</label>
+              <input
+                type="text"
+                value={formClassCode ? `Terkunci: Kelas [${formClassCode}]` : 'Harap Setel Subjek'}
+                disabled
+                className={styles.input}
+                style={{ background: 'var(--color-primary-light)', fontWeight: 600, color: 'var(--color-primary)' }}
               />
-           </div>
+            </div>
+          </div>
 
-           <div className={styles.fieldGroup}>
-              <label className={styles.fieldLabel}>Deskripsi / Konten (Text)*</label>
-              <textarea 
-                 value={formText} 
-                 onChange={e => setFormText(e.target.value)} 
-                 className={styles.input} 
-                 required 
-                 style={{ height: '140px', paddingTop: '12px', resize: 'vertical' }}
-                 placeholder="Tuliskan petunjuk kompetensi dasar materi disini..."
-              />
-           </div>
+          <div className={styles.fieldGroup}>
+            <label className={styles.fieldLabel}>Judul Materi Khusus Sistem*</label>
+            <input
+              type="text"
+              value={formTitle}
+              onChange={e => setFormTitle(e.target.value)}
+              className={styles.input}
+              required
+              placeholder="Misal: Modul 1: Struktur Data Array Dasar"
+            />
+          </div>
 
-           {/* Native Form-Data File Handlers */}
-           <div className={styles.fieldGroup} style={{ marginTop: '12px' }}>
-              <label className={styles.fieldLabel}>Tambah / Lampirkan Berkas Fs (Multiple File Select)</label>
-              <input 
-                 type="file" 
-                 multiple 
-                 ref={fileInputRef}
-                 className={styles.input} 
-                 style={{ paddingTop: '10px' }}
-                 onChange={(e) => {
-                    const newFiles = Array.from(e.target.files);
-                    setAttachedFiles(prev => [...prev, ...newFiles]);
-                    if (fileInputRef.current) fileInputRef.current.value = ""; // Clear active input visual
-                 }}
-              />
-              
-              {/* Box mapping Arrays visualizing exactly what we retain logically */}
-              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                 
-                 {retainedOldFiles.map((prevFl) => (
-                    <div key={prevFl.filename} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(16, 185, 129, 0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                       <span>📎 {prevFl.originalName} (Lawas)</span>
-                       <button type="button" onClick={() => removeRetainedFile(prevFl.filename)} style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Tarik/Hapus Disk</button>
-                    </div>
-                 ))}
+          <div className={styles.fieldGroup}>
+            <label className={styles.fieldLabel}>Deskripsi / Konten (Text)*</label>
+            <textarea
+              value={formText}
+              onChange={e => setFormText(e.target.value)}
+              className={styles.input}
+              required
+              style={{ height: '140px', paddingTop: '12px', resize: 'vertical' }}
+              placeholder="Tuliskan petunjuk kompetensi dasar materi disini..."
+            />
+          </div>
 
-                 {attachedFiles.map((fl, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(120,163,255,0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid rgba(120,163,255,0.3)' }}>
-                       <span>📄 {fl.name} (Baru Disematkan)</span>
-                       <button type="button" onClick={() => removeAttachedFile(idx)} style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Batalkan</button>
-                    </div>
-                 ))}
+          {/* Native Form-Data File Handlers */}
+          <div className={styles.fieldGroup} style={{ marginTop: '12px' }}>
+            <label className={styles.fieldLabel}>Tambah / Lampirkan Berkas Fs (Multiple File Select)</label>
+            <input
+              type="file"
+              multiple
+              ref={fileInputRef}
+              className={styles.input}
+              style={{ paddingTop: '10px' }}
+              onChange={(e) => {
+                const newFiles = Array.from(e.target.files);
+                setAttachedFiles(prev => [...prev, ...newFiles]);
+                if (fileInputRef.current) fileInputRef.current.value = ""; // Clear active input visual
+              }}
+            />
 
-              </div>
-           </div>
+            {/* Box mapping Arrays visualizing exactly what we retain logically */}
+            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
-           <div className={styles.formActions} style={{ marginTop: '32px' }}>
-              <button type="button" onClick={handleCloseForm} className={styles.btnCancel} disabled={formLoading}>Tarik Sinyal</button>
-              <button type="submit" className={styles.btnSubmit} disabled={formLoading}>
-                 {formLoading ? 'Mengkompresi Alur Array Berkas...' : 'Publikasi Jaringan'}
-              </button>
-           </div>
+              {retainedOldFiles.map((prevFl) => (
+                <div key={prevFl.filename} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(16, 185, 129, 0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                  <span>📎 {prevFl.originalName} (Lawas)</span>
+                  <button type="button" onClick={() => removeRetainedFile(prevFl.filename)} style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Hapus</button>
+                </div>
+              ))}
+
+              {attachedFiles.map((fl, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(120,163,255,0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid rgba(120,163,255,0.3)' }}>
+                  <span>📄 {fl.name} (Baru Disematkan)</span>
+                  <button type="button" onClick={() => removeAttachedFile(idx)} style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Batalkan</button>
+                </div>
+              ))}
+
+            </div>
+          </div>
+
+          <div className={styles.formActions} style={{ marginTop: '32px' }}>
+            <button type="button" onClick={handleCloseForm} className={styles.btnCancel} disabled={formLoading}>Tarik Sinyal</button>
+            <button type="submit" className={styles.btnSubmit} disabled={formLoading}>
+              {formLoading ? 'Mengkompresi Alur Array Berkas...' : 'Publikasi Jaringan'}
+            </button>
+          </div>
         </form>
       </Modal>
 

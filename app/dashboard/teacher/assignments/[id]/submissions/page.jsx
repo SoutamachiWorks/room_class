@@ -89,7 +89,7 @@ export default function TeacherSubmissionPage({ params }) {
       <div className={styles.pageHeader}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
            <h1 className={styles.pageTitle} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-             <button onClick={() => router.push('/dashboard/teacher/assignments')} className={styles.iconBtn} style={{ background: '#F3F4F6', color: '#374151', border: '1px solid #D1D5DB' }}>
+             <button onClick={() => router.push('/dashboard/teacher/assignments')} className={styles.iconBtn} style={{ background: 'var(--bg-card)', color: 'var(--color-heading)', border: '1px solid var(--color-border)' }}>
                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
              </button>
              Monitor Evaluasi Penugasan
@@ -103,16 +103,16 @@ export default function TeacherSubmissionPage({ params }) {
       </div>
 
       <div className={styles.contentCard} style={{ padding: '24px' }}>
-        <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', background: '#F8FAFC', padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+        <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', background: 'var(--bg-card)', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
             <div style={{ flex: 1 }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748B', display: 'block', marginBottom: '8px' }}>Aturan Batas Waktu Terkunci:</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-subtext)', display: 'block', marginBottom: '8px' }}>Aturan Batas Waktu Terkunci:</span>
                 <span className={`${styles.badge} ${assignmentMeta?.deadline ? styles.statusInactive : styles.statusActive}`}>
                     {assignmentMeta?.deadline ? new Date(assignmentMeta.deadline).toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' }) : 'Tidak Berbatas Ruang / Infinity'}
                 </span>
             </div>
-            <div style={{ flex: 1, borderLeft: '1px solid #CBD5E1', paddingLeft: '16px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748B', display: 'block', marginBottom: '8px' }}>Terkumpul (Aktivasi Rasio):</span>
-                <strong style={{ fontSize: '1.25rem', color: '#0F172A' }}>
+            <div style={{ flex: 1, borderLeft: '1px solid var(--color-border)', paddingLeft: '16px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-subtext)', display: 'block', marginBottom: '8px' }}>Terkumpul (Aktivasi Rasio):</span>
+                <strong style={{ fontSize: '1.25rem', color: 'var(--color-heading)' }}>
                     {students.filter(s => s.submission).length} / {students.length} Siswa
                 </strong>
             </div>
@@ -144,32 +144,32 @@ export default function TeacherSubmissionPage({ params }) {
                   return (
                       <tr key={student._id}>
                         <td>
-                          <div style={{ fontWeight: 600, color: '#1F2937' }}>{student.name}</div>
+                          <div style={{ fontWeight: 600, color: 'var(--color-text)' }}>{student.name || 'Nama Tidak Tersedia'}</div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', marginTop: '4px' }}>[{student.studentId}]</div>
                         </td>
                         <td>
                           {sub ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                  {sub.text && (
-                                     <div style={{ fontSize: '0.8125rem', whiteSpace: 'pre-wrap', background: '#F3F4F6', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E5E7EB' }}>
+                                     <div style={{ fontSize: '0.8125rem', whiteSpace: 'pre-wrap', background: 'var(--bg-input)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
                                          {sub.text}
                                      </div>
                                  )}
                                  
                                  {sub.files && sub.files.length > 0 && (
-                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4B5563' }}>Lampiran File ({sub.files.length})</span>
+                                             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-subtext)' }}>Lampiran File ({sub.files.length})</span>
                                              <button 
                                                 onClick={() => handleDownloadAllSelected(sub.files)} 
-                                                style={{ fontSize: '0.75rem', padding: '4px 10px', background: '#DBEAFE', color: '#1E3A8A', border: '1px solid #BFDBFE', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+                                                style={{ fontSize: '0.75rem', padding: '4px 10px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-primary)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
                                              >
                                                 Unduh Semua Lampiran 👇
                                              </button>
                                         </div>
                                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                                             {sub.files.map((fl, x) => (
-                                                <a key={x} href={fl.url} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 12px', background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', textDecoration: 'none', fontSize: '0.75rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <a key={x} href={fl.url} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', color: 'var(--color-success)', textDecoration: 'none', fontSize: '0.75rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     <span>📎</span>
                                                     <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fl.originalName}</span>
                                                 </a>
@@ -179,16 +179,16 @@ export default function TeacherSubmissionPage({ params }) {
                                  )}
                               </div>
                           ) : (
-                             <span style={{ fontSize: '0.8125rem', color: '#9CA3AF', fontStyle: 'italic' }}>Belum Mengerjakan Penugasan</span>
+                             <span style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)', fontStyle: 'italic' }}>Belum Mengerjakan Penugasan</span>
                           )}
                         </td>
                         <td>
                            {sub ? (
                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                   <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Terkumpul Secara Fisik:</span>
-                                  <span style={{ fontSize: '0.75rem', color: '#4B5563' }}>{new Date(sub.submittedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>{new Date(sub.submittedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                                   {sub.isLate && (
-                                      <span style={{ padding: '4px 8px', background: '#FEF2F2', color: '#DC2626', border: '1px solid #FCA5A5', borderRadius: '4px', fontSize: '0.6875rem', fontWeight: 600, display: 'inline-block', marginTop: '4px', alignSelf: 'flex-start' }}>Terlambat</span>
+                                      <span style={{ padding: '4px 8px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '4px', fontSize: '0.6875rem', fontWeight: 600, display: 'inline-block', marginTop: '4px', alignSelf: 'flex-start' }}>Terlambat</span>
                                   )}
                                </div>
                            ) : (
@@ -198,39 +198,39 @@ export default function TeacherSubmissionPage({ params }) {
                         <td style={{ textAlign: 'center' }}>
                             {sub ? (
                                 isGrading ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', background: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
                                         <input 
                                             type="number" 
                                             value={gradeInput}
                                             onChange={e => setGradeInput(e.target.value)}
-                                            style={{ width: '100%', padding: '8px', border: '2px solid #3B82F6', borderRadius: '6px', textAlign: 'center', fontWeight: 700, fontSize: '1rem' }}
+                                            style={{ width: '100%', padding: '8px', border: '2px solid var(--color-primary)', borderRadius: '6px', textAlign: 'center', fontWeight: 700, fontSize: '1rem', background: 'var(--bg-input)', color: 'var(--color-text)' }}
                                             placeholder="0-100"
                                             autoFocus
                                         />
                                         <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                                            <button onClick={() => setGradingStudentId(null)} disabled={gradeLoading} style={{ flex: 1, padding: '6px', background: 'white', color: '#6B7280', border: '1px solid #D1D5DB', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>Batal</button>
-                                            <button onClick={() => submitGrade(student.studentId)} disabled={gradeLoading} style={{ flex: 1, padding: '6px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>Simpan</button>
+                                            <button onClick={() => setGradingStudentId(null)} disabled={gradeLoading} style={{ flex: 1, padding: '6px', background: 'var(--bg-app)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>Batal</button>
+                                            <button onClick={() => submitGrade(student.studentId)} disabled={gradeLoading} style={{ flex: 1, padding: '6px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>Simpan</button>
                                         </div>
                                     </div>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                                         {sub.score !== undefined && sub.score !== null ? (
-                                            <div style={{ padding: '8px 16px', background: '#D1FAE5', color: '#065F46', borderRadius: '8px', fontWeight: 800, fontSize: '1.25rem' }}>
-                                                {sub.score} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#34D399' }}>/ 100</span>
+                                            <div style={{ padding: '8px 16px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)', borderRadius: '8px', fontWeight: 800, fontSize: '1.25rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                                                {sub.score} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-success)' }}>/ 100</span>
                                             </div>
                                         ) : (
-                                            <span style={{ fontSize: '0.75rem', color: '#9CA3AF', fontStyle: 'italic' }}>Belum Ditelaah</span>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)', fontStyle: 'italic' }}>Belum Ditelaah</span>
                                         )}
                                         <button 
                                             onClick={() => { setGradingStudentId(student.studentId); setGradeInput(sub.score || ''); }}
-                                            style={{ background: 'none', border: 'none', color: '#3B82F6', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                                            style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
                                         >
                                             Ubah / Setel Nilai
                                         </button>
                                     </div>
                                 )
                             ) : (
-                                <span style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>Terkunci (Belum Ada File)</span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>Terkunci (Belum Ada File)</span>
                             )}
                         </td>
                       </tr>

@@ -73,6 +73,11 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Anda tidak memiliki akses ke ujian ini.' }, { status: 403 });
     }
 
+    // Check if deadline has passed
+    if (exam.deadline && new Date(exam.deadline).getTime() < Date.now()) {
+      return NextResponse.json({ error: 'Ujian ini telah melewati batas waktu (deadline) dan tidak dapat lagi diakses. Silakan hubungi guru Anda.' }, { status: 403 });
+    }
+
     // Check for existing session
     const existingSession = await db.collection('examSessions').findOne({
       examId: examId.toString(),
@@ -93,6 +98,8 @@ export async function POST(request, { params }) {
           questions: sanitizeQuestions(existingSession.questions),
           exitCount: existingSession.exitCount,
           examTitle: exam.title,
+          examDuration: exam.duration,
+          startedAt: existingSession.startedAt,
         });
       }
     }
@@ -126,6 +133,8 @@ export async function POST(request, { params }) {
       questions: sanitizeQuestions(selected),
       exitCount: 0,
       examTitle: exam.title,
+      examDuration: exam.duration,
+      startedAt: newSession.startedAt,
     }, { status: 201 });
 
   } catch (err) {

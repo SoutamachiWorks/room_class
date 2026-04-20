@@ -65,7 +65,7 @@ export async function POST(request) {
     if (!teacherId) return NextResponse.json({ error: 'Identifikasi guru gagal' }, { status: 403 });
 
     const body = await request.json();
-    const { title, subjectId, questions, isRandomized } = body;
+    const { title, subjectId, questions, isRandomized, duration, deadline } = body;
 
     // Validation
     if (!title || typeof title !== 'string') {
@@ -122,6 +122,8 @@ export async function POST(request) {
       title,
       questions: normalizedQuestions,
       isRandomized: !!isRandomized,
+      duration: duration ? parseInt(duration, 10) : null,
+      deadline: deadline ? new Date(deadline) : null,
       status: 'draft',
       createdAt: new Date(),
       updatedAt: new Date(),

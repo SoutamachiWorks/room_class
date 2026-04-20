@@ -172,8 +172,9 @@ export default function StudentAssignmentsPage() {
                   <th style={{ width: '12%' }}>Tanggal</th>
                   <th style={{ width: '20%' }}>Mata Pelajaran</th>
                   <th style={{ width: '30%' }}>Instruksi Tugas</th>
-                  <th>Lampiran</th>
-                  <th style={{ textAlign: 'center' }}>Batas Akhir / Nilai</th>
+                  <th style={{ width: '30%' }}>Lampiran</th>
+                  <th style={{ textAlign: 'center' }}>Batas Akhir</th>
+                  <th style={{ textAlign: 'center' }}>Nilai</th>
                   <th style={{ textAlign: 'center' }}>Status</th>
                   <th style={{ textAlign: 'center' }}>Aksi</th>
                 </tr>
@@ -205,28 +206,30 @@ export default function StudentAssignmentsPage() {
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {(asm.files || []).map((f, i) => (
                           <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
-                            style={{ display: 'inline-flex', padding: '4px 8px', background: '#FEF3C7', borderRadius: '4px', fontSize: '0.6875rem', color: '#92400E', textDecoration: 'none', border: '1px solid #FDE68A' }}
+                            style={{ display: 'inline-flex', padding: '4px 8px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '4px', fontSize: '0.6875rem', color: 'var(--color-warning)', textDecoration: 'none', border: '1px solid rgba(245, 158, 11, 0.3)' }}
                           >
                             📎 {f.originalName}
                           </a>
                         ))}
-                        {(!asm.files || asm.files.length === 0) && <span style={{ fontSize: '0.75rem', color: '#9CA3AF' }}>-</span>}
+                        {(!asm.files || asm.files.length === 0) && <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>-</span>}
                       </div>
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: asm.deadline ? '#DC2626' : '#6B7280' }}>
-                         {asm.deadline ? new Date(asm.deadline).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : 'Tidak Ada'}
+                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: asm.deadline ? 'var(--color-danger)' : 'var(--color-subtext)' }}>
+                        {asm.deadline ? new Date(asm.deadline).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : 'Tidak Ada'}
                       </div>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
                       {asm.submission?.score !== undefined && asm.submission?.score !== null && (
-                         <div style={{ marginTop: '8px', padding: '4px', background: '#D1FAE5', color: '#065F46', fontWeight: 700, borderRadius: '4px', fontSize: '0.875rem' }}>
-                            Nilai: {asm.submission.score}/100
-                         </div>
+                        <div style={{ marginTop: '8px', padding: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 700, borderRadius: '4px', fontSize: '0.875rem' }}>
+                          {asm.submission.score}/100
+                        </div>
                       )}
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       {asm.submission ? (
-                        <span className={`${styles.badge} ${styles.statusActive}`} style={asm.submission?.isLate ? { background: '#FEF2F2', color: '#DC2626', border: '1px solid #FCA5A5' } : {}}>
-                           {asm.submission?.isLate ? 'Terlambat Dikumpulkan' : 'Sudah Dikumpulkan'}
+                        <span className={`${styles.badge} ${styles.statusActive}`} style={asm.submission?.isLate ? { background: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)', border: '1px solid rgba(239, 68, 68, 0.3)' } : {}}>
+                          {asm.submission?.isLate ? 'Terlambat Dikumpulkan' : 'Sudah Dikumpulkan'}
                         </span>
                       ) : (
                         <span className={`${styles.badge} ${styles.statusInactive}`}>Belum dikumpulkan</span>
@@ -252,8 +255,8 @@ export default function StudentAssignmentsPage() {
                               onClick={() => handleOpenForm(asm, asm.submission)}
                             >
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                               </svg>
                             </button>
                             {/* Delete */}
@@ -263,8 +266,8 @@ export default function StudentAssignmentsPage() {
                               onClick={() => { setDeleteTarget(asm.submission); setIsDeleteOpen(true); }}
                             >
                               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-                                <polyline points="3 6 5 6 21 6"/>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                               </svg>
                             </button>
                           </>
@@ -289,7 +292,7 @@ export default function StudentAssignmentsPage() {
           {formError && <div className={styles.formError}>{formError}</div>}
 
           {/* Show assignment context */}
-          <div style={{ padding: '12px 16px', background: '#F0F7FF', borderRadius: '12px', border: '1px solid #DBEAFE', marginBottom: '8px' }}>
+          <div style={{ padding: '12px 16px', background: 'var(--bg-app)', borderRadius: '12px', border: '1px solid var(--color-border)', marginBottom: '8px' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', marginBottom: '4px' }}>
               {selectedAssignment?.subjectDetails?.subjectName || 'Mata Pelajaran'}
             </div>
@@ -326,15 +329,15 @@ export default function StudentAssignmentsPage() {
 
             <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {retainedOldFiles.map((f) => (
-                <div key={f.filename} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F0FDF4', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid #BBF7D0' }}>
-                  <span>📎 {f.originalName} (Sebelumnya)</span>
-                  <button type="button" onClick={() => removeRetainedFile(f.filename)} style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Hapus</button>
+                <div key={f.filename} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(16, 185, 129, 0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                  <span style={{ color: 'var(--color-success)' }}>📎 {f.originalName} (Sebelumnya)</span>
+                  <button type="button" onClick={() => removeRetainedFile(f.filename)} style={{ color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Hapus</button>
                 </div>
               ))}
               {attachedFiles.map((fl, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#EFF6FF', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid #BFDBFE' }}>
-                  <span>📄 {fl.name} (Baru)</span>
-                  <button type="button" onClick={() => removeAttachedFile(idx)} style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Batalkan</button>
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(120, 163, 255, 0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid rgba(120, 163, 255, 0.3)' }}>
+                  <span style={{ color: 'var(--color-primary)' }}>📄 {fl.name} (Baru)</span>
+                  <button type="button" onClick={() => removeAttachedFile(idx)} style={{ color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Batalkan</button>
                 </div>
               ))}
             </div>

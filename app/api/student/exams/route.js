@@ -59,6 +59,7 @@ export async function GET(request) {
           showResults: 1,
           randomCount: 1,
           totalQuestions: { $size: '$questions' },
+          deadline: 1,
           createdAt: 1,
           subjectDetails: 1,
         },

@@ -31,8 +31,17 @@ function StudentExamsContent() {
   }, [fetchExams]);
 
   const getSessionStatus = (exam) => {
-    if (!exam.session) return 'available';
-    return exam.session.status; // 'in-progress' | 'submitted' | 'locked'
+    let baseStatus = 'available';
+    if (exam.session) {
+      baseStatus = exam.session.status; // 'in-progress' | 'submitted' | 'locked'
+    }
+
+    if ((baseStatus === 'available' || baseStatus === 'in-progress') && exam.deadline) {
+      if (new Date(exam.deadline).getTime() < Date.now()) {
+        return 'expired';
+      }
+    }
+    return baseStatus;
   };
 
   const getStatusBadge = (status) => {
@@ -40,11 +49,13 @@ function StudentExamsContent() {
       case 'available':
         return { label: 'Tersedia', className: `${styles.badge} ${styles.statusActive}` };
       case 'in-progress':
-        return { label: 'Sedang Dikerjakan', className: styles.badge, style: { background: '#FEF3C7', color: '#92400E' } };
+        return { label: 'Sedang Dikerjakan', className: styles.badge, style: { background: 'var(--color-warning-bg)', color: 'var(--color-warning-text)', border: '1px solid currentColor' } };
       case 'submitted':
-        return { label: 'Sudah Dikumpulkan', className: styles.badge, style: { background: '#D1F0D9', color: '#198754' } };
+        return { label: 'Sudah Dikumpulkan', className: styles.badge, style: { background: 'var(--color-success-bg)', color: 'var(--color-success-text)' } };
       case 'locked':
-        return { label: 'Terkunci', className: styles.badge, style: { background: '#FDE0DD', color: '#DC3545' } };
+        return { label: 'Terkunci', className: styles.badge, style: { background: 'var(--color-failed-bg)', color: 'var(--color-failed-text)' } };
+      case 'expired':
+        return { label: 'Melewati Deadline', className: styles.badge, style: { background: 'var(--bg-card)', color: 'var(--color-subtext)', border: '1px solid var(--color-border)' } };
       default:
         return { label: status, className: styles.badge };
     }
@@ -109,10 +120,10 @@ function StudentExamsContent() {
         {isSubmitted && (
           <div style={{
             padding: '14px 20px',
-            background: '#D1F0D9',
+            background: 'var(--color-success-bg)',
             borderRadius: '12px',
-            border: '1px solid #A3E4B8',
-            color: '#198754',
+            border: '1px solid currentColor',
+            color: 'var(--color-success)',
             fontSize: '0.875rem',
             marginBottom: '20px',
             display: 'flex',
@@ -132,10 +143,10 @@ function StudentExamsContent() {
         {notifBlocked && (
           <div style={{
             padding: '14px 20px',
-            background: '#FEF3C7',
+            background: 'var(--color-warning-bg)',
             borderRadius: '12px',
-            border: '1px solid #FDE68A',
-            color: '#92400E',
+            border: '1px solid currentColor',
+            color: 'var(--color-warning)',
             fontSize: '0.875rem',
             marginBottom: '20px',
             display: 'flex',
@@ -143,9 +154,9 @@ function StudentExamsContent() {
             gap: '10px',
           }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20, flexShrink: 0 }}>
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
             <div>
               <strong>Izin Notifikasi Ditolak.</strong> Anda harus mengaktifkan notifikasi browser untuk mengikuti ujian. Silakan buka pengaturan browser Anda dan aktifkan notifikasi untuk situs ini, lalu coba lagi.
@@ -187,6 +198,11 @@ function StudentExamsContent() {
                       </td>
                       <td>
                         <div style={{ fontWeight: 700, color: 'var(--color-heading)' }}>{exam.title}</div>
+                        {exam.deadline && (
+                          <div style={{ fontSize: '0.75rem', marginTop: '4px', color: sessionStatus === 'expired' ? 'var(--color-danger)' : 'var(--color-subtext)', fontWeight: sessionStatus === 'expired' ? 600 : 400 }}>
+                            ⏱️ Deadline: {new Date(exam.deadline).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </div>
+                        )}
                       </td>
                       <td>
                         <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
@@ -232,11 +248,11 @@ function StudentExamsContent() {
                           exam.showResults ? (
                             exam.session?.gradingStatus === 'pending-manual' ? (
                               <div>
-                                <span style={{ fontSize: '0.8125rem', color: '#D97706', fontWeight: 600 }}>Menunggu Koreksi Guru</span>
+                                <span style={{ fontSize: '0.8125rem', color: 'var(--color-warning)', fontWeight: 600 }}>Menunggu Koreksi Guru</span>
                               </div>
                             ) : (
                               <div>
-                                <span style={{ fontSize: '1.25rem', color: '#198754', fontWeight: 800 }}>{exam.session?.calculatedScore || 0}</span>
+                                <span style={{ fontSize: '1.25rem', color: 'var(--color-success)', fontWeight: 800 }}>{exam.session?.calculatedScore || 0}</span>
                                 <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)', marginLeft: '4px' }}>/ 100</span>
                               </div>
                             )
@@ -245,7 +261,10 @@ function StudentExamsContent() {
                           )
                         )}
                         {sessionStatus === 'locked' && (
-                          <span style={{ fontSize: '0.8125rem', color: '#DC3545', fontWeight: 600 }}>Terkunci</span>
+                          <span style={{ fontSize: '0.8125rem', color: 'var(--color-danger)', fontWeight: 600 }}>Terkunci</span>
+                        )}
+                        {sessionStatus === 'expired' && (
+                          <span style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)', fontWeight: 600 }}>Melewati Deadline</span>
                         )}
                       </td>
                     </tr>
