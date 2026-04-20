@@ -196,7 +196,6 @@
 }
 
 .navLinkActive {
-  composes: navLink;
   background: rgba(120, 163, 255, 0.12);
   color: var(--color-primary);
 }
@@ -550,8 +549,8 @@
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
     z-index: 1000;
-    backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
   }
 
   /* Show hamburger */

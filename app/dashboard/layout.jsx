@@ -352,7 +352,7 @@ export default function DashboardLayout({ children }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={isActive(link.href) ? styles.navLinkActive : styles.navLink}
+                  className={`${styles.navLink} ${isActive(link.href) ? styles.navLinkActive : ''}`}
                   data-tooltip={isCollapsed ? link.label : undefined}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
