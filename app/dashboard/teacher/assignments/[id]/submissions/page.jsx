@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
+import PageHeader from '@/components/PageHeader';
+import ContentCard from '@/components/ContentCard';
+import StatusBadge from '@/components/StatusBadge';
+import EmptyState from '@/components/EmptyState';
 import styles from '../../../../admin/admin.module.css'; 
 
 export default function TeacherSubmissionPage({ params }) {
@@ -16,9 +20,10 @@ export default function TeacherSubmissionPage({ params }) {
   const [loading, setLoading] = useState(true);
 
   // Grading states natively
-  const [gradingStudentId, setGradingStudentId] = useState(null);
-  const [gradeInput, setGradeInput] = useState('');
-  const [gradeLoading, setGradeLoading] = useState(false);
+   const [gradingStudentId, setGradingStudentId] = useState(null);
+   const [gradeInput, setGradeInput] = useState('');
+   const [feedbackInput, setFeedbackInput] = useState('');
+   const [gradeLoading, setGradeLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -53,12 +58,16 @@ export default function TeacherSubmissionPage({ params }) {
         const res = await fetch(`/api/teacher/assignments/${assignmentId}/submissions/${studentId}/grade`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ score: Number(gradeInput) })
+            body: JSON.stringify({ 
+                score: Number(gradeInput),
+                feedback: feedbackInput
+            })
         });
 
         if (res.ok) {
             setGradingStudentId(null);
             setGradeInput('');
+            setFeedbackInput('');
             fetchData();
         } else {
             const data = await res.json();
@@ -87,39 +96,37 @@ export default function TeacherSubmissionPage({ params }) {
   return (
     <>
       <div className={styles.pageHeader}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-           <h1 className={styles.pageTitle} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-             <button onClick={() => router.push('/dashboard/teacher/assignments')} className={styles.iconBtn} style={{ background: 'var(--bg-card)', color: 'var(--color-heading)', border: '1px solid var(--color-border)' }}>
-                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <div className={styles.subPageHeaderCol}>
+           <h1 className={`${styles.pageTitle} ${styles.pageTitleRow}`}>
+             <button onClick={() => router.push('/dashboard/teacher/assignments')} className={styles.btnBack}>
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.btnBackIcon}><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
              </button>
              Monitor Evaluasi Penugasan
            </h1>
            {assignmentMeta && (
-               <div style={{ fontSize: '0.875rem', color: 'var(--color-subtext)', fontWeight: 600 }}>
-                   Tugas: {assignmentMeta.text?.substring(0, 40)}... | Kelas: <span style={{ color: 'var(--color-primary)' }}>{assignmentMeta.subjectDetails?.classCode}</span>
+               <div className={styles.subPageMeta}>
+                   Tugas: {assignmentMeta.text?.substring(0, 40)}... | Kelas: <span className={styles.subPageMetaAccent}>{assignmentMeta.subjectDetails?.classCode}</span>
                </div>
            )}
         </div>
       </div>
 
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', gap: '16px', background: 'transparent' }}>
-            <div style={{ flex: 1 }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-subtext)', display: 'block', marginBottom: '8px' }}>Aturan Batas Waktu Terkunci:</span>
-                <span className={`${styles.badge} ${assignmentMeta?.deadline ? styles.statusInactive : styles.statusActive}`}>
-                    {assignmentMeta?.deadline ? new Date(assignmentMeta.deadline).toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' }) : 'Tidak Berbatas Ruang / Infinity'}
-                </span>
-            </div>
-            <div style={{ flex: 1, borderLeft: '1px solid var(--color-border)', paddingLeft: '16px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-subtext)', display: 'block', marginBottom: '8px' }}>Terkumpul (Aktivasi Rasio):</span>
-                <strong style={{ fontSize: '1.25rem', color: 'var(--color-heading)' }}>
-                    {students.filter(s => s.submission).length} / {students.length} Siswa
-                </strong>
-            </div>
+      <div className={styles.submissionStatsRow}>
+        <div className={styles.submissionStatCol}>
+            <span className={styles.submissionStatLabel}>Aturan Batas Waktu Terkunci:</span>
+            <StatusBadge variant={assignmentMeta?.deadline ? 'danger' : 'success'}>
+                {assignmentMeta?.deadline ? new Date(assignmentMeta.deadline).toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' }) : 'Tidak Berbatas Ruang / Infinity'}
+            </StatusBadge>
+        </div>
+        <div className={`${styles.submissionStatCol} ${styles.submissionStatColBorder}`}>
+            <span className={styles.submissionStatLabel}>Terkumpul (Aktivasi Rasio):</span>
+            <strong className={styles.submissionStatValue}>
+                {students.filter(s => s.submission).length} / {students.length} Siswa
+            </strong>
         </div>
       </div>
 
-      <div className={styles.contentCard}>
+      <ContentCard>
         <div className={styles.tableContainer}>
           {loading ? (
              <div className={styles.loadingBox}>
@@ -127,15 +134,18 @@ export default function TeacherSubmissionPage({ params }) {
                Mengenkripsi Saluran File Siswa...
              </div>
           ) : students.length === 0 ? (
-            <div className={styles.emptyState}>Lokus Array Siswa Kosong. Tidak ada siswa di kelas mapping ini.</div>
+            <EmptyState
+              title="Tidak Ada Siswa"
+              description="Lokus Array Siswa Kosong. Tidak ada siswa di kelas mapping ini."
+            />
           ) : (
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th style={{ width: '25%' }}>Siswa</th>
-                  <th style={{ width: '40%' }}>Pernyataan / File Terlampir</th>
+                  <th>Siswa</th>
+                  <th>Pernyataan / File Terlampir</th>
                   <th>Keterangan / Tenggat</th>
-                  <th style={{ textAlign: 'center', width: '20%' }}>Input Nilai Otentik</th>
+                  <th className={styles.thCenter}>Input Nilai Otentik</th>
                 </tr>
               </thead>
               <tbody>
@@ -146,34 +156,34 @@ export default function TeacherSubmissionPage({ params }) {
                   return (
                       <tr key={student._id}>
                         <td data-label="Siswa">
-                          <div style={{ fontWeight: 600, color: 'var(--color-text)' }}>{student.name || 'Nama Tidak Tersedia'}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', marginTop: '4px' }}>[{student.studentId}]</div>
+                          <div className={styles.userName}>{student.name || 'Nama Tidak Tersedia'}</div>
+                          <div className={styles.subIdChip}>[{student.studentId}]</div>
                         </td>
                         <td data-label="Jawaban / File">
                           {sub ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              <div className={styles.submissionContent}>
                                  {sub.text && (
-                                     <div style={{ fontSize: '0.8125rem', whiteSpace: 'pre-wrap', background: 'var(--bg-input)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                                     <div className={styles.submissionTextBox}>
                                          {sub.text}
                                      </div>
                                  )}
                                  
                                  {sub.files && sub.files.length > 0 && (
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-subtext)' }}>Lampiran File ({sub.files.length})</span>
+                                      <div className={styles.submissionFileSection}>
+                                        <div className={styles.submissionFileHeader}>
+                                             <span className={styles.submissionFileLabel}>Lampiran File ({sub.files.length})</span>
                                              <button 
                                                 onClick={() => handleDownloadAllSelected(sub.files)} 
-                                                style={{ fontSize: '0.75rem', padding: '4px 10px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-primary)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+                                                className={styles.downloadAllBtn}
                                              >
                                                 Unduh Semua 👇
                                              </button>
                                         </div>
-                                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                        <div className={styles.fileChipList}>
                                             {sub.files.map((fl, x) => (
-                                                <a key={x} href={fl.url} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', color: 'var(--color-success)', textDecoration: 'none', fontSize: '0.75rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <a key={x} href={fl.url} target="_blank" rel="noopener noreferrer" className={styles.fileChipSuccess}>
                                                     <span>📎</span>
-                                                    <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fl.originalName}</span>
+                                                    <span className={styles.fileChipName}>{fl.originalName}</span>
                                                 </a>
                                             ))}
                                         </div>
@@ -181,58 +191,73 @@ export default function TeacherSubmissionPage({ params }) {
                                  )}
                               </div>
                           ) : (
-                             <span style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)', fontStyle: 'italic' }}>Belum Mengerjakan</span>
+                             <span className={styles.noDataText}>Belum Mengerjakan</span>
                           )}
                         </td>
                         <td data-label="Keterangan">
                            {sub ? (
-                               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Dikumpulkan:</span>
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>{new Date(sub.submittedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                               <div className={styles.submissionMeta}>
+                                  <span className={styles.submissionMetaBold}>Dikumpulkan:</span>
+                                  <span className={styles.cellSecondary}>{new Date(sub.submittedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                                   {sub.isLate && (
-                                      <span style={{ padding: '4px 8px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '4px', fontSize: '0.6875rem', fontWeight: 600, display: 'inline-block', marginTop: '4px', alignSelf: 'flex-start' }}>Terlambat</span>
+                                      <StatusBadge variant="danger">Terlambat</StatusBadge>
                                   )}
                                </div>
                            ) : (
                                <span>-</span>
                            )}
                         </td>
-                        <td data-label="Nilai">
+                        <td data-label="Nilai" className={styles.tdCenter}>
                             {sub ? (
                                 isGrading ? (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', background: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                                    <div className={styles.gradingInlineBox}>
                                         <input 
                                             type="number" 
                                             value={gradeInput}
                                             onChange={e => setGradeInput(e.target.value)}
-                                            style={{ width: '100%', padding: '8px', border: '2px solid var(--color-primary)', borderRadius: '6px', textAlign: 'center', fontWeight: 700, fontSize: '1rem', background: 'var(--bg-input)', color: 'var(--color-text)' }}
+                                            className={styles.gradingInlineInput}
                                             placeholder="0-100"
                                             autoFocus
                                         />
-                                        <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                                            <button onClick={() => setGradingStudentId(null)} disabled={gradeLoading} style={{ flex: 1, padding: '6px', background: 'var(--bg-app)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', minHeight: '44px' }}>Batal</button>
-                                            <button onClick={() => submitGrade(student.studentId)} disabled={gradeLoading} style={{ flex: 1, padding: '6px', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', minHeight: '44px' }}>Simpan</button>
+                                        <textarea 
+                                            value={feedbackInput}
+                                            onChange={e => setFeedbackInput(e.target.value)}
+                                            placeholder="Catatan / Feedback Guru (Opsional)"
+                                            className={styles.gradingInlineTextarea}
+                                        />
+                                        <div className={styles.gradingInlineActions}>
+                                            <button onClick={() => setGradingStudentId(null)} disabled={gradeLoading} className={styles.gradingInlineBtnCancel}>Batal</button>
+                                            <button onClick={() => submitGrade(student.studentId)} disabled={gradeLoading} className={styles.gradingInlineBtnSave}>Simpan</button>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                                    <div className={styles.gradingResultCol}>
                                         {sub.score !== undefined && sub.score !== null ? (
-                                            <div style={{ padding: '8px 16px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)', borderRadius: '8px', fontWeight: 800, fontSize: '1.25rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                                                {sub.score} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-success)' }}>/ 100</span>
+                                            <div className={styles.scoreBadgeLarge}>
+                                                {sub.score} <span className={styles.scoreBadgeSuffix}>/ 100</span>
                                             </div>
                                         ) : (
-                                            <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)', fontStyle: 'italic' }}>Belum Dinilai</span>
+                                            <span className={styles.noDataText}>Belum Dinilai</span>
+                                        )}
+                                        {sub.feedback && (
+                                            <div className={styles.gradingFeedbackText}>
+                                                &quot;{sub.feedback}&quot;
+                                            </div>
                                         )}
                                         <button 
-                                            onClick={() => { setGradingStudentId(student.studentId); setGradeInput(sub.score || ''); }}
-                                            style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', minHeight: '44px' }}
+                                            onClick={() => { 
+                                                setGradingStudentId(student.studentId); 
+                                                setGradeInput(sub.score || ''); 
+                                                setFeedbackInput(sub.feedback || '');
+                                            }}
+                                            className={styles.gradingEditLink}
                                         >
                                             Ubah / Setel Nilai
                                         </button>
                                     </div>
                                 )
                             ) : (
-                                <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>-</span>
+                                <span className={styles.cellSecondary}>-</span>
                             )}
                         </td>
                       </tr>
@@ -242,7 +267,7 @@ export default function TeacherSubmissionPage({ params }) {
             </table>
           )}
         </div>
-      </div>
+      </ContentCard>
     </>
   );
 }

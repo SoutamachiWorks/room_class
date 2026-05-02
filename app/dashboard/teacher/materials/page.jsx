@@ -3,8 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import PageHeader from '@/components/PageHeader';
+import ContentCard from '@/components/ContentCard';
+import StatusBadge from '@/components/StatusBadge';
+import EmptyState from '@/components/EmptyState';
 import { uploadWithProgress } from '@/lib/xhrUpload';
-import styles from '../../admin/admin.module.css'; // Reusing central stylistic grids
+import { ACCEPT_STR, validateFiles } from '@/lib/fileValidation';
+import styles from '../../admin/admin.module.css';
 
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState([]);
@@ -23,11 +28,11 @@ export default function MaterialsPage() {
   const [formTitle, setFormTitle] = useState('');
   const [formText, setFormText] = useState('');
   const [formSubjectId, setFormSubjectId] = useState('');
-  const [formClassCode, setFormClassCode] = useState(''); // Read-only derived logically
+  const [formClassCode, setFormClassCode] = useState('');
 
   // File Array management (Native arrays)
   const [attachedFiles, setAttachedFiles] = useState([]);
-  const [retainedOldFiles, setRetainedOldFiles] = useState([]); // Used solely for PUT deletions
+  const [retainedOldFiles, setRetainedOldFiles] = useState([]);
   const fileInputRef = useRef(null);
 
   const [formError, setFormError] = useState('');
@@ -96,7 +101,7 @@ export default function MaterialsPage() {
       setFormClassCode(targetSub ? targetSub.classCode : existingConfig.subjectDetails?.classCode || '');
 
       setRetainedOldFiles(existingConfig.files || []);
-      setAttachedFiles([]); // Purge new intent files
+      setAttachedFiles([]);
     } else {
       setFormTitle('');
       setFormText('');
@@ -213,26 +218,18 @@ export default function MaterialsPage() {
 
   return (
     <>
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Portal Distribusi Materi</h1>
-        <div className={styles.headerActions}>
-          <button className={styles.btnPrimary} onClick={() => handleOpenForm()} disabled={!dependenciesLoaded}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="12" y1="8" x2="12" y2="16" />
-              <line x1="8" y1="12" x2="16" y2="12" />
-            </svg>
-            Publikasi Modul Baru
-          </button>
-        </div>
-      </div>
+      <PageHeader title="Portal Distribusi Materi" subtitle="Materi yang Anda publish berstatus LIVE terbatas pada parameter kode kelas spesifik siswa.">
+        <button className={styles.btnPrimary} onClick={() => handleOpenForm()} disabled={!dependenciesLoaded}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <line x1="12" y1="8" x2="12" y2="16" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+          </svg>
+          Publikasi Modul Baru
+        </button>
+      </PageHeader>
 
-      <div className={styles.contentCard} style={{ padding: '24px' }}>
-        <p style={{ color: 'var(--color-subtext)', fontSize: '0.875rem', marginBottom: '24px' }}>
-          Material Section ini mengikat secara esensial pada pengaturan Subjek. Materi yang Anda publish berstatus **LIVE** terbatas pada parameter kode kelas spesifik siswa.
-        </p>
-
-        {/* Dynamic Display Arrays */}
+      <ContentCard>
         <div className={styles.tableContainer}>
           {loading ? (
             <div className={styles.loadingBox}>
@@ -240,49 +237,50 @@ export default function MaterialsPage() {
               Mengenkripsi Direktori Server...
             </div>
           ) : materials.length === 0 ? (
-            <div className={styles.emptyState}>Modul masih steril. Belum ada materi terekam di sistem pangkalan Anda.</div>
+            <EmptyState
+              title="Belum Ada Materi"
+              description="Modul masih steril. Belum ada materi terekam di sistem pangkalan Anda."
+            />
           ) : (
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th style={{ width: '15%' }}>Penanda Waktu</th>
-                  <th style={{ width: '25%' }}>Lokus Mapel</th>
-                  <th style={{ width: '20%' }}>Judul Materi</th>
-                  <th style={{ width: '25%' }}>Deskripsi / Berkas</th>
-                  <th style={{ textAlign: 'center' }}>Operasional</th>
+                  <th>Penanda Waktu</th>
+                  <th>Lokus Mapel</th>
+                  <th>Judul Materi</th>
+                  <th>Deskripsi / Berkas</th>
+                  <th className={styles.thCenter}>Operasional</th>
                 </tr>
               </thead>
               <tbody>
                 {materials.map((mat) => (
                   <tr key={mat._id}>
                     <td data-label="Tanggal">
-                      <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{new Date(mat.createdAt).toLocaleDateString('id-ID')}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>{new Date(mat.createdAt).toLocaleTimeString('id-ID')}</div>
+                      <div className={styles.cellBold}>{new Date(mat.createdAt).toLocaleDateString('id-ID')}</div>
+                      <div className={styles.cellSecondary}>{new Date(mat.createdAt).toLocaleTimeString('id-ID')}</div>
                     </td>
                     <td data-label="Mapel">
-                      <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{mat.subjectDetails?.subjectName || 'Subjek Sinkronisasi Fail'}</div>
-                      <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>
-                        <span className={`${styles.badge} ${styles.badgeStudent}`}>{mat.subjectDetails?.classCode || 'NO-REF-CODE'}</span>
+                      <div className={styles.cellAccent}>{mat.subjectDetails?.subjectName || 'Subjek Sinkronisasi Fail'}</div>
+                      <div className={styles.cellChipWrap}>
+                        <StatusBadge variant="student">{mat.subjectDetails?.classCode || 'NO-REF-CODE'}</StatusBadge>
                       </div>
                     </td>
                     <td data-label="Judul">
-                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-heading)' }}>{mat.title || 'Tanpa Judul'}</div>
+                      <div className={styles.userName}>{mat.title || 'Tanpa Judul'}</div>
                     </td>
                     <td data-label="Deskripsi / Berkas">
-                      <div style={{ fontSize: '0.8125rem', whiteSpace: 'pre-wrap', maxHeight: '60px', overflowY: 'auto', marginBottom: '8px' }}>
-                        {mat.text}
-                      </div>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <div className={styles.descriptionPreview}>{mat.text}</div>
+                      <div className={styles.fileChipList}>
                         {(mat.files || []).map((f, i) => (
-                          <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', padding: '2px 6px', background: 'var(--color-primary-light)', borderRadius: '4px', fontSize: '0.6875rem', color: 'var(--color-primary)', textDecoration: 'none', border: '1px solid var(--color-border)' }}>
+                          <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" className={styles.fileChip}>
                             📎 {f.originalName}
                           </a>
                         ))}
-                        {(!mat.files || mat.files.length === 0) && <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>-</span>}
+                        {(!mat.files || mat.files.length === 0) && <span className={styles.cellSecondary}>-</span>}
                       </div>
                     </td>
-                    <td data-label="Aksi" style={{ textAlign: 'center' }}>
-                      <div className={styles.actionBtns} style={{ justifyContent: 'center' }}>
+                    <td data-label="Aksi" className={styles.tdCenter}>
+                      <div className={`${styles.actionBtns} ${styles.actionBtnsCenter}`}>
                         <button className={styles.iconBtn} onClick={() => handleOpenForm(mat)}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                         </button>
@@ -297,7 +295,7 @@ export default function MaterialsPage() {
             </table>
           )}
         </div>
-      </div>
+      </ContentCard>
 
       {/* Creation/Adjustment Modals leveraging File Arrays */}
       <Modal
@@ -315,10 +313,9 @@ export default function MaterialsPage() {
                 name="subjectId"
                 value={formSubjectId}
                 onChange={handleSubjectChange}
-                className={styles.input}
+                className={`${styles.input} ${selectedMaterial ? styles.inputDisabled : styles.selectInput}`}
                 required
-                disabled={!!selectedMaterial} // Block subject swapping safely natively maintaining sync
-                style={selectedMaterial ? { background: 'rgba(255,255,255,0.05)', color: 'var(--color-subtext)' } : { appearance: 'auto' }}
+                disabled={!!selectedMaterial}
               >
                 <option value="" disabled>Pilih Subjek Anda...</option>
                 {teacherSubjects.map(sub => (
@@ -333,8 +330,7 @@ export default function MaterialsPage() {
                 type="text"
                 value={formClassCode ? `Terkunci: Kelas [${formClassCode}]` : 'Harap Setel Subjek'}
                 disabled
-                className={styles.input}
-                style={{ background: 'var(--color-primary-light)', fontWeight: 600, color: 'var(--color-primary)' }}
+                className={`${styles.input} ${styles.inputLocked}`}
               />
             </div>
           </div>
@@ -356,51 +352,56 @@ export default function MaterialsPage() {
             <textarea
               value={formText}
               onChange={e => setFormText(e.target.value)}
-              className={styles.input}
+              className={`${styles.input} ${styles.textarea}`}
               required
-              style={{ height: '140px', paddingTop: '12px', resize: 'vertical' }}
               placeholder="Tuliskan petunjuk kompetensi dasar materi disini..."
             />
           </div>
 
           {/* Native Form-Data File Handlers */}
-          <div className={styles.fieldGroup} style={{ marginTop: '12px' }}>
+          <div className={styles.fieldGroup}>
             <label className={styles.fieldLabel}>Tambah / Lampirkan Berkas Fs (Multiple File Select)</label>
             <input
               type="file"
               multiple
+              accept={ACCEPT_STR}
               ref={fileInputRef}
-              className={styles.input}
-              style={{ paddingTop: '10px' }}
+              className={styles.fileInput}
               onChange={(e) => {
                 const newFiles = Array.from(e.target.files);
+                const validation = validateFiles(newFiles);
+                
+                if (!validation.valid) {
+                  alert(`Kesalahan Upload:\n${validation.errors.join('\n')}\n\nPastikan format file sesuai dan ukuran maksimal 50MB per file.`);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                  return;
+                }
+
                 setAttachedFiles(prev => [...prev, ...newFiles]);
-                if (fileInputRef.current) fileInputRef.current.value = ""; // Clear active input visual
+                if (fileInputRef.current) fileInputRef.current.value = "";
               }}
             />
 
             {/* Box mapping Arrays visualizing exactly what we retain logically */}
-            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-
+            <div className={styles.filePreviewList}>
               {retainedOldFiles.map((prevFl) => (
-                <div key={prevFl.filename} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(16, 185, 129, 0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                <div key={prevFl.filename} className={`${styles.filePreviewItem} ${styles.filePreviewRetained}`}>
                   <span>📎 {prevFl.originalName} (Lawas)</span>
-                  <button type="button" onClick={() => removeRetainedFile(prevFl.filename)} style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Hapus</button>
+                  <button type="button" onClick={() => removeRetainedFile(prevFl.filename)} className={styles.fileRemoveBtn}>Hapus</button>
                 </div>
               ))}
 
               {attachedFiles.map((fl, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(120,163,255,0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid rgba(120,163,255,0.3)' }}>
+                <div key={idx} className={`${styles.filePreviewItem} ${styles.filePreviewNew}`}>
                   <span>📄 {fl.name} (Baru Disematkan)</span>
-                  <button type="button" onClick={() => removeAttachedFile(idx)} style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Batalkan</button>
+                  <button type="button" onClick={() => removeAttachedFile(idx)} className={styles.fileRemoveBtn}>Batalkan</button>
                 </div>
               ))}
-
             </div>
           </div>
 
-          <div className={styles.formActions} style={{ marginTop: '32px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {formLoading && uploadProgress > 0 && <span style={{ color: '#10B981', fontSize: '0.875rem', fontWeight: 600 }}>Mengunggah... {uploadProgress}%</span>}
+          <div className={styles.formActions}>
+            {formLoading && uploadProgress > 0 && <span className={styles.uploadProgressText}>Mengunggah... {uploadProgress}%</span>}
             <button type="button" onClick={handleCloseForm} className={styles.btnCancel} disabled={formLoading}>Tarik Sinyal</button>
             <button type="submit" className={styles.btnSubmit} disabled={formLoading}>
               {formLoading ? 'Mengkompresi...' : 'Publikasi Jaringan'}

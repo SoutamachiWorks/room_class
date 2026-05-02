@@ -1,0 +1,330 @@
+/* app/dashboard/admin/promotion/KenaikanKelas.module.css */
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  animation: fadeIn var(--transition-normal);
+}
+
+.pageHeader {
+  margin-bottom: 2rem;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin-bottom: 0.5rem;
+}
+
+.pageSubtitle {
+  font-size: 0.95rem;
+  color: var(--color-subtext);
+}
+
+/* Tabs Navigation */
+.tabNavigation {
+  display: flex;
+  background: var(--bg-card);
+  padding: 0.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  margin-bottom: 2rem;
+  width: fit-content;
+  gap: 0.5rem;
+}
+
+.tabBtn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-subtext);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.tabBtn:hover {
+  color: var(--color-heading);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tabBtnActive {
+  background: var(--bg-app);
+  color: var(--color-heading);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .tabBtnActive {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Main Configuration Card */
+.configCard {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 2.5rem; /* Generous padding as requested */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--color-border);
+  margin-bottom: 2rem;
+}
+
+.cardTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin-bottom: 0.5rem;
+}
+
+.cardDescription {
+  font-size: 0.875rem;
+  color: var(--color-subtext);
+  margin-bottom: 2rem;
+}
+
+/* Form Layouts */
+.formLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* Strict gap for rows */
+}
+
+.formRowGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .formRowGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.inputField {
+  width: 100%;
+  height: 48px;
+  padding: 0 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--bg-app);
+  font-size: 1rem;
+  color: var(--color-text);
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.inputField:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(120, 163, 255, 0.15);
+}
+
+/* File Upload Specific */
+.uploadBox {
+  border: 2px dashed var(--color-border);
+  border-radius: 12px;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  background: var(--bg-app);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.uploadBox:hover {
+  border-color: var(--color-primary);
+  background: rgba(120, 163, 255, 0.05);
+}
+
+.fileInput {
+  margin-bottom: 0.75rem;
+  color: var(--color-text);
+}
+
+.uploadHint {
+  font-size: 0.875rem;
+  color: var(--color-subtext);
+}
+
+/* Action Button */
+.submitBtn {
+  margin-top: 1rem;
+  width: 100%;
+  height: 52px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background: var(--color-primary);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(120, 163, 255, 0.3);
+}
+
+.submitBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* System Note Banner */
+.systemNoteBanner {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-left: 5px solid #3b82f6; /* Distinct blue border */
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+[data-theme="dark"] .systemNoteBanner {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.bannerIcon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.bannerText {
+  font-size: 0.9rem;
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+.bannerText strong {
+  color: var(--color-heading);
+}
+
+/* Alert Notification Component */
+.alert {
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.alertSuccess {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  border: 1px solid rgba(25, 135, 84, 0.2);
+}
+
+.alertError {
+  background: var(--color-failed-bg);
+  color: var(--color-failed-text);
+  border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+/* Student Selection Table (Manual Promotion) */
+.studentSelectionSection {
+  margin-top: 2rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 2rem;
+}
+
+.sectionHeading {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin-bottom: 1rem;
+}
+
+.loadingBox, .emptyState {
+  padding: 2rem;
+  text-align: center;
+  background: var(--bg-app);
+  border-radius: 8px;
+  border: 1px dashed var(--color-border);
+  color: var(--color-subtext);
+  font-size: 0.95rem;
+}
+
+.tableScrollContainer {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.dataTable th, .dataTable td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.dataTable th {
+  background: var(--bg-app);
+  font-weight: 600;
+  color: var(--color-heading);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.dataTable tr:last-child td {
+  border-bottom: none;
+}
+
+.dataTable tr:hover td {
+  background: rgba(120, 163, 255, 0.05);
+}
+
+.checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  text-transform: capitalize;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}

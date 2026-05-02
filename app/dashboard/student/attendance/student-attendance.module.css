@@ -271,3 +271,40 @@
   }
 }
 
+/* ── Total percentage row ────────────────────────────────────────────────── */
+.totalPctRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.totalPctLabel {
+  font-size: 0.85rem;
+  color: var(--color-subtext);
+}
+
+.totalPctValue {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.totalPctGood { color: var(--color-success-text); }
+.totalPctBad  { color: var(--color-failed-text); }
+
+/* ── Cell variants ───────────────────────────────────────────────────────── */
+.cellDate {
+  font-weight: 600;
+  color: var(--color-heading);
+  white-space: nowrap;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cellSecondary {
+  color: var(--color-subtext);
+  font-size: 0.82rem;
+}

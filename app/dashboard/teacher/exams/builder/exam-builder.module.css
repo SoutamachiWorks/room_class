@@ -74,9 +74,9 @@
   width: 100%;
   height: 44px;
   padding: 0 14px;
-  border: 1px solid #E5E7EB;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-input);
-  background: #F9FAFB;
+  background: var(--input-bg);
   font-size: 0.9375rem;
   color: var(--color-text);
   outline: none;
@@ -85,7 +85,7 @@
 
 .input:focus {
   border-color: var(--color-primary);
-  background: white;
+  background: var(--input-bg-focus);
   box-shadow: 0 0 0 3px rgba(120, 163, 255, 0.1);
 }
 
@@ -130,15 +130,15 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  border: 1px solid #E5E7EB;
-  background: white;
+  border: 1px solid var(--color-border);
+  background: var(--bg-card);
   color: var(--color-subtext);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .qActionBtn:hover {
-  background: #F3F4F6;
+  background: var(--bg-surface-hover);
   color: var(--color-heading);
 }
 
@@ -147,10 +147,14 @@
   cursor: not-allowed;
 }
 
+.qActionBtnDanger {
+  color: var(--color-danger);
+}
+
 .qActionBtnDanger:hover {
   background: var(--color-failed-bg);
-  color: var(--color-failed-text);
-  border-color: #FDE0DD;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 /* Type Sections inside Question */
@@ -158,8 +162,8 @@
   margin-bottom: 20px;
   padding: 16px;
   border-radius: 12px;
-  background: #FAFBFD;
-  border: 1px solid #F0F1F3;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
 }
 
 .typeSection:last-child {
@@ -180,9 +184,9 @@
   letter-spacing: 0.04em;
 }
 
-.typeLabelMC { color: #4A7AFA; }
-.typeLabelEssay { color: #B45309; }
-.typeLabelFile { color: #198754; }
+.typeLabelMC { color: var(--color-info); }
+.typeLabelEssay { color: var(--color-warning); }
+.typeLabelFile { color: var(--color-success); }
 
 /* Toggle Switch */
 .toggleSwitch {
@@ -204,7 +208,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #D1D5DB;
+  background-color: var(--color-border);
   transition: 0.25s;
   border-radius: 11px;
 }
@@ -241,22 +245,24 @@
   padding: 8px 0 0;
 }
 
-.typeContent textarea {
+.questionTextarea {
   width: 100%;
-  min-height: 60px;
-  padding: 10px 14px;
-  border: 1px solid #E5E7EB;
+  min-height: 120px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-input);
-  background: white;
-  font-size: 0.875rem;
+  background: var(--input-bg);
+  font-size: 0.9375rem;
   color: var(--color-text);
   outline: none;
   resize: vertical;
-  transition: border-color var(--transition-fast);
+  transition: all var(--transition-fast);
+  line-height: 1.6;
 }
 
-.typeContent textarea:focus {
+.questionTextarea:focus {
   border-color: var(--color-primary);
+  background: var(--input-bg-focus);
   box-shadow: 0 0 0 3px rgba(120, 163, 255, 0.1);
 }
 
@@ -277,19 +283,21 @@
 
 .optionInput {
   flex: 1;
-  height: 38px;
-  padding: 0 12px;
-  border: 1px solid #E5E7EB;
-  border-radius: 8px;
-  background: white;
-  font-size: 0.875rem;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--input-bg);
+  font-size: 0.9375rem;
   color: var(--color-text);
   outline: none;
-  transition: border-color var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 
 .optionInput:focus {
   border-color: var(--color-primary);
+  background: var(--input-bg-focus);
+  box-shadow: 0 0 0 3px rgba(120, 163, 255, 0.1);
 }
 
 .optionRemoveBtn {
@@ -583,3 +591,168 @@
   }
 }
 
+/* ── New utility classes (replacing inline styles) ───────────────────────── */
+
+.loadingCenter {
+  text-align: center;
+  padding: 40px;
+  color: var(--color-subtext);
+}
+
+.fieldGroupSpaced {
+  margin-bottom: 16px;
+}
+
+.inputDisabled {
+  background: var(--bg-app) !important;
+  color: var(--color-subtext) !important;
+  opacity: 0.7;
+}
+
+.selectInput {
+  appearance: auto;
+}
+
+.inputLocked {
+  background: var(--bg-app) !important;
+  font-weight: 600;
+  color: var(--color-primary) !important;
+  opacity: 0.7;
+}
+
+.fieldLabelRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fieldHintText {
+  font-size: 0.85rem;
+  color: var(--color-subtext);
+  margin-top: 4px;
+  display: block;
+}
+
+.inputPlaceholder {
+  color: var(--color-subtext);
+}
+
+.qActionIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.optionsContainer {
+  margin-top: 12px;
+}
+/* ── Image Upload Integration ─────────────────────────────────────────────── */
+.imageUploadSection {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--bg-surface);
+  border: 2px dashed var(--color-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color var(--transition-fast);
+}
+
+.imageUploadSection:hover {
+  border-color: var(--color-primary);
+}
+
+.imageUploadBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--bg-card);
+  border: 1.5px solid var(--color-primary);
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: fit-content;
+}
+
+.imageUploadBtn:hover {
+  background: var(--color-primary);
+  color: white;
+}
+
+.imagePreviewWrapper {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 4px;
+}
+
+
+.imagePreview {
+  max-width: 280px;
+  max-height: 200px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  object-fit: contain;
+  display: block;
+  background: var(--bg-card);
+}
+
+.imageRemoveBtn {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 26px;
+  height: 26px;
+  background: #EF4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+  transition: all var(--transition-fast);
+  z-index: 5;
+}
+
+.imageRemoveBtn:hover {
+  transform: scale(1.15);
+  background: #DC2626;
+}
+
+.uploadingIndicator {
+  font-size: 0.8125rem;
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  background: rgba(120, 163, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 6px;
+  width: fit-content;
+}
+
+.imageInputHidden {
+  display: none;
+}
+
+.imageUploadIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.spinning {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

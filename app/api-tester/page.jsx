@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 
 export default function ApiTesterPage() {
   const [method, setMethod] = useState('GET');
@@ -177,21 +178,21 @@ export default function ApiTesterPage() {
 
            <div style={{ background: '#1E293B', borderRadius: '8px', padding: '20px', minHeight: '200px', overflowX: 'auto' }}>
               {loading ? (
-                <div style={{ color: '#94A3B8', fontFamily: 'monospace', fontSize: '0.875rem' }}>// Menunggu Tembakan Sistem...</div>
+                <div style={{ color: '#94A3B8', fontFamily: 'monospace', fontSize: '0.875rem' }}>{'// Menunggu Tembakan Sistem...'}</div>
               ) : responseLog !== null ? (
                 <pre style={{ margin: 0, color: '#A5B4FC', fontFamily: 'monospace', fontSize: '0.875rem', whiteSpace: 'pre-wrap' }}>
                   {typeof responseLog === 'object' ? JSON.stringify(responseLog, null, 2) : responseLog}
                 </pre>
               ) : (
-                <div style={{ color: '#64748B', fontFamily: 'monospace', fontSize: '0.875rem' }}>// Tekan "Kirim Reques" untuk melihat output dari server.</div>
+                <div style={{ color: '#64748B', fontFamily: 'monospace', fontSize: '0.875rem' }}>{`// Tekan "Kirim Reques" untuk melihat output dari server.`}</div>
               )}
            </div>
         </div>
 
         {/* Navigation Reference */}
         <div style={{ marginTop: '24px', textAlign: 'center' }}>
-          <a href="/dokumentasi" style={{ color: '#3B82F6', textDecoration: 'none', fontWeight: 600, fontSize: '0.9375rem', marginRight: '16px' }}>&larr; Kembali ke Dokumentasi Tulis</a>
-          <a href="/" style={{ color: '#64748B', textDecoration: 'none', fontWeight: 600, fontSize: '0.9375rem' }}>Beranda</a>
+          <Link href="/dokumentasi" style={{ color: '#3B82F6', textDecoration: 'none', fontWeight: 600, fontSize: '0.9375rem', marginRight: '16px' }}>&larr; Kembali ke Dokumentasi Tulis</Link>
+          <Link href="/" style={{ color: '#64748B', textDecoration: 'none', fontWeight: 600, fontSize: '0.9375rem' }}>Beranda</Link>
         </div>
 
       </div>

@@ -1,0 +1,584 @@
+/* ===========================
+   Exam Take — Dedicated Module
+   (PWA-grade exam interface)
+   =========================== */
+
+/* ── Page wrapper ────────────────────────────────────────────────────────── */
+.examTakePage {
+  padding: 28px 32px;
+  min-height: 100vh;
+  padding-bottom: 120px; /* space for sticky bottom bar */
+}
+
+/* ── Sticky header ───────────────────────────────────────────────────────── */
+.examStickyHeader {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--color-border);
+  padding: 14px 20px;
+  margin: -28px -32px 24px -32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.examHeaderInfo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.examHeaderTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.examHeaderMeta {
+  font-size: 0.75rem;
+  color: var(--color-subtext);
+  margin: 2px 0 0;
+}
+
+.examHeaderActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* ── Timer badge ─────────────────────────────────────────────────────────── */
+.examTimerBadge {
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 80px;
+  text-align: center;
+  transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
+
+.examTimerNormal {
+  background: var(--bg-app);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+
+.examTimerUrgent {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--color-danger);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  animation: timerPulse 1s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ── Violation badge ─────────────────────────────────────────────────────── */
+.examViolationBadge {
+  padding: 6px 14px;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* ── Error bar ───────────────────────────────────────────────────────────── */
+.examErrorBar {
+  margin-bottom: 20px;
+}
+
+/* ── Question list ───────────────────────────────────────────────────────── */
+.examQuestionList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Question card ───────────────────────────────────────────────────────── */
+.examQuestionCard {
+  padding: clamp(16px, 4vw, 24px);
+}
+
+.examQuestionHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.examQuestionNumber {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), #5B8BF5);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.examQuestionLabel {
+  font-size: 0.75rem;
+  color: var(--color-subtext);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* ── MC / Essay / File sections ──────────────────────────────────────────── */
+
+.examSectionSpaced {
+  margin-bottom: 20px;
+}
+
+.examQuestionText {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-heading);
+  margin-bottom: 12px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.examQuestionTextSmall {
+  margin-bottom: 10px;
+}
+
+.examQuestionImage {
+  max-width: 100%;
+  max-height: 400px;
+  height: auto;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  border: 1px solid var(--color-border);
+  object-fit: contain;
+  display: block;
+  background: var(--bg-card);
+}
+
+/* ── MC Options ──────────────────────────────────────────────────────────── */
+.examOptionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.examOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 0.875rem;
+  min-height: 44px;
+  word-break: break-word;
+  background: var(--bg-app);
+  border: 2px solid var(--color-border);
+}
+
+.examOption:active {
+  transform: scale(0.98);
+}
+
+.examOptionSelected {
+  border-color: var(--color-primary);
+  background: rgba(120, 163, 255, 0.15);
+}
+
+.examOptionRadio {
+  accent-color: var(--color-primary);
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* ── Essay textarea ──────────────────────────────────────────────────────── */
+.examEssayInput {
+  min-height: 120px;
+  padding: 14px 16px;
+  resize: vertical;
+  font-size: 1rem;
+  background: var(--input-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: var(--radius-input);
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.examEssayInput:focus {
+  border-color: var(--color-primary);
+  background: var(--input-bg-focus);
+  box-shadow: 0 0 0 3px rgba(120, 163, 255, 0.1);
+}
+
+/* ── File input ──────────────────────────────────────────────────────────── */
+.examFileInput {
+  padding-top: 10px;
+}
+
+.examFilePreview {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.examFileTag {
+  padding: 4px 10px;
+  background: var(--bg-input, var(--bg-app));
+  border-radius: 6px;
+  font-size: 0.75rem;
+  border: 1px solid var(--color-border);
+  color: var(--color-primary);
+}
+
+/* ── Sticky Bottom Bar ───────────────────────────────────────────────────── */
+.examStickyBottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  background: var(--bg-card);
+  border-top: 1px solid var(--color-border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+[data-theme="dark"] .examStickyBottom {
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.examStickyProgress {
+  color: var(--color-success);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.examStickyBtn {
+  padding: 14px 40px;
+  font-size: 0.9375rem;
+  min-height: 52px;
+  width: 100%;
+  justify-content: center;
+}
+
+.examStickyNav {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 600px;
+}
+
+.examBtnSecondary {
+  background: transparent;
+  color: var(--color-heading);
+  border: 2px solid var(--color-border);
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-weight: 700;
+  transition: all 0.2s;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+}
+
+.examBtnSecondary:active {
+  transform: scale(0.96);
+}
+
+.examBtnSecondary:hover {
+  background: var(--bg-input, rgba(0,0,0,0.05));
+}
+
+.examBtnHidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ── Pagination Animation ────────────────────────────────────────────────── */
+.examFadeIn {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Fullscreen overlay ──────────────────────────────────────────────────── */
+.examFullscreenOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: white;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.examOverlayEmoji {
+  font-size: 4rem;
+  margin-bottom: 24px;
+}
+
+.examOverlayTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.examOverlayText {
+  margin-bottom: 32px;
+  color: #CBD5E1;
+}
+
+.examOverlayBtn {
+  padding: 16px 48px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* ── Toast notification ──────────────────────────────────────────────────── */
+.examToast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #DC2626;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  font-weight: 600;
+  font-size: 0.875rem;
+  animation: toastSlideIn 0.3s ease;
+}
+
+@keyframes toastSlideIn {
+  from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+/* ── Strike modal ────────────────────────────────────────────────────────── */
+.examStrikeOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.examStrikeCard {
+  padding: 32px;
+  max-width: 400px;
+  text-align: center;
+}
+
+.examStrikeEmoji {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.examStrikeTitle {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-heading);
+  margin-bottom: 12px;
+}
+
+.examStrikeBody {
+  font-size: 0.875rem;
+  color: var(--color-subtext);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.examStrikeBtn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ── Consent modal ───────────────────────────────────────────────────────── */
+.examConsentWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.examConsentCard {
+  padding: 40px;
+  max-width: 550px;
+}
+
+.examConsentHeader {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.examConsentEmoji {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.examConsentTitle {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.examConsentWarning {
+  font-size: 0.875rem;
+  color: var(--color-subtext);
+  line-height: 1.6;
+  margin-bottom: 24px;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.examConsentLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 32px;
+  cursor: pointer;
+}
+
+.examConsentCheckbox {
+  margin-top: 4px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+}
+
+.examConsentText {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.examConsentBtn {
+  width: 100%;
+  justify-content: center;
+  padding: 14px;
+}
+
+.examConsentBtnDisabled {
+  opacity: 0.6;
+}
+
+/* ── Error state ─────────────────────────────────────────────────────────── */
+.examErrorState {
+  padding: 40px;
+  text-align: center;
+}
+
+.examErrorEmoji {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.examErrorTitle {
+  color: var(--color-heading);
+  margin-bottom: 8px;
+}
+
+.examErrorMessage {
+  color: #DC3545;
+}
+
+.examErrorBtn {
+  margin-top: 24px;
+}
+
+/* ── Loading state ───────────────────────────────────────────────────────── */
+.examLoadingBox {
+  min-height: 60vh;
+}
+
+/* ===========================
+   MOBILE RESPONSIVE
+   =========================== */
+@media (max-width: 768px) {
+  .examTakePage {
+    padding: 16px;
+    padding-bottom: 100px;
+  }
+
+  .examStickyHeader {
+    margin: -16px -16px 16px -16px;
+    padding: 10px 16px;
+  }
+
+  .examHeaderTitle {
+    font-size: 0.9375rem;
+  }
+
+  .examTimerBadge {
+    font-size: 0.9375rem;
+    padding: 6px 12px;
+    min-width: 70px;
+  }
+
+  .examStickyBottom {
+    padding: 10px 16px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .examStickyBtn, .examBtnSecondary {
+    padding: 12px 20px;
+    font-size: 0.875rem;
+    min-height: 48px;
+    max-width: none;
+  }
+
+  .examQuestionCard {
+    padding: 14px;
+  }
+
+  .examConsentCard {
+    padding: 24px;
+    margin: 16px;
+  }
+}

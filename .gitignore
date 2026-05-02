@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+NOTE.md
+Data_Testing_100_Siswa.xlsx
+dummy_classes.xlsx

@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import PageHeader from '@/components/PageHeader';
+import ContentCard from '@/components/ContentCard';
+import StatusBadge from '@/components/StatusBadge';
+import EmptyState from '@/components/EmptyState';
 import styles from '../../../../admin/admin.module.css';
 
 export default function ExamResultsPage() {
@@ -12,6 +16,8 @@ export default function ExamResultsPage() {
   const [examTitle, setExamTitle] = useState('');
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // States for Confirm Dialog
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -39,6 +45,21 @@ export default function ExamResultsPage() {
   useEffect(() => {
     fetchResults();
   }, [fetchResults]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(sessions.length / itemsPerPage);
+  const paginatedSessions = sessions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
 
   const requestAction = (sessionId, studentName, type) => {
     setConfirmConfig({ sessionId, studentName, type });
@@ -70,38 +91,24 @@ export default function ExamResultsPage() {
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'in-progress':
-        return <span className={styles.badge} style={{ background: '#FEF3C7', color: '#92400E' }}>Sedang Ujian</span>;
-      case 'submitted':
-        return <span className={styles.badge} style={{ background: '#D1F0D9', color: '#198754' }}>Selesai</span>;
-      case 'locked':
-        return <span className={styles.badge} style={{ background: '#FDE0DD', color: '#DC3545' }}>Terkunci</span>;
-      default:
-        return <span className={styles.badge}>{status}</span>;
-    }
+  const getViolationClass = (exitCount) => {
+    if (exitCount >= 2) return styles.violationHigh;
+    if (exitCount === 1) return styles.violationMedium;
+    return styles.violationNone;
   };
 
   return (
     <>
-      <div className={styles.pageHeader}>
-        <div>
-          <button 
-            onClick={() => router.push('/dashboard/teacher/exams')}
-            style={{ background: 'none', border: 'none', color: 'var(--color-subtext)', cursor: 'pointer', marginBottom: '8px', fontSize: '0.875rem' }}
-          >
-            ← Kembali ke Bank Ujian
-          </button>
-          <h1 className={styles.pageTitle}>{examTitle}</h1>
-        </div>
-      </div>
+      <PageHeader title={examTitle} subtitle="Pantau progres ujian siswa, lihat aktivitas perpindahan tab, dan berikan akses kembali jika siswa terkunci.">
+        <button
+          onClick={() => router.push('/dashboard/teacher/exams')}
+          className={styles.btnBack}
+        >
+          ← Kembali ke Bank Ujian
+        </button>
+      </PageHeader>
 
-      <div className={styles.contentCard} style={{ padding: '24px' }}>
-        <p style={{ color: 'var(--color-subtext)', fontSize: '0.875rem', marginBottom: '24px' }}>
-          Pantau progres ujian siswa, lihat aktivitas perpindahan tab, dan berikan akses kembali jika siswa terkunci (buka kunci).
-        </p>
-
+      <ContentCard>
         <div className={styles.tableContainer}>
           {loading ? (
             <div className={styles.loadingBox}>
@@ -109,93 +116,123 @@ export default function ExamResultsPage() {
               Memuat hasil ujian...
             </div>
           ) : sessions.length === 0 ? (
-            <div className={styles.emptyState}>Belum ada siswa yang memulai ujian ini.</div>
+            <EmptyState
+              title="Belum Ada Peserta"
+              description="Belum ada siswa yang memulai ujian ini."
+            />
           ) : (
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th style={{ width: '30%' }}>Nama Siswa</th>
-                  <th style={{ textAlign: 'center' }}>Waktu Mulai</th>
-                  <th style={{ textAlign: 'center' }}>Status Ujian</th>
-                  <th style={{ textAlign: 'center' }}>Pelanggaran</th>
-                  <th style={{ textAlign: 'center' }}>Status Koreksi</th>
-                  <th style={{ textAlign: 'center' }}>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.map((sess) => (
-                  <tr key={sess._id}>
-                    <td data-label="Siswa">
-                      <div style={{ fontWeight: 600, color: 'var(--color-heading)' }}>{sess.studentInfo?.fullName || 'Siswa Dihapus'}</div>
-                      <div style={{ fontSize: '0.75rem', marginTop: '2px' }}>
-                        <span className={`${styles.badge} ${styles.badgeStudent}`}>{sess.studentInfo?.classCode || '-'}</span>
-                      </div>
-                    </td>
-                    <td data-label="Waktu Mulai" style={{ textAlign: 'center', fontSize: '0.875rem' }}>
-                      {new Date(sess.startedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td data-label="Status" style={{ textAlign: 'center' }}>
-                      {getStatusBadge(sess.status)}
-                    </td>
-                    <td data-label="Pelanggaran" style={{ textAlign: 'center' }}>
-                      <span style={{ 
-                        fontWeight: 700, 
-                        color: sess.exitCount >= 2 ? '#DC3545' : sess.exitCount === 1 ? '#D97706' : 'var(--color-subtext)'
-                      }}>
-                        {sess.exitCount || 0} kali
-                      </span>
-                    </td>
-                    <td data-label="Koreksi" style={{ textAlign: 'center' }}>
-                      {sess.status === 'submitted' ? (
-                        sess.gradingStatus === 'pending-manual' ? (
-                          <span style={{ fontSize: '0.8125rem', color: '#D97706', fontWeight: 600 }}>Perlu Dikoreksi</span>
-                        ) : sess.gradingStatus === 'auto-graded' ? (
-                          <span style={{ fontSize: '0.8125rem', color: '#198754', fontWeight: 600 }}>Ternilai Otomatis</span>
-                        ) : sess.gradingStatus === 'fully-graded' ? (
-                          <span style={{ fontSize: '0.8125rem', color: '#198754', fontWeight: 600 }}>Sudah Dikoreksi</span>
-                        ) : (
-                          <span style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)' }}>-</span>
-                        )
-                      ) : (
-                        <span style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)' }}>-</span>
-                      )}
-                    </td>
-                    <td data-label="Aksi">
-                      <div className={styles.actionBtns} style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
-                        {sess.status === 'submitted' && (
-                          <button
-                            className={styles.btnPrimary}
-                            style={{ padding: '6px 12px', fontSize: '0.75rem', background: '#4F46E5', color: '#FFF' }}
-                            onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}
-                          >
-                            Koreksi Layar
-                          </button>
-                        )}
-                        {sess.status === 'locked' && (
-                          <button
-                            className={styles.btnPrimary}
-                            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                            onClick={() => requestAction(sess._id, sess.studentInfo?.fullName, 'unlock')}
-                          >
-                            Buka Kunci
-                          </button>
-                        )}
-                        <button
-                          className={styles.btnSecondary}
-                          style={{ padding: '6px 12px', fontSize: '0.75rem', color: '#DC3545', border: '1px solid #FCA5A5' }}
-                          onClick={() => requestAction(sess._id, sess.studentInfo?.fullName, 'reset')}
-                        >
-                          Reset Total
-                        </button>
-                      </div>
-                    </td>
+            <>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Nama Siswa</th>
+                    <th className={styles.thCenter}>Waktu Mulai</th>
+                    <th className={styles.thCenter}>Status Ujian</th>
+                    <th className={styles.thCenter}>Pelanggaran</th>
+                    <th className={styles.thCenter}>Status Koreksi</th>
+                    <th className={styles.thCenter}>Aksi</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {paginatedSessions.map((sess) => (
+                    <tr key={sess._id}>
+                      <td data-label="Siswa">
+                        <div className={styles.userName}>{sess.studentInfo?.fullName || 'Siswa Dihapus'}</div>
+                        <div className={styles.cellChipWrap}>
+                          <StatusBadge variant="student">{sess.studentInfo?.classCode || '-'}</StatusBadge>
+                        </div>
+                      </td>
+                      <td data-label="Waktu Mulai" className={styles.tdCenter}>
+                        {new Date(sess.startedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td data-label="Status" className={styles.tdCenter}>
+                        {sess.status === 'in-progress' && <StatusBadge variant="warning">Sedang Ujian</StatusBadge>}
+                        {sess.status === 'submitted' && <StatusBadge variant="success">Selesai</StatusBadge>}
+                        {sess.status === 'locked' && <StatusBadge variant="danger">Terkunci</StatusBadge>}
+                        {!['in-progress', 'submitted', 'locked'].includes(sess.status) && <StatusBadge>{sess.status}</StatusBadge>}
+                      </td>
+                      <td data-label="Pelanggaran" className={styles.tdCenter}>
+                        <span className={getViolationClass(sess.exitCount)}>
+                          {sess.exitCount || 0} kali
+                        </span>
+                      </td>
+                      <td data-label="Koreksi" className={styles.tdCenter}>
+                        {sess.status === 'submitted' ? (
+                          sess.gradingStatus === 'pending-manual' ? (
+                            <span className={styles.gradingPending}>Perlu Dikoreksi</span>
+                          ) : sess.gradingStatus === 'auto-graded' ? (
+                            <span className={styles.gradingDone}>Ternilai Otomatis</span>
+                          ) : sess.gradingStatus === 'fully-graded' ? (
+                            <span className={styles.gradingDone}>Sudah Dikoreksi</span>
+                          ) : (
+                            <span className={styles.cellSecondary}>-</span>
+                          )
+                        ) : (
+                          <span className={styles.cellSecondary}>-</span>
+                        )}
+                      </td>
+                      <td data-label="Aksi" className={styles.tdCenter}>
+                        <div className={`${styles.actionBtns} ${styles.actionBtnsCenter}`}>
+                          {sess.status === 'submitted' && (
+                            <button
+                              className={`${styles.btnSmall} ${styles.btnSmallPrimary}`}
+                              onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}
+                            >
+                              Koreksi Layar
+                            </button>
+                          )}
+                          {(sess.status === 'locked' || (sess.status === 'in-progress' && sess.exitCount > 0)) && (
+                            <button
+                              className={`${styles.btnSmall} ${styles.btnSmallPrimary}`}
+                              onClick={() => requestAction(sess._id, sess.studentInfo?.fullName, 'unlock')}
+                            >
+                              Buka Kunci
+                            </button>
+                          )}
+                          <button
+                            className={`${styles.btnSmall} ${styles.btnSmallDanger}`}
+                            onClick={() => requestAction(sess._id, sess.studentInfo?.fullName, 'reset')}
+                          >
+                            Reset Total
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Pagination UI */}
+              {totalPages > 1 && (
+                <div className={styles.pagination}>
+                  <div className={styles.pageInfo}>
+                    Menampilkan <strong>{(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, sessions.length)}</strong> dari <strong>{sessions.length}</strong> siswa
+                  </div>
+                  <div className={styles.pageControls}>
+                    <button 
+                      className={styles.pageBtn} 
+                      onClick={handlePrevPage} 
+                      disabled={currentPage === 1}
+                    >
+                      Sebelumnya
+                    </button>
+                    <button className={`${styles.pageBtn} ${styles.pageBtnActive}`}>
+                      {currentPage}
+                    </button>
+                    <button 
+                      className={styles.pageBtn} 
+                      onClick={handleNextPage} 
+                      disabled={currentPage === totalPages}
+                    >
+                      Berikutnya
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
-      </div>
+      </ContentCard>
 
       <ConfirmDialog
         isOpen={isConfirmOpen}
@@ -204,7 +241,7 @@ export default function ExamResultsPage() {
         title={confirmConfig.type === 'unlock' ? 'Buka Kunci Ujian' : 'Hapus & Reset Total'}
         message={
           confirmConfig.type === 'unlock' 
-          ? `Siswa atas nama ${confirmConfig.studentName} akan diizinkan untuk melanjutkan sisa ujian (pelanggaran di-reset). Tindakan ini tidak mengubah jawaban yang sudah ada.`
+          ? `Siswa atas nama ${confirmConfig.studentName} akan diizinkan untuk melanjutkan sisa ujian (pelanggaran di-reset ke 0). Tindakan ini akan mengaktifkan kembali sesi yang terkunci atau membersihkan riwayat pelanggaran sementara.`
           : `PERINGATAN: Sesi ujian atas nama ${confirmConfig.studentName} akan dihapus TOTAL secara permanen. Siswa akan mengulangi soal dari awal. Yakin ingin melanjutkan?`
         }
         loading={actionLoading}

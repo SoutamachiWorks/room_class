@@ -21,6 +21,8 @@ function Skeleton({ h = 20, w = '100%', radius = 8 }) {
 function RecapTab({ subjectId }) {
   const [recap, setRecap] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     if (!subjectId) return;
@@ -44,9 +46,15 @@ function RecapTab({ subjectId }) {
     <div className={styles.emptyState}><p>Belum ada data rekap. Tutup beberapa sesi terlebih dahulu.</p></div>
   );
 
+  const totalPages = Math.ceil(recap.recap.length / itemsPerPage);
+  const paginatedRows = recap.recap.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   return (
     <div>
-      <p style={{ color: 'var(--color-subtext)', fontSize: '0.85rem', marginBottom: 16 }}>
+      <p className={styles.recapIntro}>
         Total {recap.totalSessions} pertemuan tercatat untuk <strong>{recap.subject?.subjectName}</strong>
       </p>
       <div className={styles.tableWrapper}>
@@ -54,15 +62,15 @@ function RecapTab({ subjectId }) {
           <thead>
             <tr>
               <th>Nama Siswa</th>
-              <th style={{ textAlign: 'center' }}>Hadir</th>
-              <th style={{ textAlign: 'center' }}>Sakit</th>
-              <th style={{ textAlign: 'center' }}>Izin</th>
-              <th style={{ textAlign: 'center' }}>Alpha</th>
-              <th style={{ width: '200px' }}>Kehadiran</th>
+              <th className={styles.thCenter}>Hadir</th>
+              <th className={styles.thCenter}>Sakit</th>
+              <th className={styles.thCenter}>Izin</th>
+              <th className={styles.thCenter}>Alpha</th>
+              <th>Kehadiran</th>
             </tr>
           </thead>
           <tbody>
-            {recap.recap.map(row => (
+            {paginatedRows.map(row => (
               <tr key={row.studentId}>
                 <td>
                   <div className={styles.studentCell}>
@@ -70,24 +78,24 @@ function RecapTab({ subjectId }) {
                     <div className={styles.studentName}>{row.fullName}</div>
                   </div>
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className={styles.thCenter}>
                   <span className={styles.badgeHadir}>{row.hadir}</span>
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className={styles.thCenter}>
                   <span className={styles.badgeSakit}>{row.sakit}</span>
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className={styles.thCenter}>
                   <span className={styles.badgeIzin}>{row.izin}</span>
                 </td>
-                <td style={{ textAlign: 'center' }}>
+                <td className={styles.thCenter}>
                   <span className={styles.badgeAlpha}>{row.alpha}</span>
                 </td>
                 <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div className={styles.progressBar} style={{ flex: 1 }}>
+                  <div className={styles.progressRow}>
+                    <div className={styles.progressBar}>
                       <div className={styles.progressFill} style={{ width: `${row.percentage}%` }} />
                     </div>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: row.percentage >= 75 ? 'var(--color-success-text)' : 'var(--color-failed-text)', minWidth: 36 }}>
+                    <span className={`${styles.percentLabel} ${row.percentage >= 75 ? styles.percentGood : styles.percentBad}`}>
                       {row.percentage}%
                     </span>
                   </div>
@@ -97,6 +105,31 @@ function RecapTab({ subjectId }) {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination UI */}
+      {totalPages > 1 && (
+        <div className={styles.pagination}>
+          <div className={styles.paginationInfo}>
+            Menampilkan <strong>{(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, recap.recap.length)}</strong> dari <strong>{recap.recap.length}</strong> siswa
+          </div>
+          <div className={styles.paginationBtns}>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className={styles.paginationBtn}
+            >
+              Sebelumnya
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className={styles.paginationBtn}
+            >
+              Berikutnya
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -191,7 +224,7 @@ export default function TeacherAttendancePage() {
       {success && <div className={styles.successBanner}>{success}</div>}
 
       {/* Filter + Tabs */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      <div className={styles.filterRow}>
         <div className={styles.subjectBar}>
           <select
             className={styles.select}
@@ -242,7 +275,8 @@ export default function TeacherAttendancePage() {
                   key={session._id}
                   className={`${styles.sessionItem} ${session.status === 'open' ? styles.sessionItemOpen : ''}`}
                   onClick={() => router.push(`/dashboard/teacher/attendance/${session._id}`)}
-                  style={{ cursor: 'pointer' }}
+                  role="button"
+                  tabIndex={0}
                 >
                   <div className={styles.sessionLeft}>
                     <div className={styles.sessionDate}>
@@ -264,7 +298,7 @@ export default function TeacherAttendancePage() {
                       ? <span className={styles.badgeOpen}>Sedang Berlangsung</span>
                       : <span className={styles.badgeClosed}>Selesai</span>
                     }
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-subtext)' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.chevronIcon}>
                       <polyline points="9 18 15 12 9 6" />
                     </svg>
                   </div>
@@ -296,7 +330,7 @@ export default function TeacherAttendancePage() {
             <p className={styles.modalSubtitle}>
               Pilih durasi sesi. Siswa dapat melakukan check-in selama waktu ini.
             </p>
-            <p style={{ fontSize: '0.8rem', color: 'var(--color-subtext)', marginBottom: 12 }}>Durasi:</p>
+            <p className={styles.durationLabel}>Durasi:</p>
             <div className={styles.modalOptions}>
               {DURATION_OPTIONS.map(d => (
                 <button

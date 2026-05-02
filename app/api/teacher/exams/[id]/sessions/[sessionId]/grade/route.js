@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
+import { createNotification } from '@/lib/notification';
 
 /**
  * PUT /api/teacher/exams/[id]/sessions/[sessionId]/grade
@@ -64,6 +65,18 @@ export async function PUT(request, { params }) {
         }
       }
     );
+
+    // Notifikasi ke siswa
+    const studentUser = await db.collection('users').findOne({ role: 'student', studentId: session.studentId });
+    if (studentUser) {
+      await createNotification(db, {
+        userId: studentUser._id,
+        title: 'Nilai Ujian',
+        message: `Ujian "${subjectCheck[0].title}" telah dikoreksi oleh guru.`,
+        type: 'success',
+        actionUrl: `/dashboard/student/exams`
+      });
+    }
 
     return NextResponse.json({ success: true, message: 'Penilaian berhasil disimpan.' });
   } catch (err) {

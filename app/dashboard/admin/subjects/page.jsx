@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import PageHeader from '@/components/PageHeader';
+import ContentCard from '@/components/ContentCard';
+import StatusBadge from '@/components/StatusBadge';
+import EmptyState from '@/components/EmptyState';
 import styles from '../admin.module.css';
 
 export default function SubjectManagementPage() {
@@ -196,40 +200,52 @@ export default function SubjectManagementPage() {
     }
   };
 
+  // ── Filter bar ────────────────────────────────────────────────────────
+  const filterBar = (
+    <div className={styles.filterSection}>
+      <div className={styles.searchBox}>
+         <svg className={styles.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+           <circle cx="11" cy="11" r="8" />
+           <line x1="21" y1="21" x2="16.65" y2="16.65" />
+         </svg>
+         <input
+           type="text"
+           className={styles.searchInput}
+           placeholder="Pindai Berdasarkan Nama Pelajaran / Guru / Kelas..."
+           value={searchInput}
+           onChange={(e) => setSearchInput(e.target.value)}
+         />
+      </div>
+    </div>
+  );
+
+  // ── Pagination footer ─────────────────────────────────────────────────
+  const paginationFooter = !loading && totalPages > 0 ? (
+    <>
+      <div className={styles.pageInfo}>
+         Data Baris {Math.min((page - 1) * limit + 1, totalCount)} – {Math.min(page * limit, totalCount)} (Terkalibrasi: {totalCount})
+      </div>
+      <div className={styles.pageControls}>
+        <button className={styles.pageBtn} onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}>Mundur</button>
+        <button className={`${styles.pageBtn} ${styles.pageBtnActive}`}>{page}</button>
+        <button className={styles.pageBtn} onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}>Maju</button>
+      </div>
+    </>
+  ) : null;
+
   return (
     <>
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Penamaan Resolusi Subjek / Mata Pelajaran</h1>
-        <div className={styles.headerActions}>
-          <button className={styles.btnPrimary} onClick={() => handleOpenForm()} disabled={!dependenciesLoaded}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Rekam Subjek Belajar
-          </button>
-        </div>
-      </div>
+      <PageHeader title="Penamaan Resolusi Subjek / Mata Pelajaran">
+        <button className={styles.btnPrimary} onClick={() => handleOpenForm()} disabled={!dependenciesLoaded}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Rekam Subjek Belajar
+        </button>
+      </PageHeader>
 
-      <div className={styles.contentCard}>
-        {/* Core Array Filters */}
-        <div className={styles.filterSection}>
-          <div className={styles.searchBox}>
-             <svg className={styles.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-               <circle cx="11" cy="11" r="8" />
-               <line x1="21" y1="21" x2="16.65" y2="16.65" />
-             </svg>
-             <input
-               type="text"
-               className={styles.searchInput}
-               placeholder="Pindai Berdasarkan Nama Pelajaran / Guru / Kelas..."
-               value={searchInput}
-               onChange={(e) => setSearchInput(e.target.value)}
-             />
-          </div>
-        </div>
-
-        {/* Dynamic Display Arrays */}
+      <ContentCard header={filterBar} footer={paginationFooter}>
         <div className={styles.tableContainer}>
           {loading ? (
              <div className={styles.loadingBox}>
@@ -237,37 +253,40 @@ export default function SubjectManagementPage() {
                Mengkalibrasi Struktur Modul...
              </div>
           ) : subjects.length === 0 ? (
-            <div className={styles.emptyState}>Konfigurasi Matrix Kelas belum memiliki pemetaan Mata Pelajaran.</div>
+            <EmptyState
+              title="Belum Ada Mata Pelajaran"
+              description="Konfigurasi Matrix Kelas belum memiliki pemetaan Mata Pelajaran."
+            />
           ) : (
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th style={{ width: '35%' }}>Modul Pembelajaran Aktif</th>
+                  <th>Modul Pembelajaran Aktif</th>
                   <th>Konfigurasi Pengampu Utama</th>
                   <th>Spesifikasi Kelas</th>
-                  <th style={{ textAlign: 'center', width: '20%' }}>Kompilator Aksi</th>
+                  <th className={styles.thCenter}>Kompilator Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {subjects.map((sub) => (
                   <tr key={sub._id}>
                     <td data-label="Mata Pelajaran">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                         <div className={styles.avatar} style={{ background: '#E1E8FF', color: '#4A7AFA', fontSize: '1rem', width: '42px', height: '42px' }}>
+                      <div className={styles.userCell}>
+                         <div className={styles.avatarIcon}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
                          </div>
-                         <div style={{ fontWeight: 600, color: 'var(--color-heading)', fontSize: '0.9375rem' }}>{sub.subjectName}</div>
+                         <div className={styles.userName}>{sub.subjectName}</div>
                       </div>
                     </td>
                     <td data-label="Guru Pengampu">
-                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}>{sub.teacherName}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>ID Induk: {sub.teacherId}</div>
+                      <div className={styles.cellBold}>{sub.teacherName}</div>
+                      <div className={styles.cellSecondary}>ID Induk: {sub.teacherId}</div>
                     </td>
                     <td data-label="Kelas">
-                       <span className={`${styles.badge} ${styles.badgeStudent}`}>{sub.classCode}</span>
+                       <StatusBadge variant="student">{sub.classCode}</StatusBadge>
                     </td>
-                    <td data-label="Aksi" style={{ textAlign: 'center' }}>
-                       <div className={styles.actionBtns} style={{ justifyContent: 'center' }}>
+                    <td data-label="Aksi" className={styles.tdCenter}>
+                       <div className={`${styles.actionBtns} ${styles.actionBtnsCenter}`}>
                           <button className={styles.iconBtn} onClick={() => handleOpenForm(sub)} aria-label="Edit">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                           </button>
@@ -283,21 +302,7 @@ export default function SubjectManagementPage() {
             </table>
           )}
         </div>
-
-        {/* Global Pagination Handler */}
-        {!loading && totalPages > 0 && (
-          <div className={styles.pagination}>
-            <div className={styles.pageInfo}>
-               Data Baris {Math.min((page - 1) * limit + 1, totalCount)} – {Math.min(page * limit, totalCount)} (Terkalibrasi: {totalCount})
-            </div>
-            <div className={styles.pageControls}>
-              <button className={styles.pageBtn} onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}>Mundur</button>
-              <button className={styles.pageBtn} style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)', borderColor: 'transparent' }}>{page}</button>
-              <button className={styles.pageBtn} onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}>Maju</button>
-            </div>
-          </div>
-        )}
-      </div>
+      </ContentCard>
 
       {/* Creation/Adjustment Modals leveraging pre-fetched contextual states */}
       <Modal
@@ -309,8 +314,8 @@ export default function SubjectManagementPage() {
            {formError && <div className={styles.formError}>{formError}</div>}
 
            {selectedSubject && (
-              <div style={{ background: '#E1E8FF', padding: '12px', borderRadius: '8px', fontSize: '0.8125rem', color: '#4A7AFA', marginBottom: '8px' }}>
-                 <strong>Informasi Integritas Cascade:</strong> Mengubah kolom "Guru Pemegang Modul" pada interface mutasi ini akan secara otomatis mentransfer (swap) seluruh Hak Kepemilikan Materi, Tugas, dan Ujian pada sistem menuju Guru terkait secara absolut.
+              <div className={`${styles.alert} ${styles.alertInfo}`}>
+                 <strong>Informasi Integritas Cascade:</strong> Mengubah kolom &ldquo;Guru Pemegang Modul&rdquo; pada interface mutasi ini akan secara otomatis mentransfer (swap) seluruh Hak Kepemilikan Materi, Tugas, dan Ujian pada sistem menuju Guru terkait secara absolut.
               </div>
            )}
 
@@ -333,9 +338,8 @@ export default function SubjectManagementPage() {
                     name="teacherId" 
                     value={formData.teacherId} 
                     onChange={handleFormChange} 
-                    className={styles.input} 
+                    className={`${styles.input} ${styles.selectInput}`}
                     required 
-                    style={{ appearance: 'auto' }}
                  >
                     <option value="" disabled>Pilih Guru Aktif...</option>
                     {teachersRef.map(t => (
@@ -350,9 +354,8 @@ export default function SubjectManagementPage() {
                     name="classCode" 
                     value={formData.classCode} 
                     onChange={handleFormChange} 
-                    className={styles.input} 
+                    className={`${styles.input} ${styles.selectInput}`}
                     required 
-                    style={{ appearance: 'auto' }}
                  >
                     <option value="" disabled>Pilih Skema Kelas...</option>
                     {classCodesRef.map(c => (

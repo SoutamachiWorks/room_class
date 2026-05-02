@@ -190,4 +190,3 @@ content where the class codes match should be returned and displayed to the stud
 - [x] Students only see content (assignments, materials, exams) that belongs to their class code
 - [x] Teachers only see and manage content they created (filter by `teacherId`)
 - [x] Apply server-side RBAC middleware on every API route — reject requests where the session role does not match the required role for that route
-```

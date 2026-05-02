@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
+import { createNotification } from '@/lib/notification';
 
 /**
  * PUT /api/teacher/assignments/[id]/submissions/[studentId]/grade
@@ -26,7 +27,7 @@ export async function PUT(request, { params }) {
       }
 
       const body = await request.json();
-      const { score } = body;
+      const { score, feedback } = body;
 
       if (score === undefined || score === null) {
           return NextResponse.json({ error: 'Nilai tidak boleh kosong' }, { status: 400 });
@@ -41,6 +42,7 @@ export async function PUT(request, { params }) {
          {
             $set: {
                score: Number(score),
+               feedback: feedback || '',
                gradedAt: new Date()
             }
          }
@@ -48,6 +50,19 @@ export async function PUT(request, { params }) {
 
       if (updateResult.modifiedCount === 0 && updateResult.matchedCount === 0) {
           return NextResponse.json({ error: 'Pengumpulan siswa ini belum ada atau ID pecah.' }, { status: 404 });
+      }
+
+      // Notifikasi ke siswa
+      const studentUser = await db.collection('users').findOne({ role: 'student', studentId: studentId });
+      if (studentUser) {
+        const subject = await db.collection('subjects').findOne({ _id: new ObjectId(mapping.subjectId) });
+        await createNotification(db, {
+          userId: studentUser._id,
+          title: 'Nilai Tugas',
+          message: `Nilai untuk tugas pada mata pelajaran ${subject?.name || 'terkait'} telah diberikan oleh guru.`,
+          type: 'success',
+          actionUrl: `/dashboard/student/assignments`
+        });
       }
 
       return NextResponse.json({ success: true });

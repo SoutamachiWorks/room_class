@@ -42,12 +42,9 @@ export default function StudentAttendancePage() {
           <p className={styles.pageSubtitle}>Rekap kehadiran Anda di semua mata pelajaran.</p>
         </div>
         {!loading && total > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--color-subtext)' }}>Kehadiran total:</span>
-            <span style={{
-              fontSize: '1.3rem', fontWeight: 700,
-              color: pct >= 75 ? 'var(--color-success-text)' : 'var(--color-failed-text)'
-            }}>
+          <div className={styles.totalPctRow}>
+            <span className={styles.totalPctLabel}>Kehadiran total:</span>
+            <span className={`${styles.totalPctValue} ${pct >= 75 ? styles.totalPctGood : styles.totalPctBad}`}>
               {pct}%
             </span>
           </div>
@@ -117,24 +114,24 @@ export default function StudentAttendancePage() {
               <tbody>
                 {history.map(record => (
                   <tr key={record._id}>
-                    <td style={{ fontWeight: 600, color: 'var(--color-heading)', whiteSpace: 'nowrap' }}>
+                    <td className={styles.cellDate}>
                       {new Date(record.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
                     <td>
                       <span className={styles.subjectChip}>{record.subjectName || '—'}</span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div className={styles.statusRow}>
                         <StatusBadge status={record.status} />
                         {record.isManual && <span className={styles.manualBadge}>dikoreksi</span>}
                       </div>
                     </td>
-                    <td style={{ color: 'var(--color-subtext)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                    <td className={styles.cellSecondary}>
                       {record.checkedInAt
                         ? new Date(record.checkedInAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
                         : '—'}
                     </td>
-                    <td style={{ color: 'var(--color-subtext)', fontSize: '0.82rem' }}>
+                    <td className={styles.cellSecondary}>
                       {record.note || '—'}
                     </td>
                   </tr>

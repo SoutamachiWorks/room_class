@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
+import { createNotificationsForClass } from '@/lib/notification';
 
 /**
  * PUT /api/teacher/exams/[id]/publish
@@ -35,6 +36,19 @@ export async function PUT(request, { params }) {
         },
       }
     );
+
+    // Kirim notifikasi jika statusnya adalah 'published'
+    if (newStatus === 'published') {
+      const subject = await db.collection('subjects').findOne({ _id: new ObjectId(existing.subjectId) });
+      if (subject && subject.classCode) {
+        await createNotificationsForClass(db, subject.classCode, {
+          title: 'Ujian Baru',
+          message: `Ujian "${existing.title}" telah dipublikasikan pada mata pelajaran ${subject.name}.`,
+          type: 'info',
+          actionUrl: `/dashboard/student/exams`
+        });
+      }
+    }
 
     return NextResponse.json({
       success: true,

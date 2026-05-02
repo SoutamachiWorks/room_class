@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import PageHeader from '@/components/PageHeader';
+import ContentCard from '@/components/ContentCard';
+import StatusBadge from '@/components/StatusBadge';
+import EmptyState from '@/components/EmptyState';
 import styles from '../admin.module.css';
-
-// Reusing some of the admin styles, but we can override or add specific ones if needed
 
 export default function ActivityLogsPage() {
   const [logs, setLogs] = useState([]);
@@ -43,44 +45,60 @@ export default function ActivityLogsPage() {
     fetchLogs();
   }, [fetchLogs]);
 
-  // Format Helper
+  // Action badge using StatusBadge
   const getActionBadge = (action) => {
     switch(action) {
-      case 'create': return <span className={`${styles.badge} ${styles.badgeTeacher}`} style={{background: '#D1F0D9', color: '#198754'}}>Create</span>;
-      case 'update': return <span className={`${styles.badge} ${styles.badgeAdmin}`} style={{background: '#E1E8FF', color: '#4A7AFA'}}>Update</span>;
-      case 'delete': return <span className={`${styles.badge}`} style={{background: '#FDE0DD', color: '#DC3545'}}>Delete</span>;
-      case 'status_change': return <span className={`${styles.badge}`} style={{background: '#FDE68A', color: '#B45309'}}>Status</span>;
-      default: return <span className={`${styles.badge}`}>{action}</span>;
+      case 'create': return <StatusBadge variant="success">Create</StatusBadge>;
+      case 'update': return <StatusBadge variant="info">Update</StatusBadge>;
+      case 'delete': return <StatusBadge variant="danger">Delete</StatusBadge>;
+      case 'status_change': return <StatusBadge variant="warning">Status</StatusBadge>;
+      default: return <StatusBadge variant="neutral">{action}</StatusBadge>;
     }
   };
 
+  // ── Filter bar ────────────────────────────────────────────────────────
+  const filterBar = (
+    <div className={styles.filterSection}>
+      <div className={styles.roleTabs}>
+        <button className={`${styles.tabBtn} ${actionFilter === '' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter(''); setPage(1); }}>Semua Aksi</button>
+        <button className={`${styles.tabBtn} ${actionFilter === 'create' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter('create'); setPage(1); }}>Create</button>
+        <button className={`${styles.tabBtn} ${actionFilter === 'update' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter('update'); setPage(1); }}>Update</button>
+        <button className={`${styles.tabBtn} ${actionFilter === 'delete' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter('delete'); setPage(1); }}>Delete</button>
+        <button className={`${styles.tabBtn} ${actionFilter === 'status_change' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter('status_change'); setPage(1); }}>Status Change</button>
+      </div>
+    </div>
+  );
+
+  // ── Pagination footer ─────────────────────────────────────────────────
+  const paginationFooter = !loading && totalPages > 0 ? (
+    <>
+      <div className={styles.pageInfo}>
+        Menampilkan {(page - 1) * limit + 1} - {Math.min(page * limit, totalCount)} dari {totalCount} log
+      </div>
+      <div className={styles.pageControls}>
+        <button className={styles.pageBtn} onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}>Sebelumnya</button>
+        <button className={`${styles.pageBtn} ${styles.pageBtnActive}`}>{page}</button>
+        <button className={styles.pageBtn} onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}>Selanjutnya</button>
+      </div>
+    </>
+  ) : null;
+
   return (
     <>
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Log Aktivitas Sistem</h1>
-      </div>
+      <PageHeader title="Log Aktivitas Sistem" />
 
-      <div className={styles.contentCard}>
-        {/* Filters */}
-        <div className={styles.filterSection}>
-          <div className={styles.roleTabs}>
-            <button className={`${styles.tabBtn} ${actionFilter === '' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter(''); setPage(1); }}>Semua Aksi</button>
-            <button className={`${styles.tabBtn} ${actionFilter === 'create' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter('create'); setPage(1); }}>Create</button>
-            <button className={`${styles.tabBtn} ${actionFilter === 'update' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter('update'); setPage(1); }}>Update</button>
-            <button className={`${styles.tabBtn} ${actionFilter === 'delete' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter('delete'); setPage(1); }}>Delete</button>
-            <button className={`${styles.tabBtn} ${actionFilter === 'status_change' ? styles.tabBtnActive : ''}`} onClick={() => { setActionFilter('status_change'); setPage(1); }}>Status Change</button>
-          </div>
-        </div>
-
-        {/* Table */}
+      <ContentCard header={filterBar} footer={paginationFooter}>
         <div className={styles.tableContainer}>
           {loading ? (
              <div className={styles.loadingBox}>
-                <div className="spinner"></div> {/* From layout context */}
+                <div className="spinner"></div>
                 Memuat data...
              </div>
           ) : logs.length === 0 ? (
-            <div className={styles.emptyState}>Tidak ada log aktivitas ditemukan.</div>
+            <EmptyState
+              title="Tidak Ada Log"
+              description="Tidak ada log aktivitas ditemukan untuk filter ini."
+            />
           ) : (
             <table className={styles.table}>
               <thead>
@@ -95,21 +113,21 @@ export default function ActivityLogsPage() {
               <tbody>
                 {logs.map((log) => (
                   <tr key={log._id}>
-                    <td style={{ whiteSpace: 'nowrap' }}>
-                      <div style={{ fontSize: '0.8125rem', fontWeight: 500 }}>{new Date(log.timestamp).toLocaleDateString('id-ID')}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>{new Date(log.timestamp).toLocaleTimeString('id-ID')}</div>
+                    <td className={styles.cellNoWrap}>
+                      <div className={styles.cellMedium}>{new Date(log.timestamp).toLocaleDateString('id-ID')}</div>
+                      <div className={styles.cellSecondary}>{new Date(log.timestamp).toLocaleTimeString('id-ID')}</div>
                     </td>
                     <td>{getActionBadge(log.action)}</td>
                     <td>
-                       <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{log.userName}</div>
-                       {log.userId && <div style={{ fontSize: '0.75rem', color: 'var(--color-text-light)' }}>ID: {log.userId.slice(-6)}</div>}
+                       <div className={styles.cellBold}>{log.userName}</div>
+                       {log.userId && <div className={styles.cellSecondary}>ID: {log.userId.slice(-6)}</div>}
                     </td>
                     <td>
-                       <div style={{ fontSize: '0.875rem' }}>{log.target}</div>
+                       <div className={styles.cellPrimary}>{log.target}</div>
                     </td>
                     <td>
-                       <div style={{ fontSize: '0.75rem', color: 'var(--color-subtext)', maxWidth: '250px', background: '#F9FAFB', padding: '6px 10px', borderRadius: '6px' }}>
-                          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                       <div className={styles.detailBox}>
+                          <pre className={styles.detailPre}>
                              {JSON.stringify(log.details, null, 2)}
                           </pre>
                        </div>
@@ -120,38 +138,7 @@ export default function ActivityLogsPage() {
             </table>
           )}
         </div>
-
-        {/* Pagination Controls */}
-        {!loading && totalPages > 0 && (
-          <div className={styles.pagination}>
-            <div className={styles.pageInfo}>
-              Menampilkan {(page - 1) * limit + 1} - {Math.min(page * limit, totalCount)} dari {totalCount} log
-            </div>
-            <div className={styles.pageControls}>
-              <button 
-                className={styles.pageBtn} 
-                onClick={() => setPage(Math.max(1, page - 1))} 
-                disabled={page === 1}
-              >
-                Sebelumnya
-              </button>
-              <button 
-                className={styles.pageBtn} 
-                style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary)', borderColor: 'transparent' }}
-              >
-                {page}
-              </button>
-              <button 
-                className={styles.pageBtn} 
-                onClick={() => setPage(Math.min(totalPages, page + 1))} 
-                disabled={page === totalPages}
-              >
-                Selanjutnya
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      </ContentCard>
     </>
   );
 }

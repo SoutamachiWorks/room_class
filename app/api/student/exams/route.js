@@ -14,8 +14,21 @@ export async function GET(request) {
     const db = await getDb();
 
     const userDoc = await db.collection('users').findOne({ _id: new ObjectId(student.userId) });
-    const classCode = userDoc?.classCode;
     const studentId = userDoc?.studentId;
+    const enrolledYears = userDoc?.enrolledYears || [];
+
+    const { searchParams } = new URL(request.url);
+    const yearId = searchParams.get('yearId');
+
+    let classCode = userDoc?.classCode;
+
+    // Archive Mode logic: If yearId is provided and exists in history, use that classCode
+    if (yearId && enrolledYears.length > 0) {
+      const targetYear = enrolledYears.find(y => y.yearId === yearId);
+      if (targetYear) {
+        classCode = targetYear.classCode;
+      }
+    }
 
     if (!classCode || !studentId) {
       return NextResponse.json({ error: 'Profil siswa tidak lengkap.' }, { status: 403 });
@@ -104,7 +117,10 @@ export async function GET(request) {
       session: sessionMap[e._id.toString()] || null,
     }));
 
-    return NextResponse.json({ exams: result });
+    return NextResponse.json({ 
+      exams: result,
+      enrolledYears
+    });
   } catch (err) {
     const { status, error } = handleAuthError(err);
     return NextResponse.json({ error }, { status });

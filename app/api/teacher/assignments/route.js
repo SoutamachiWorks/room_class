@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 import { uploadToR2, generatePresignedUrl } from '@/lib/s3Client';
+import { createNotificationsForClass } from '@/lib/notification';
 
 /**
  * GET /api/teacher/assignments
@@ -119,7 +120,17 @@ export async function POST(request) {
      };
  
      const result = await db.collection('assignments').insertOne(newDocument);
- 
+
+     // Notifikasi ke siswa
+     if (verifySubject && verifySubject.classCode) {
+       await createNotificationsForClass(db, verifySubject.classCode, {
+         title: 'Tugas Baru',
+         message: `Tugas baru telah ditambahkan pada mata pelajaran ${verifySubject.name}.`,
+         type: 'info',
+         actionUrl: `/dashboard/student/assignments`
+       });
+     }
+
      return NextResponse.json({ success: true, id: result.insertedId }, { status: 201 });
  
    } catch (err) {

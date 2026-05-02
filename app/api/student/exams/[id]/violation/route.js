@@ -46,7 +46,7 @@ export async function PATCH(request, { params }) {
     }
 
     const newExitCount = (session.exitCount || 0) + 1;
-    const newStatus = newExitCount >= 2 ? 'locked' : 'in-progress';
+    const newStatus = newExitCount >= 3 ? 'locked' : 'in-progress';
 
     await db.collection('examSessions').updateOne(
       { _id: new ObjectId(sessionId) },

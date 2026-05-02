@@ -7,6 +7,7 @@ import styles from './exam-builder.module.css';
 // Default empty question block
 function createEmptyQuestion() {
   return {
+    imageUrl: null,
     multipleChoice: null,
     essay: null,
     fileUpload: null,
@@ -14,6 +15,8 @@ function createEmptyQuestion() {
     _mcEnabled: false,
     _essayEnabled: false,
     _fileEnabled: false,
+    _uploadingImage: false,
+    _previewUrl: null,
   };
 }
 
@@ -91,12 +94,15 @@ export default function ExamBuilderPage() {
         // Map questions with toggle state
         if (exam.questions && exam.questions.length > 0) {
           setQuestions(exam.questions.map(q => ({
+            imageUrl: q.imageUrl || null,
             multipleChoice: q.multipleChoice || null,
             essay: q.essay || null,
             fileUpload: q.fileUpload || null,
             _mcEnabled: !!q.multipleChoice,
             _essayEnabled: !!q.essay,
             _fileEnabled: !!q.fileUpload,
+            _uploadingImage: false,
+            _previewUrl: q.previewUrl || null,
           })));
         }
       } catch (e) {
@@ -138,6 +144,53 @@ export default function ExamBuilderPage() {
       [arr[index], arr[targetIdx]] = [arr[targetIdx], arr[index]];
       return arr;
     });
+  };
+
+  // ====== Image Upload Helpers ======
+
+  const handleImageUpload = async (qIdx, file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Harap pilih file gambar (JPG, PNG, dll).');
+      return;
+    }
+
+    updateQuestion(qIdx, q => ({ ...q, _uploadingImage: true }));
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const res = await fetch('/api/teacher/exams/upload-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        updateQuestion(qIdx, q => ({
+          ...q,
+          imageUrl: data.imageUrl,
+          _previewUrl: data.previewUrl,
+          _uploadingImage: false,
+        }));
+      } else {
+        alert(data.error || 'Gagal mengunggah gambar.');
+        updateQuestion(qIdx, q => ({ ...q, _uploadingImage: false }));
+      }
+    } catch (err) {
+      alert('Koneksi server terputus saat mengunggah gambar.');
+      updateQuestion(qIdx, q => ({ ...q, _uploadingImage: false }));
+    }
+  };
+
+  const removeImage = (qIdx) => {
+    updateQuestion(qIdx, q => ({
+      ...q,
+      imageUrl: null,
+      _previewUrl: null,
+    }));
   };
 
   // ====== MC Helpers ======
@@ -189,9 +242,13 @@ export default function ExamBuilderPage() {
     updateQuestion(qIdx, q => ({
       ...q,
       _mcEnabled: enabled,
+      _essayEnabled: false,
+      _fileEnabled: false,
       multipleChoice: enabled
         ? (q.multipleChoice || { questionText: '', options: ['', ''], correctAnswer: null })
         : null,
+      essay: null,
+      fileUpload: null,
     }));
   };
 
@@ -199,9 +256,13 @@ export default function ExamBuilderPage() {
     updateQuestion(qIdx, q => ({
       ...q,
       _essayEnabled: enabled,
+      _mcEnabled: false,
+      _fileEnabled: false,
       essay: enabled
         ? (q.essay || { questionText: '' })
         : null,
+      multipleChoice: null,
+      fileUpload: null,
     }));
   };
 
@@ -209,9 +270,13 @@ export default function ExamBuilderPage() {
     updateQuestion(qIdx, q => ({
       ...q,
       _fileEnabled: enabled,
+      _mcEnabled: false,
+      _essayEnabled: false,
       fileUpload: enabled
         ? (q.fileUpload || { questionText: '' })
         : null,
+      multipleChoice: null,
+      essay: null,
     }));
   };
 
@@ -248,6 +313,7 @@ export default function ExamBuilderPage() {
 
     // Strip local toggle state before sending
     const cleanQuestions = questions.map(q => ({
+      imageUrl: q.imageUrl || null,
       multipleChoice: q.multipleChoice || null,
       essay: q.essay || null,
       fileUpload: q.fileUpload || null,
@@ -292,7 +358,7 @@ export default function ExamBuilderPage() {
     return (
       <div className={styles.builderContainer}>
         <div className={styles.builderHeader}>
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-subtext)' }}>
+          <div className={styles.loadingCenter}>
             Memuat data ujian...
           </div>
         </div>
@@ -317,7 +383,7 @@ export default function ExamBuilderPage() {
 
         {error && <div className={styles.errorBanner}>{error}</div>}
 
-        <div className={styles.fieldGroup} style={{ marginBottom: 16 }}>
+        <div className={`${styles.fieldGroup} ${styles.fieldGroupSpaced}`}>
           <label className={styles.fieldLabel}>Judul Ujian *</label>
           <input
             type="text"
@@ -332,11 +398,10 @@ export default function ExamBuilderPage() {
           <div className={styles.fieldGroup}>
             <label className={styles.fieldLabel}>Integrasi Mata Pelajaran *</label>
             <select
-              className={styles.input}
               value={subjectId}
               onChange={handleSubjectChange}
               disabled={!!editId}
-              style={editId ? { background: 'var(--bg-card-dark)', color: 'var(--color-subtext)', opacity: 0.7 } : { appearance: 'auto' }}
+              className={`${styles.input} ${editId ? styles.inputDisabled : styles.selectInput}`}
             >
               <option value="" disabled>Pilih Mata Pelajaran...</option>
               {teacherSubjects.map(sub => (
@@ -349,19 +414,18 @@ export default function ExamBuilderPage() {
             <label className={styles.fieldLabel}>Kode Kelas (Otomatis)</label>
             <input
               type="text"
-              className={styles.input}
               value={classCode ? `Terkunci: ${classCode}` : 'Pilih mata pelajaran'}
               disabled
-              style={{ background: 'var(--bg-card-dark)', fontWeight: 600, color: 'var(--color-primary)', opacity: 0.7 }}
+              className={`${styles.input} ${styles.inputLocked}`}
             />
           </div>
         </div>
 
         <div className={styles.metaGrid}>
-          <div className={styles.fieldGroup} style={{ gridColumn: 'span 1' }}>
-            <label className={styles.fieldLabel} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className={styles.fieldGroup}>
+            <label className={`${styles.fieldLabel} ${styles.fieldLabelRow}`}>
               <span>Acak Urutan Soal Ujian</span>
-              <label className={styles.toggleSwitch} style={{ margin: 0 }}>
+              <label className={styles.toggleSwitch}>
                 <input
                   type="checkbox"
                   checked={isRandomized}
@@ -370,7 +434,7 @@ export default function ExamBuilderPage() {
                 <span className={styles.toggleSlider}/>
               </label>
             </label>
-            <span style={{ fontSize: '0.85rem', color: 'var(--color-subtext)', marginTop: '4px', display: 'block' }}>
+            <span className={styles.fieldHintText}>
               {isRandomized ? 'Ya, acak untuk setiap siswa.' : 'Tidak diacak otomatis.'}
             </span>
           </div>
@@ -392,12 +456,11 @@ export default function ExamBuilderPage() {
             <label className={styles.fieldLabel}>Batas Akhir Pengerjaan (Deadline)</label>
             <input
               type="datetime-local"
-              className={styles.input}
               value={deadline}
               onChange={e => setDeadline(e.target.value)}
-              style={!deadline ? { color: 'var(--color-subtext)' } : {}}
+              className={`${styles.input} ${!deadline ? styles.inputPlaceholder : ''}`}
             />
-            <span style={{ fontSize: '0.85rem', color: 'var(--color-subtext)', marginTop: '4px', display: 'block' }}>
+            <span className={styles.fieldHintText}>
               Kosongkan jika tidak ada batas akhir hari/waktu.
             </span>
           </div>
@@ -416,7 +479,7 @@ export default function ExamBuilderPage() {
                 onClick={() => moveQuestion(qIdx, -1)}
                 disabled={qIdx === 0}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.qActionIcon}>
                   <polyline points="18 15 12 9 6 15"/>
                 </svg>
               </button>
@@ -436,12 +499,59 @@ export default function ExamBuilderPage() {
                 onClick={() => removeQuestion(qIdx)}
                 disabled={questions.length <= 1}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.qActionIcon}>
                   <line x1="18" y1="6" x2="6" y2="18"/>
                   <line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
               </button>
             </div>
+          </div>
+
+          {/* 0. Image Upload Section */}
+          <div className={styles.imageUploadSection}>
+            <div className={styles.fieldLabel}>Ilustrasi Gambar (Opsional)</div>
+            
+            {!q.imageUrl && !q._uploadingImage && (
+              <>
+                <input
+                  type="file"
+                  id={`image-upload-${qIdx}`}
+                  className={styles.imageInputHidden}
+                  accept="image/*"
+                  onChange={(e) => handleImageUpload(qIdx, e.target.files[0])}
+                />
+                <label htmlFor={`image-upload-${qIdx}`} className={styles.imageUploadBtn}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.imageUploadIcon}>
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                  Sisipkan Gambar Soal
+                </label>
+              </>
+            )}
+
+            {q._uploadingImage && (
+              <div className={styles.uploadingIndicator}>
+                <svg className={`${styles.imageUploadIcon} ${styles.spinning}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+                </svg>
+                Sedang mengunggah...
+              </div>
+            )}
+
+            {q.imageUrl && !q._uploadingImage && (
+              <div className={styles.imagePreviewWrapper}>
+                <img src={q._previewUrl} alt="Preview Soal" className={styles.imagePreview} />
+                <button 
+                  className={styles.imageRemoveBtn} 
+                  title="Hapus Gambar"
+                  onClick={() => removeImage(qIdx)}
+                >
+                  ×
+                </button>
+              </div>
+            )}
           </div>
 
           {/* 1. Multiple Choice */}
@@ -460,6 +570,7 @@ export default function ExamBuilderPage() {
             {q._mcEnabled ? (
               <div className={styles.typeContent}>
                 <textarea
+                  className={styles.questionTextarea}
                   placeholder="Tuliskan pertanyaan pilihan ganda..."
                   value={q.multipleChoice?.questionText || ''}
                   onChange={e => updateQuestion(qIdx, qq => ({
@@ -467,7 +578,7 @@ export default function ExamBuilderPage() {
                     multipleChoice: { ...qq.multipleChoice, questionText: e.target.value },
                   }))}
                 />
-                <div style={{ marginTop: 12 }}>
+                <div className={styles.optionsContainer}>
                   {(q.multipleChoice?.options || []).map((opt, optIdx) => (
                     <div className={styles.optionRow} key={optIdx}>
                       <input
@@ -526,6 +637,7 @@ export default function ExamBuilderPage() {
             {q._essayEnabled ? (
               <div className={styles.typeContent}>
                 <textarea
+                  className={styles.questionTextarea}
                   placeholder="Tuliskan pertanyaan esai..."
                   value={q.essay?.questionText || ''}
                   onChange={e => updateQuestion(qIdx, qq => ({
@@ -555,6 +667,7 @@ export default function ExamBuilderPage() {
             {q._fileEnabled ? (
               <div className={styles.typeContent}>
                 <textarea
+                  className={styles.questionTextarea}
                   placeholder="Tuliskan instruksi untuk file yang harus diupload siswa..."
                   value={q.fileUpload?.questionText || ''}
                   onChange={e => updateQuestion(qIdx, qq => ({

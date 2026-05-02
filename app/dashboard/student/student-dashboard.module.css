@@ -161,6 +161,78 @@
   font-size: 0.875rem;
 }
 
+/* ── Archive Banner ────────────────────────────────────────────────────────── */
+.archiveBanner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  background: #FFF9E6;
+  border: 1px solid #FFE58F;
+  border-radius: 12px;
+  color: #856404;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.archiveIcon {
+  color: #FAAD14;
+  flex-shrink: 0;
+}
+
+.archiveNote {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-failed-text);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* ── Academic Year Switcher ───────────────────────────────────────────────── */
+.headerSwitcher {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.yearLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-subtext);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.yearSelect {
+  background: transparent;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 4px 0;
+  outline: none;
+  font-family: inherit;
+}
+
+.staticYear {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
 /* ── Main Grid: Left + Right ─────────────────────────────────────────────── */
 .grid {
   display: grid;
@@ -601,4 +673,13 @@
   .gradeItem {
     padding: 10px 12px;
   }
+}
+
+/* ── Empty state compact variant ─────────────────────────────────────────── */
+.emptyStateCompact {
+  padding: 24px;
+}
+
+.emptyStateText {
+  font-size: 0.85rem;
 }

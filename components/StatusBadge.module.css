@@ -1,0 +1,104 @@
+/* ===========================
+   StatusBadge Component Styles
+   Shared badge UI Kit element
+   =========================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-badge, 20px);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  line-height: 1.4;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+/* ── Role Variants ───────────────────────────────────────────────────────── */
+.admin {
+  background: var(--badge-admin-bg);
+  color: var(--badge-admin-text);
+}
+
+.teacher {
+  background: var(--badge-teacher-bg);
+  color: var(--badge-teacher-text);
+}
+
+.student {
+  background: var(--badge-student-bg);
+  color: var(--badge-student-text);
+}
+
+/* ── Status Variants ─────────────────────────────────────────────────────── */
+.success {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.danger {
+  background: var(--color-failed-bg);
+  color: var(--color-failed-text);
+}
+
+.warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.info {
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
+}
+
+.neutral {
+  background: var(--color-process-bg);
+  color: var(--color-process-text);
+}
+
+/* ── Attendance Variants ─────────────────────────────────────────────────── */
+.hadir {
+  background: var(--badge-hadir-bg);
+  color: var(--badge-hadir-text);
+}
+
+.sakit {
+  background: var(--badge-sakit-bg);
+  color: var(--badge-sakit-text);
+}
+
+.izin {
+  background: var(--badge-izin-bg);
+  color: var(--badge-izin-text);
+}
+
+.alpa {
+  background: var(--badge-alpa-bg);
+  color: var(--badge-alpa-text);
+}
+
+/* ── Size Variants ───────────────────────────────────────────────────────── */
+.sm {
+  padding: 2px 8px;
+  font-size: 0.625rem;
+}
+
+.lg {
+  padding: 6px 14px;
+  font-size: 0.75rem;
+}
+
+/* ── Pill shape (fully rounded) ──────────────────────────────────────────── */
+.pill {
+  border-radius: var(--radius-pill, 9999px);
+}
+
+/* ── Outlined variant ────────────────────────────────────────────────────── */
+.outlined {
+  background: transparent;
+  border: 1.5px solid currentColor;
+}

@@ -16,6 +16,7 @@ export async function GET(request) {
     const userDoc = await db.collection('users').findOne({ _id: new ObjectId(student.userId) });
     const classCode = userDoc?.classCode;
     const studentId = userDoc?.studentId;
+    const enrolledYears = userDoc?.enrolledYears || [];
 
     if (!classCode || !studentId) {
       return NextResponse.json({ error: 'Profil siswa tidak lengkap.' }, { status: 403 });
@@ -112,6 +113,7 @@ export async function GET(request) {
       pendingAssignments,
       availableExams,
       recentGrades,
+      enrolledYears,
     });
   } catch (err) {
     const { status, error } = handleAuthError(err);

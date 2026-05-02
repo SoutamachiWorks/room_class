@@ -1,0 +1,136 @@
+/* ===========================
+   Bottom Navigation Bar
+   Mobile-only, Student-only
+   =========================== */
+
+/* Hidden on desktop — only visible ≤768px via media query below */
+.bottomNav {
+  display: none;
+}
+
+/* ===========================
+   MOBILE (≤768px)
+   =========================== */
+@media (max-width: 768px) {
+  .bottomNav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 999;
+    background: var(--bg-card);
+    border-top: 1px solid var(--color-border);
+    padding: 6px 0;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.06);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    justify-content: space-around;
+    align-items: stretch;
+  }
+
+  [data-theme="dark"] .bottomNav {
+    box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.35);
+    background: rgba(28, 34, 50, 0.92);
+  }
+
+  /* ── Nav Item ────────────────────────────────────────────────────────── */
+  .bottomNavItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    flex: 1;
+    padding: 6px 4px 4px;
+    min-height: 52px;
+    text-decoration: none;
+    color: var(--color-subtext);
+    border-radius: 12px;
+    margin: 0 2px;
+    position: relative;
+    transition: color 0.15s ease, background 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .bottomNavItem:active {
+    transform: scale(0.92);
+    background: var(--bg-surface-active);
+    transition: transform 0.06s ease, background 0.06s ease;
+  }
+
+  /* ── Active state ───────────────────────────────────────────────────── */
+  .bottomNavItemActive {
+    color: var(--color-primary);
+  }
+
+  .bottomNavItemActive .bottomNavIcon {
+    background: var(--color-primary-light);
+    border-radius: 16px;
+    padding: 4px 14px;
+  }
+
+  /* ── Icon ────────────────────────────────────────────────────────────── */
+  .bottomNavIcon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .bottomNavIcon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .bottomNavItemActive .bottomNavIcon {
+    width: auto;
+    height: auto;
+  }
+
+  .bottomNavItemActive .bottomNavIcon svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2.5;
+  }
+
+  /* ── Label ───────────────────────────────────────────────────────────── */
+  .bottomNavLabel {
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    transition: font-weight 0.15s ease;
+  }
+
+  .bottomNavItemActive .bottomNavLabel {
+    font-weight: 700;
+    font-size: 0.6875rem;
+  }
+
+  /* ── Active dot indicator ────────────────────────────────────────────── */
+  .bottomNavDot {
+    position: absolute;
+    bottom: 2px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    animation: dotAppear 0.25s ease;
+  }
+
+  @keyframes dotAppear {
+    from {
+      transform: scale(0);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+}

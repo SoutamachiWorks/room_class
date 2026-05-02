@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
-import { deleteFromR2 } from '@/lib/s3Client';
+import { deleteFromR2, generatePresignedUrl } from '@/lib/s3Client';
 
 /**
  * GET /api/teacher/exams/[id]
@@ -24,6 +24,20 @@ export async function GET(request, { params }) {
 
     if (!exam) {
       return NextResponse.json({ error: 'Ujian tidak ditemukan.' }, { status: 404 });
+    }
+
+    // Resolve question images for preview
+    if (exam.questions && Array.isArray(exam.questions)) {
+      exam.questions = await Promise.all(exam.questions.map(async (q) => {
+        if (q.imageUrl) {
+          try {
+            q.previewUrl = await generatePresignedUrl(q.imageUrl);
+          } catch (e) {
+            console.error(`Failed to generate preview URL for ${q.imageUrl}:`, e);
+          }
+        }
+        return q;
+      }));
     }
 
     return NextResponse.json({ exam });
@@ -98,6 +112,7 @@ export async function PUT(request, { params }) {
 
     const normalizedQuestions = questions.map((q, idx) => ({
       order: idx + 1,
+      imageUrl: q.imageUrl || null,
       multipleChoice: q.multipleChoice || null,
       essay: q.essay || null,
       fileUpload: q.fileUpload || null,

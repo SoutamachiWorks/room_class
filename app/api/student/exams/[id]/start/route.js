@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
+import { generatePresignedUrl } from '@/lib/s3Client';
 
 /**
  * Fisher-Yates shuffle — server-side randomization.
@@ -17,11 +18,22 @@ function fisherYatesShuffle(array) {
 }
 
 /**
- * Strip correct answers from questions before sending to client.
+ * Strip correct answers from questions and resolve image URLs before sending to client.
  */
-function sanitizeQuestions(questions) {
-  return questions.map((q, idx) => {
+async function sanitizeQuestions(questions) {
+  return await Promise.all(questions.map(async (q, idx) => {
     const sanitized = { ...q, displayOrder: idx + 1 };
+    
+    // Resolve imageUrl to a secure presigned URL
+    if (sanitized.imageUrl) {
+      try {
+        sanitized.imageUrl = await generatePresignedUrl(sanitized.imageUrl);
+      } catch (e) {
+        console.error(`Failed to generate presigned URL for ${sanitized.imageUrl}:`, e);
+        sanitized.imageUrl = null;
+      }
+    }
+
     if (sanitized.multipleChoice) {
       sanitized.multipleChoice = {
         questionText: sanitized.multipleChoice.questionText,
@@ -30,7 +42,7 @@ function sanitizeQuestions(questions) {
       };
     }
     return sanitized;
-  });
+  }));
 }
 
 /**
@@ -95,7 +107,7 @@ export async function POST(request, { params }) {
         // Resume: return existing randomized questions
         return NextResponse.json({
           sessionId: existingSession._id,
-          questions: sanitizeQuestions(existingSession.questions),
+          questions: await sanitizeQuestions(existingSession.questions),
           exitCount: existingSession.exitCount,
           examTitle: exam.title,
           examDuration: exam.duration,
@@ -130,7 +142,7 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({
       sessionId: result.insertedId,
-      questions: sanitizeQuestions(selected),
+      questions: await sanitizeQuestions(selected),
       exitCount: 0,
       examTitle: exam.title,
       examDuration: exam.duration,

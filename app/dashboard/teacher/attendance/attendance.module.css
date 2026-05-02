@@ -825,3 +825,158 @@
   }
 }
 
+/* ── New utility classes (replacing inline styles) ───────────────────────── */
+
+.thCenter {
+  text-align: center;
+}
+
+.recapIntro {
+  color: var(--color-subtext);
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.percentLabel {
+  font-size: 0.85rem;
+  font-weight: 700;
+  min-width: 36px;
+}
+
+.percentGood {
+  color: var(--color-success-text);
+}
+
+.percentBad {
+  color: var(--color-failed-text);
+}
+
+/* ── Pagination (recap tab) ──────────────────────────────────────────────── */
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.paginationInfo {
+  font-size: 0.8125rem;
+  color: var(--color-subtext);
+}
+
+.paginationBtns {
+  display: flex;
+  gap: 8px;
+}
+
+.paginationBtn {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--bg-card);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  color: var(--color-text);
+}
+
+.paginationBtn:hover:not(:disabled) {
+  background: var(--bg-app);
+}
+
+.paginationBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Filter row ──────────────────────────────────────────────────────────── */
+.filterRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* ── Duration label ──────────────────────────────────────────────────────── */
+.durationLabel {
+  font-size: 0.8rem;
+  color: var(--color-subtext);
+  margin-bottom: 12px;
+}
+
+/* ── Chevron icon ────────────────────────────────────────────────────────── */
+.chevronIcon {
+  color: var(--color-subtext);
+}
+
+/* ── Breadcrumb ──────────────────────────────────────────────────────────── */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadcrumbText {
+  font-size: 0.8rem;
+  color: var(--color-subtext);
+}
+
+/* ── Button: small variant ───────────────────────────────────────────────── */
+.btnSmall {
+  padding: 7px 14px;
+  font-size: 0.8rem;
+}
+
+/* ── No check-in / manual tag ────────────────────────────────────────────── */
+.noCheckIn {
+  color: var(--color-subtext);
+  font-size: 0.8rem;
+}
+
+.manualTag {
+  margin-left: 6px;
+  font-size: 0.7rem;
+  color: var(--color-subtext);
+}
+
+/* ── Recap stats: 3-column variant ───────────────────────────────────────── */
+.recapStats3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 600px) {
+  .recapStats3 { grid-template-columns: 1fr; }
+}
+
+/* ── Recap total card ────────────────────────────────────────────────────── */
+.recapTotal {
+  background: var(--bg-app);
+}
+
+.recapTotal .recapStatValue {
+  color: var(--color-text);
+}
+
+.recapTotal .recapStatLabel {
+  color: var(--color-subtext);
+}
+
+/* ── Badge closed large variant ──────────────────────────────────────────── */
+.badgeClosedLarge {
+  font-size: 0.875rem;
+  padding: 8px 16px;
+}

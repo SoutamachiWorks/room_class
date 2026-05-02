@@ -588,6 +588,17 @@
     padding: 16px;
   }
 
+  /* ── Bottom Nav Integration (All Roles) ─────────────────────────────────── */
+  /* Hide hamburger on mobile (all roles use bottom nav instead) */
+  .hideOnMobile {
+    display: none !important;
+  }
+
+  /* Add bottom padding so content doesn't hide behind bottom nav */
+  .contentWithBottomNav {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+
   /* Ensure nav links are big enough for touch */
   .navLink {
     padding: 14px 12px;

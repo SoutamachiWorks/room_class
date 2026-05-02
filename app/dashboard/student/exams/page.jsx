@@ -2,29 +2,45 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import PageHeader from '@/components/PageHeader';
+import ContentCard from '@/components/ContentCard';
+import StatusBadge from '@/components/StatusBadge';
+import EmptyState from '@/components/EmptyState';
 import styles from '../../admin/admin.module.css';
 
 function StudentExamsContent() {
   const [exams, setExams] = useState([]);
+  const [enrolledYears, setEnrolledYears] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(0);
   const [notifBlocked, setNotifBlocked] = useState(false);
   const [startingId, setStartingId] = useState(null);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const yearId = searchParams.get('yearId');
   const isSubmitted = searchParams.get('submitted') === '1';
+
+  useEffect(() => {
+    setCurrentTime(Date.now());
+  }, []);
+
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/student/exams');
+      const url = yearId ? `/api/student/exams?yearId=${yearId}` : '/api/student/exams';
+      const res = await fetch(url);
       const data = await res.json();
-      if (res.ok) setExams(data.exams || []);
+      if (res.ok) {
+        setExams(data.exams || []);
+        setEnrolledYears(data.enrolledYears || []);
+      }
     } catch (err) {
       console.error('Error fetching exams:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [yearId]);
 
   useEffect(() => {
     fetchExams();
@@ -36,29 +52,12 @@ function StudentExamsContent() {
       baseStatus = exam.session.status; // 'in-progress' | 'submitted' | 'locked'
     }
 
-    if ((baseStatus === 'available' || baseStatus === 'in-progress') && exam.deadline) {
-      if (new Date(exam.deadline).getTime() < Date.now()) {
+    if ((baseStatus === 'available' || baseStatus === 'in-progress') && exam.deadline && currentTime > 0) {
+      if (new Date(exam.deadline).getTime() < currentTime) {
         return 'expired';
       }
     }
     return baseStatus;
-  };
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'available':
-        return { label: 'Tersedia', className: `${styles.badge} ${styles.statusActive}` };
-      case 'in-progress':
-        return { label: 'Sedang Dikerjakan', className: styles.badge, style: { background: 'var(--color-warning-bg)', color: 'var(--color-warning-text)', border: '1px solid currentColor' } };
-      case 'submitted':
-        return { label: 'Sudah Dikumpulkan', className: styles.badge, style: { background: 'var(--color-success-bg)', color: 'var(--color-success-text)' } };
-      case 'locked':
-        return { label: 'Terkunci', className: styles.badge, style: { background: 'var(--color-failed-bg)', color: 'var(--color-failed-text)' } };
-      case 'expired':
-        return { label: 'Melewati Deadline', className: styles.badge, style: { background: 'var(--bg-card)', color: 'var(--color-subtext)', border: '1px solid var(--color-border)' } };
-      default:
-        return { label: status, className: styles.badge };
-    }
   };
 
   const handleStartExam = async (exam) => {
@@ -106,64 +105,47 @@ function StudentExamsContent() {
     }
   };
 
+  const isArchiveMode = yearId && enrolledYears.length > 0 && yearId !== enrolledYears[enrolledYears.length - 1].yearId;
+
   return (
     <>
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Ujian</h1>
-      </div>
+      <PageHeader
+        title={<>Ujian {isArchiveMode && <span className={styles.archiveTag}>(Mode Arsip)</span>}</>}
+        subtitle="Daftar ujian yang dipublikasikan oleh guru untuk kelas Anda. Klik 'Mulai Ujian' untuk mengerjakan."
+      />
 
-      <div className={styles.contentCard} style={{ padding: '24px' }}>
-        <p style={{ color: 'var(--color-subtext)', fontSize: '0.875rem', marginBottom: '24px' }}>
-          Daftar ujian yang dipublikasikan oleh guru untuk kelas Anda. Klik &quot;Mulai Ujian&quot; untuk mengerjakan.
-        </p>
+      {isArchiveMode && (
+        <div className={styles.archiveBanner}>
+          ⚠️ Anda sedang melihat riwayat ujian tahun ajaran sebelumnya.
+        </div>
+      )}
 
-        {isSubmitted && (
-          <div style={{
-            padding: '14px 20px',
-            background: 'var(--color-success-bg)',
-            borderRadius: '12px',
-            border: '1px solid currentColor',
-            color: 'var(--color-success)',
-            fontSize: '0.875rem',
-            marginBottom: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-          }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20, flexShrink: 0 }}>
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-            <div>
-              <strong>Jawaban berhasil dikirim,</strong> nilai akan segera diumumkan oleh guru.
-            </div>
+      {isSubmitted && (
+        <div className={styles.successBanner}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.bannerIcon}>
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          <div>
+            <strong>Jawaban berhasil dikirim,</strong> nilai akan segera diumumkan oleh guru.
           </div>
-        )}
+        </div>
+      )}
 
-        {notifBlocked && (
-          <div style={{
-            padding: '14px 20px',
-            background: 'var(--color-warning-bg)',
-            borderRadius: '12px',
-            border: '1px solid currentColor',
-            color: 'var(--color-warning)',
-            fontSize: '0.875rem',
-            marginBottom: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-          }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20, flexShrink: 0 }}>
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <div>
-              <strong>Izin Notifikasi Ditolak.</strong> Anda harus mengaktifkan notifikasi browser untuk mengikuti ujian. Silakan buka pengaturan browser Anda dan aktifkan notifikasi untuk situs ini, lalu coba lagi.
-            </div>
+      {notifBlocked && (
+        <div className={styles.warningBanner}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.bannerIcon}>
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <div>
+            <strong>Izin Notifikasi Ditolak.</strong> Anda harus mengaktifkan notifikasi browser untuk mengikuti ujian. Silakan buka pengaturan browser Anda dan aktifkan notifikasi untuk situs ini, lalu coba lagi.
           </div>
-        )}
+        </div>
+      )}
 
+      <ContentCard>
         <div className={styles.tableContainer}>
           {loading ? (
             <div className={styles.loadingBox}>
@@ -171,63 +153,75 @@ function StudentExamsContent() {
               Memuat daftar ujian...
             </div>
           ) : exams.length === 0 ? (
-            <div className={styles.emptyState}>Belum ada ujian yang dipublikasikan untuk kelas Anda.</div>
+            <EmptyState
+              title="Belum Ada Ujian"
+              description="Belum ada ujian yang dipublikasikan untuk kelas Anda."
+            />
           ) : (
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th style={{ width: '12%' }}>Tanggal</th>
-                  <th style={{ width: '25%' }}>Judul Ujian</th>
-                  <th style={{ width: '20%' }}>Mata Pelajaran</th>
-                  <th style={{ textAlign: 'center' }}>Jumlah Soal</th>
-                  <th style={{ textAlign: 'center' }}>Status</th>
-                  <th style={{ textAlign: 'center' }}>Nilai / Aksi</th>
+                  <th>Tanggal</th>
+                  <th>Judul Ujian</th>
+                  <th>Mata Pelajaran</th>
+                  <th className={styles.thCenter}>Jumlah Soal</th>
+                  <th className={styles.thCenter}>Status</th>
+                  <th className={styles.thCenter}>Nilai / Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {exams.map((exam) => {
                   const sessionStatus = getSessionStatus(exam);
-                  const badge = getStatusBadge(sessionStatus);
 
                   return (
                     <tr key={exam._id}>
                       <td data-label="Tanggal">
-                        <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
+                        <div className={styles.cellBold}>
                           {new Date(exam.createdAt).toLocaleDateString('id-ID')}
                         </div>
                       </td>
                       <td data-label="Judul Ujian">
-                        <div style={{ fontWeight: 700, color: 'var(--color-heading)' }}>{exam.title}</div>
+                        <div className={styles.userName}>{exam.title}</div>
                         {exam.deadline && (
-                          <div style={{ fontSize: '0.75rem', marginTop: '4px', color: sessionStatus === 'expired' ? 'var(--color-danger)' : 'var(--color-subtext)', fontWeight: sessionStatus === 'expired' ? 600 : 400 }}>
+                          <div className={`${styles.deadlineText} ${sessionStatus === 'expired' ? styles.deadlineExpired : ''}`}>
                             ⏱️ Deadline: {new Date(exam.deadline).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
                           </div>
                         )}
                       </td>
                       <td data-label="Mapel">
-                        <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
+                        <div className={styles.cellAccent}>
                           {exam.subjectDetails?.subjectName || '-'}
                         </div>
-                        <div style={{ fontSize: '0.75rem', marginTop: '2px' }}>
-                          <span className={`${styles.badge} ${styles.badgeStudent}`}>
+                        <div className={styles.cellChipWrap}>
+                          <StatusBadge variant="student">
                             {exam.subjectDetails?.classCode || '-'}
-                          </span>
+                          </StatusBadge>
                         </div>
                       </td>
-                      <td data-label="Soal" style={{ textAlign: 'center' }}>
-                        <span style={{ fontWeight: 600 }}>{exam.randomCount || exam.totalQuestions}</span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}> soal</span>
+                      <td data-label="Soal" className={styles.tdCenter}>
+                        <span className={styles.cellBoldInline}>{exam.randomCount || exam.totalQuestions}</span>
+                        <span className={styles.cellSecondary}> soal</span>
                       </td>
-                      <td data-label="Status" style={{ textAlign: 'center' }}>
-                        <span className={badge.className} style={badge.style || {}}>
-                          {badge.label}
-                        </span>
+                      <td data-label="Status" className={styles.tdCenter}>
+                        {sessionStatus === 'available' && <StatusBadge variant="success">Tersedia</StatusBadge>}
+                        {sessionStatus === 'in-progress' && <StatusBadge variant="warning">Sedang Dikerjakan</StatusBadge>}
+                        {sessionStatus === 'submitted' && <StatusBadge variant="success">Sudah Dikumpulkan</StatusBadge>}
+                        {sessionStatus === 'locked' && <StatusBadge variant="danger">Terkunci</StatusBadge>}
+                        {sessionStatus === 'expired' && <StatusBadge variant="neutral">Melewati Deadline</StatusBadge>}
                       </td>
-                      <td data-label="Nilai / Aksi" style={{ textAlign: 'center' }}>
-                        {sessionStatus === 'available' && (
+                      <td data-label="Nilai / Aksi" className={styles.tdCenter}>
+                        {isArchiveMode ? (
+                          exam.session?.calculatedScore !== undefined ? (
+                            <div>
+                              <span className={styles.examScoreLarge}>{exam.session?.calculatedScore || 0}</span>
+                              <span className={styles.examScoreSuffix}>/ 100</span>
+                            </div>
+                          ) : (
+                            <span className={styles.noDataText}>Tidak Ada Data</span>
+                          )
+                        ) : sessionStatus === 'available' && (
                           <button
-                            className={styles.btnPrimary}
-                            style={{ padding: '8px 16px', fontSize: '0.75rem' }}
+                            className={`${styles.btnSmall} ${styles.btnSmallPrimary}`}
                             onClick={() => handleStartExam(exam)}
                             disabled={startingId === exam._id}
                           >
@@ -236,8 +230,7 @@ function StudentExamsContent() {
                         )}
                         {sessionStatus === 'in-progress' && (
                           <button
-                            className={styles.btnPrimary}
-                            style={{ padding: '8px 16px', fontSize: '0.75rem' }}
+                            className={`${styles.btnSmall} ${styles.btnSmallPrimary}`}
                             onClick={() => handleStartExam(exam)}
                             disabled={startingId === exam._id}
                           >
@@ -247,24 +240,22 @@ function StudentExamsContent() {
                         {sessionStatus === 'submitted' && (
                           exam.showResults ? (
                             exam.session?.gradingStatus === 'pending-manual' ? (
-                              <div>
-                                <span style={{ fontSize: '0.8125rem', color: 'var(--color-warning)', fontWeight: 600 }}>Menunggu Koreksi Guru</span>
-                              </div>
+                              <span className={styles.gradingPending}>Menunggu Koreksi Guru</span>
                             ) : (
                               <div>
-                                <span style={{ fontSize: '1.25rem', color: 'var(--color-success)', fontWeight: 800 }}>{exam.session?.calculatedScore || 0}</span>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)', marginLeft: '4px' }}>/ 100</span>
+                                <span className={styles.examScoreLarge}>{exam.session?.calculatedScore || 0}</span>
+                                <span className={styles.examScoreSuffix}>/ 100</span>
                               </div>
                             )
                           ) : (
-                            <span style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)', fontStyle: 'italic' }}>Diumumkan Nanti</span>
+                            <span className={styles.noDataText}>Diumumkan Nanti</span>
                           )
                         )}
                         {sessionStatus === 'locked' && (
-                          <span style={{ fontSize: '0.8125rem', color: 'var(--color-danger)', fontWeight: 600 }}>Terkunci</span>
+                          <span className={styles.lockedText}>Terkunci</span>
                         )}
                         {sessionStatus === 'expired' && (
-                          <span style={{ fontSize: '0.8125rem', color: 'var(--color-subtext)', fontWeight: 600 }}>Melewati Deadline</span>
+                          <span className={styles.expiredText}>Melewati Deadline</span>
                         )}
                       </td>
                     </tr>
@@ -274,7 +265,7 @@ function StudentExamsContent() {
             </table>
           )}
         </div>
-      </div>
+      </ContentCard>
     </>
   );
 }

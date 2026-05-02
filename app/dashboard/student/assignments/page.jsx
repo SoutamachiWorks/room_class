@@ -1,13 +1,23 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import PageHeader from '@/components/PageHeader';
+import ContentCard from '@/components/ContentCard';
+import StatusBadge from '@/components/StatusBadge';
+import EmptyState from '@/components/EmptyState';
 import { uploadWithProgress } from '@/lib/xhrUpload';
+import { ACCEPT_STR, validateFiles } from '@/lib/fileValidation';
 import styles from '../../admin/admin.module.css';
 
 export default function StudentAssignmentsPage() {
+  const searchParams = useSearchParams();
+  const yearId = searchParams.get('yearId');
+
   const [assignments, setAssignments] = useState([]);
+  const [enrolledYears, setEnrolledYears] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Submission modal
@@ -32,15 +42,19 @@ export default function StudentAssignmentsPage() {
   const fetchAssignments = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/student/assignments');
+      const url = yearId ? `/api/student/assignments?yearId=${yearId}` : '/api/student/assignments';
+      const res = await fetch(url);
       const data = await res.json();
-      if (res.ok) setAssignments(data.assignments || []);
+      if (res.ok) {
+        setAssignments(data.assignments || []);
+        setEnrolledYears(data.enrolledYears || []);
+      }
     } catch (err) {
       console.error('Error fetching assignments:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [yearId]);
 
   useEffect(() => {
     fetchAssignments();
@@ -156,17 +170,22 @@ export default function StudentAssignmentsPage() {
     setAttachedFiles(prev => prev.filter((_, i) => i !== idx));
   };
 
+  const isArchiveMode = yearId && enrolledYears.length > 0 && yearId !== enrolledYears[enrolledYears.length - 1].yearId;
+
   return (
     <>
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Tugas Saya</h1>
-      </div>
+      <PageHeader
+        title={<>Tugas Saya {isArchiveMode && <span className={styles.archiveTag}>(Mode Arsip)</span>}</>}
+        subtitle="Daftar tugas dari guru berdasarkan kelas Anda. Klik 'Kumpulkan' untuk mengirim jawaban."
+      />
 
-      <div className={styles.contentCard} style={{ padding: '24px' }}>
-        <p style={{ color: 'var(--color-subtext)', fontSize: '0.875rem', marginBottom: '24px' }}>
-          Daftar tugas dari guru berdasarkan kelas Anda. Klik &quot;Kumpulkan&quot; untuk mengirim jawaban.
-        </p>
+      {isArchiveMode && (
+        <div className={styles.archiveBanner}>
+          ⚠️ Anda sedang melihat tugas tahun ajaran sebelumnya. Mode baca-saja aktif.
+        </div>
+      )}
 
+      <ContentCard>
         <div className={styles.tableContainer}>
           {loading ? (
             <div className={styles.loadingBox}>
@@ -174,86 +193,99 @@ export default function StudentAssignmentsPage() {
               Memuat daftar tugas...
             </div>
           ) : assignments.length === 0 ? (
-            <div className={styles.emptyState}>Belum ada tugas untuk kelas Anda saat ini.</div>
+            <EmptyState
+              title="Belum Ada Tugas"
+              description="Belum ada tugas untuk kelas Anda saat ini."
+            />
           ) : (
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th style={{ width: '12%' }}>Tanggal</th>
-                  <th style={{ width: '20%' }}>Mata Pelajaran</th>
-                  <th style={{ width: '30%' }}>Instruksi Tugas</th>
-                  <th style={{ width: '30%' }}>Lampiran</th>
-                  <th style={{ textAlign: 'center' }}>Batas Akhir</th>
-                  <th style={{ textAlign: 'center' }}>Nilai</th>
-                  <th style={{ textAlign: 'center' }}>Status</th>
-                  <th style={{ textAlign: 'center' }}>Aksi</th>
+                  <th>Tanggal</th>
+                  <th>Mata Pelajaran</th>
+                  <th>Instruksi Tugas</th>
+                  <th>Lampiran</th>
+                  <th className={styles.thCenter}>Batas Akhir</th>
+                  <th className={styles.thCenter}>Nilai</th>
+                  <th className={styles.thCenter}>Status</th>
+                  <th className={styles.thCenter}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {assignments.map((asm) => (
                   <tr key={asm._id}>
                     <td data-label="Tanggal">
-                      <div style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
+                      <div className={styles.cellBold}>
                         {new Date(asm.createdAt).toLocaleDateString('id-ID')}
                       </div>
                     </td>
                     <td data-label="Mata Pelajaran">
-                      <div style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
+                      <div className={styles.cellAccent}>
                         {asm.subjectDetails?.subjectName || '-'}
                       </div>
-                      <div style={{ fontSize: '0.75rem', marginTop: '2px' }}>
-                        <span className={`${styles.badge} ${styles.badgeStudent}`}>
+                      <div className={styles.cellChipWrap}>
+                        <StatusBadge variant="student">
                           {asm.subjectDetails?.classCode || '-'}
-                        </span>
+                        </StatusBadge>
                       </div>
                     </td>
                     <td data-label="Instruksi">
-                      <div style={{ fontSize: '0.875rem', whiteSpace: 'pre-wrap', maxHeight: '80px', overflowY: 'auto' }}>
+                      <div className={styles.cellPrewrap}>
                         {asm.text}
                       </div>
                     </td>
                     <td data-label="Lampiran">
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <div className={styles.fileChipList}>
                         {(asm.files || []).map((f, i) => (
                           <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 10px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '6px', fontSize: '0.75rem', color: 'var(--color-warning)', textDecoration: 'none', border: '1px solid rgba(245, 158, 11, 0.3)', maxWidth: '200px' }}
+                            className={styles.fileChipWarm}
                             title={f.originalName}
                           >
-                            <span style={{ flexShrink: 0 }}>📎</span>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.originalName}</span>
+                            <span className={styles.fileChipIcon}>📎</span>
+                            <span className={styles.fileChipName}>{f.originalName}</span>
                           </a>
                         ))}
-                        {(!asm.files || asm.files.length === 0) && <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>-</span>}
+                        {(!asm.files || asm.files.length === 0) && <span className={styles.cellSecondary}>-</span>}
                       </div>
                     </td>
-                    <td data-label="Batas Akhir">
-                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: asm.deadline ? 'var(--color-danger)' : 'var(--color-subtext)' }}>
+                    <td data-label="Batas Akhir" className={styles.tdCenter}>
+                      <div className={`${styles.deadlineText} ${asm.deadline ? styles.deadlineActive : ''}`}>
                         {asm.deadline ? new Date(asm.deadline).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : 'Tidak Ada'}
                       </div>
                     </td>
-                    <td data-label="Nilai">
+                    <td data-label="Nilai" className={styles.tdCenter}>
                       {asm.submission?.score !== undefined && asm.submission?.score !== null && (
-                        <div style={{ marginTop: '8px', padding: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 700, borderRadius: '4px', fontSize: '0.875rem' }}>
+                        <div className={styles.scoreBadge}>
                           {asm.submission.score}/100
                         </div>
                       )}
-                    </td>
-                    <td data-label="Status">
-                      {asm.submission ? (
-                        <span className={`${styles.badge} ${styles.statusActive}`} style={asm.submission?.isLate ? { background: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)', border: '1px solid rgba(239, 68, 68, 0.3)' } : {}}>
-                          {asm.submission?.isLate ? 'Terlambat Dikumpulkan' : 'Sudah Dikumpulkan'}
-                        </span>
-                      ) : (
-                        <span className={`${styles.badge} ${styles.statusInactive}`}>Belum dikumpulkan</span>
+                      {isArchiveMode && asm.submission?.feedback && (
+                        <div className={styles.feedbackNote}>
+                          Feedback: &quot;{asm.submission.feedback}&quot;
+                        </div>
                       )}
                     </td>
-                    <td data-label="Aksi">
-                      <div className={styles.actionBtns} style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
-                        {!asm.submission ? (
+                    <td data-label="Status" className={styles.tdCenter}>
+                      {asm.submission ? (
+                        asm.submission?.isLate ? (
+                          <StatusBadge variant="danger">Terlambat Dikumpulkan</StatusBadge>
+                        ) : (
+                          <StatusBadge variant="success">Sudah Dikumpulkan</StatusBadge>
+                        )
+                      ) : (
+                        <StatusBadge variant="neutral">Belum dikumpulkan</StatusBadge>
+                      )}
+                    </td>
+                    <td data-label="Aksi" className={styles.tdCenter}>
+                      <div className={`${styles.actionBtns} ${styles.actionBtnsCenter}`}>
+                        {isArchiveMode ? (
+                          <div className={styles.archiveNote}>
+                            File unggahan tugas telah dibersihkan dari server.
+                          </div>
+                        ) : !asm.submission ? (
                           /* Submit button */
                           <button
-                            className={styles.btnPrimary}
-                            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                            className={`${styles.btnSmall} ${styles.btnSmallPrimary}`}
                             onClick={() => handleOpenForm(asm)}
                           >
                             Kumpulkan
@@ -266,7 +298,7 @@ export default function StudentAssignmentsPage() {
                               title="Edit Jawaban"
                               onClick={() => handleOpenForm(asm, asm.submission)}
                             >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                               </svg>
@@ -277,7 +309,7 @@ export default function StudentAssignmentsPage() {
                               title="Hapus Jawaban"
                               onClick={() => { setDeleteTarget(asm.submission); setIsDeleteOpen(true); }}
                             >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="3 6 5 6 21 6" />
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                               </svg>
@@ -292,7 +324,7 @@ export default function StudentAssignmentsPage() {
             </table>
           )}
         </div>
-      </div>
+      </ContentCard>
 
       {/* Submit / Edit Submission Modal */}
       <Modal
@@ -304,11 +336,11 @@ export default function StudentAssignmentsPage() {
           {formError && <div className={styles.formError}>{formError}</div>}
 
           {/* Show assignment context */}
-          <div style={{ padding: '12px 16px', background: 'var(--bg-app)', borderRadius: '12px', border: '1px solid var(--color-border)', marginBottom: '8px' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', marginBottom: '4px' }}>
+          <div className={styles.contextBox}>
+            <div className={styles.contextLabel}>
               {selectedAssignment?.subjectDetails?.subjectName || 'Mata Pelajaran'}
             </div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--color-text)', whiteSpace: 'pre-wrap', maxHeight: '60px', overflowY: 'auto' }}>
+            <div className={styles.contextText}>
               {selectedAssignment?.text}
             </div>
           </div>
@@ -318,45 +350,52 @@ export default function StudentAssignmentsPage() {
             <textarea
               value={formText}
               onChange={e => setFormText(e.target.value)}
-              className={styles.input}
-              style={{ height: '120px', paddingTop: '12px', resize: 'vertical' }}
+              className={`${styles.input} ${styles.inputTextarea}`}
               placeholder="Tuliskan jawaban atau catatan Anda di sini..."
             />
           </div>
 
-          <div className={styles.fieldGroup} style={{ marginTop: '12px' }}>
+          <div className={`${styles.fieldGroup} ${styles.fieldGroupSpaced}`}>
             <label className={styles.fieldLabel}>Lampirkan File (Opsional)</label>
             <input
               type="file"
               multiple
+              accept={ACCEPT_STR}
               ref={fileInputRef}
-              className={styles.input}
-              style={{ paddingTop: '10px' }}
+              className={`${styles.input} ${styles.inputFile}`}
               onChange={(e) => {
                 const newFiles = Array.from(e.target.files);
+                const validation = validateFiles(newFiles);
+                
+                if (!validation.valid) {
+                  alert(`Kesalahan Upload:\n${validation.errors.join('\n')}\n\nPastikan format file sesuai dan ukuran maksimal 50MB per file.`);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                  return;
+                }
+
                 setAttachedFiles(prev => [...prev, ...newFiles]);
                 if (fileInputRef.current) fileInputRef.current.value = '';
               }}
             />
 
-            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className={styles.filePreviewList}>
               {retainedOldFiles.map((f) => (
-                <div key={f.filename} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(16, 185, 129, 0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                  <span style={{ color: 'var(--color-success)' }}>📎 {f.originalName} (Sebelumnya)</span>
-                  <button type="button" onClick={() => removeRetainedFile(f.filename)} style={{ color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Hapus</button>
+                <div key={f.filename} className={styles.fileChipRetained}>
+                  <span className={styles.fileChipRetainedLabel}>📎 {f.originalName} (Sebelumnya)</span>
+                  <button type="button" onClick={() => removeRetainedFile(f.filename)} className={styles.fileChipRemoveBtn}>Hapus</button>
                 </div>
               ))}
               {attachedFiles.map((fl, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(120, 163, 255, 0.1)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8125rem', border: '1px solid rgba(120, 163, 255, 0.3)' }}>
-                  <span style={{ color: 'var(--color-primary)' }}>📄 {fl.name} (Baru)</span>
-                  <button type="button" onClick={() => removeAttachedFile(idx)} style={{ color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Batalkan</button>
+                <div key={idx} className={styles.fileChipNew}>
+                  <span className={styles.fileChipNewLabel}>📄 {fl.name} (Baru)</span>
+                  <button type="button" onClick={() => removeAttachedFile(idx)} className={styles.fileChipRemoveBtn}>Batalkan</button>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className={styles.formActions} style={{ marginTop: '24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {formLoading && uploadProgress > 0 && <span style={{ color: '#10B981', fontSize: '0.875rem', fontWeight: 600 }}>Terkirim... {uploadProgress}%</span>}
+          <div className={styles.formActions}>
+            {formLoading && uploadProgress > 0 && <span className={styles.uploadProgressText}>Terkirim... {uploadProgress}%</span>}
             <button type="button" onClick={handleCloseForm} className={styles.btnCancel} disabled={formLoading}>Batal</button>
             <button type="submit" className={styles.btnSubmit} disabled={formLoading}>
               {formLoading ? 'Memproses...' : (editingSubmission ? 'Perbarui Jawaban' : 'Kirim Jawaban')}

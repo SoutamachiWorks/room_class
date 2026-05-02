@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 import { uploadToR2 } from '@/lib/s3Client';
+import { createNotification } from '@/lib/notification';
 
 /**
  * POST /api/student/submissions
@@ -84,6 +85,18 @@ export async function POST(request) {
     };
 
     const result = await db.collection('submissions').insertOne(newSubmission);
+
+    // Notifikasi ke guru
+    const teacherUser = await db.collection('users').findOne({ role: 'teacher', teacherId: assignment.teacherId });
+    if (teacherUser) {
+      await createNotification(db, {
+        userId: teacherUser._id,
+        title: 'Pengumpulan Tugas',
+        message: `Siswa ${userDoc.name || studentId} telah mengumpulkan tugas untuk mata pelajaran ${subject?.name || 'terkait'}.`,
+        type: 'success',
+        actionUrl: `/dashboard/teacher/assignments/${assignmentId}`
+      });
+    }
 
     return NextResponse.json({ success: true, id: result.insertedId }, { status: 201 });
   } catch (err) {

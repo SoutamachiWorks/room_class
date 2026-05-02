@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 import { uploadToR2 } from '@/lib/s3Client';
+import { createNotification } from '@/lib/notification';
 
 /**
  * POST /api/student/exams/[id]/submit
@@ -110,6 +111,7 @@ export async function POST(request, { params }) {
     }
 
     const gradingStatus = hasManualGradingNeeds ? 'pending-manual' : 'auto-graded';
+    const isLockout = formData.get('isLockout') === 'true';
 
     // Update session
     await db.collection('examSessions').updateOne(
@@ -117,12 +119,24 @@ export async function POST(request, { params }) {
       {
         $set: {
           answers,
-          status: 'submitted',
+          status: isLockout ? 'locked' : 'submitted',
           gradingStatus,
           submittedAt: new Date(),
         },
       }
     );
+
+    // Notifikasi ke guru
+    const teacherUser = await db.collection('users').findOne({ role: 'teacher', teacherId: exam.teacherId });
+    if (teacherUser) {
+      await createNotification(db, {
+        userId: teacherUser._id,
+        title: 'Pengumpulan Ujian',
+        message: `Siswa ${userDoc.name || studentId} telah mengumpulkan ujian "${exam.title}".`,
+        type: 'success',
+        actionUrl: `/dashboard/teacher/exams/${exam._id}/results` // Ensure this route exists or matches the teacher's dashboard
+      });
+    }
 
     return NextResponse.json({ success: true, message: 'Jawaban berhasil dikumpulkan.' });
 

@@ -1,11 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import PageHeader from '@/components/PageHeader';
+import ContentCard from '@/components/ContentCard';
+import StatusBadge from '@/components/StatusBadge';
+import EmptyState from '@/components/EmptyState';
 import styles from '../../admin/admin.module.css';
 
 export default function TeacherStudentsPage() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchStudents = async () => {
     try {
@@ -23,17 +29,40 @@ export default function TeacherStudentsPage() {
     fetchStudents();
   }, []);
 
+  // Pagination Logic
+  const totalPages = Math.ceil(students.length / itemsPerPage);
+  const paginatedStudents = students.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  // ── Pagination footer ─────────────────────────────────────────────────
+  const paginationFooter = totalPages > 1 ? (
+    <>
+      <div className={styles.pageInfo}>
+        Menampilkan <strong>{(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, students.length)}</strong> dari <strong>{students.length}</strong> siswa
+      </div>
+      <div className={styles.pageControls}>
+        <button className={styles.pageBtn} onClick={handlePrevPage} disabled={currentPage === 1}>Sebelumnya</button>
+        <button className={`${styles.pageBtn} ${styles.pageBtnActive}`}>{currentPage}</button>
+        <button className={styles.pageBtn} onClick={handleNextPage} disabled={currentPage === totalPages}>Berikutnya</button>
+      </div>
+    </>
+  ) : null;
+
   return (
     <>
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Daftar Siswa</h1>
-      </div>
+      <PageHeader title="Daftar Siswa" subtitle="Berisi daftar siswa yang terhubung dengan mata pelajaran yang Anda ampu." />
 
-      <div className={styles.contentCard} style={{ padding: '24px' }}>
-        <p style={{ color: 'var(--color-subtext)', fontSize: '0.875rem', marginBottom: '24px' }}>
-          Berisi daftar siswa yang terhubung dengan mata pelajaran yang Anda ampu, dikelompokkan berdasarkan Kode Kelas.
-        </p>
-
+      <ContentCard footer={paginationFooter}>
         <div className={styles.tableContainer}>
           {loading ? (
             <div className={styles.loadingBox}>
@@ -41,38 +70,37 @@ export default function TeacherStudentsPage() {
               Memuat siswa...
             </div>
           ) : students.length === 0 ? (
-            <div className={styles.emptyState}>Belum ada siswa yang terdaftar di kelas Anda.</div>
+            <EmptyState
+              title="Belum Ada Siswa"
+              description="Belum ada siswa yang terdaftar di kelas Anda."
+            />
           ) : (
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th style={{ width: '30%' }}>Nama Lengkap</th>
-                  <th style={{ width: '20%' }}>NPM / NIS</th>
-                  <th style={{ width: '20%' }}>Kode Kelas</th>
-                  <th style={{ width: '30%' }}>Kelas Anda</th>
+                  <th>Nama Lengkap</th>
+                  <th>NPM / NIS</th>
+                  <th>Kode Kelas</th>
+                  <th>Kelas Anda</th>
                 </tr>
               </thead>
               <tbody>
-                {students.map((student) => (
+                {paginatedStudents.map((student) => (
                   <tr key={student._id}>
                     <td data-label="Nama">
-                      <div style={{ fontWeight: 600, color: 'var(--color-heading)' }}>{student.fullName}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-subtext)' }}>{student.email}</div>
+                      <div className={styles.userName}>{student.fullName}</div>
+                      <div className={styles.cellSecondary}>{student.email}</div>
                     </td>
                     <td data-label="NPM / NIS">
-                      <span style={{ fontWeight: 600 }}>{student.studentId}</span>
+                      <span className={styles.cellBold}>{student.studentId}</span>
                     </td>
                     <td data-label="Kode Kelas">
-                      <span className={`${styles.badge} ${styles.badgeStudent}`}>
-                        {student.classCode}
-                      </span>
+                      <StatusBadge variant="student">{student.classCode}</StatusBadge>
                     </td>
                     <td data-label="Kelas Anda">
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div className={styles.subjectList}>
                         {student.mappedSubjects?.map((sub, i) => (
-                          <div key={i} style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)' }}>
-                            {sub}
-                          </div>
+                          <div key={i} className={styles.subjectChipSmall}>{sub}</div>
                         ))}
                       </div>
                     </td>
@@ -82,7 +110,7 @@ export default function TeacherStudentsPage() {
             </table>
           )}
         </div>
-      </div>
+      </ContentCard>
     </>
   );
 }

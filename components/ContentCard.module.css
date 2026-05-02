@@ -1,0 +1,70 @@
+/* ===========================
+   ContentCard Component Styles
+   Shared container UI Kit element
+   =========================== */
+
+.card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: box-shadow var(--transition-normal);
+}
+
+/* Optional hover effect for interactive cards */
+.hoverable:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* ── Internal sections ───────────────────────────────────────────────────── */
+.header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.body {
+  /* No default padding — let consumer decide or use padded variant */
+}
+
+.bodyPadded {
+  padding: 24px;
+}
+
+.footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* ── Mobile Responsive ───────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .card {
+    border-radius: 16px;
+  }
+
+  .header {
+    padding: 16px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .bodyPadded {
+    padding: 16px;
+  }
+
+  .footer {
+    padding: 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+}

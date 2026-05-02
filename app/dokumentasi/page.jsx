@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 export default function TestingDocumentPage() {
   return (
@@ -44,17 +45,17 @@ export default function TestingDocumentPage() {
             <h2 style={{ fontSize: '1.25rem', color: '#0F172A', borderBottom: '2px solid #E2E8F0', paddingBottom: '8px', marginBottom: '16px' }}>🔄 2. Skenario Pengujian Utama (Flow)</h2>
             <ul style={{ paddingLeft: '20px', color: '#334155', fontSize: '0.9375rem', lineHeight: 1.7 }}>
               <li style={{ marginBottom: '8px' }}><strong>Alur Materi:</strong> Guru me-login &rarr; Navigasi ke Materi &rarr; Tambah Materi (Pilih Mapel) &rarr; Siswa me-login &rarr; Buka Materi &rarr; Cek tampilan <i>Split-Pane</i> Elegan.</li>
-              <li style={{ marginBottom: '8px' }}><strong>Alur Penugasan:</strong> Guru me-login &rarr; Buat Tugas &amp; Set Deadline &rarr; Siswa Me-login &rarr; Mengumpulkan Tugas &rarr; Guru memantau tombol <i>"Koreksi Jawaban/Submissions"</i> dan mengisi Poin 1-100.</li>
+              <li style={{ marginBottom: '8px' }}><strong>Alur Penugasan:</strong> Guru me-login &rarr; Buat Tugas &amp; Set Deadline &rarr; Siswa Me-login &rarr; Mengumpulkan Tugas &rarr; Guru memantau tombol <i>&quot;Koreksi Jawaban/Submissions&quot;</i> dan mengisi Poin 1-100.</li>
               <li><strong>Sistem Ujian Khusus Lulus/Gagal:</strong> Terkunci jika Browser Tab/Window minimize (Focus Out). Log terekam di sistem server. Siswa otomatis dikunci keluar ujian.</li>
             </ul>
           </div>
 
           <div>
              <h2 style={{ fontSize: '1.25rem', color: '#0F172A', borderBottom: '2px solid #E2E8F0', paddingBottom: '8px', marginBottom: '16px' }}>🚀 3. Navigasi Cepat</h2>
-             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <a href="/api-tester" style={{ textDecoration: 'none', background: '#3B82F6', color: 'white', padding: '10px 20px', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600 }}>Coba Mock API Tester</a>
-                <a href="/login" style={{ textDecoration: 'none', background: '#0F172A', color: 'white', padding: '10px 20px', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600 }}>Ke Halaman Login</a>
-                <a href="/" style={{ textDecoration: 'none', background: '#F1F5F9', color: '#0F172A', padding: '10px 20px', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, border: '1px solid #E2E8F0' }}>Ke Beranda</a>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <Link href="/api-tester" style={{ textDecoration: 'none', background: '#3B82F6', color: 'white', padding: '10px 20px', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600 }}>Coba Mock API Tester</Link>
+                <Link href="/login" style={{ textDecoration: 'none', background: '#0F172A', color: 'white', padding: '10px 20px', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600 }}>Ke Halaman Login</Link>
+                <Link href="/" style={{ textDecoration: 'none', background: '#F1F5F9', color: '#0F172A', padding: '10px 20px', borderRadius: '8px', fontSize: '0.875rem', fontWeight: 600, border: '1px solid #E2E8F0' }}>Ke Beranda</Link>
              </div>
           </div>
 

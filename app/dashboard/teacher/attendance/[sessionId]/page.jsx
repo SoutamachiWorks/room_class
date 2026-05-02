@@ -82,13 +82,13 @@ function StudentRow({ student, sessionId, sessionClosed, onSaved }) {
           ? <span className={styles.checkInTime}>
               {new Date(student.attendance.checkedInAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
-          : <span style={{ color: 'var(--color-subtext)', fontSize: '0.8rem' }}>—</span>
+          : <span className={styles.noCheckIn}>—</span>
         }
       </td>
       <td>
         <StatusBadge status={current} />
         {isManual && (
-          <span style={{ marginLeft: 6, fontSize: '0.7rem', color: 'var(--color-subtext)' }}>(manual)</span>
+          <span className={styles.manualTag}>(manual)</span>
         )}
       </td>
       <td>
@@ -202,11 +202,11 @@ export default function AttendanceSessionDetailPage() {
   return (
     <div className={styles.page}>
       {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Link href="/dashboard/teacher/attendance" className={styles.btnSecondary} style={{ padding: '7px 14px', fontSize: '0.8rem' }}>
+      <div className={styles.breadcrumb}>
+        <Link href="/dashboard/teacher/attendance" className={`${styles.btnSecondary} ${styles.btnSmall}`}>
           ← Kembali
         </Link>
-        <span style={{ fontSize: '0.8rem', color: 'var(--color-subtext)' }}>
+        <span className={styles.breadcrumbText}>
           / {session?.subjectName || 'Sesi Absensi'}
         </span>
       </div>
@@ -220,14 +220,14 @@ export default function AttendanceSessionDetailPage() {
             {' · '} Durasi {session?.durationMinutes} menit
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className={styles.headerActions}>
           {!isClosed && !isExpired && (
             <button className={styles.btnDanger} onClick={handleCloseSession} disabled={closing}>
               {closing ? 'Menutup...' : 'Tutup Sesi Sekarang'}
             </button>
           )}
           {(isClosed || isExpired) && (
-            <span className={styles.badgeClosed} style={{ fontSize: '0.875rem', padding: '8px 16px' }}>
+            <span className={`${styles.badgeClosed} ${styles.badgeClosedLarge}`}>
               ✓ Sesi Selesai
             </span>
           )}
@@ -248,7 +248,7 @@ export default function AttendanceSessionDetailPage() {
       )}
 
       {/* Quick stats */}
-      <div className={styles.recapStats} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+      <div className={styles.recapStats3}>
         <div className={`${styles.recapStatCard} ${styles.recapHadir}`}>
           <span className={styles.recapStatValue}>{hadirCount}</span>
           <span className={styles.recapStatLabel}>Hadir</span>
@@ -257,9 +257,9 @@ export default function AttendanceSessionDetailPage() {
           <span className={styles.recapStatValue}>{alphaCount}</span>
           <span className={styles.recapStatLabel}>Belum / Alpha</span>
         </div>
-        <div className={styles.recapStatCard} style={{ background: '#F3F4F6' }}>
-          <span className={styles.recapStatValue} style={{ color: 'var(--color-text)' }}>{students.length}</span>
-          <span className={styles.recapStatLabel} style={{ color: 'var(--color-subtext)' }}>Total Siswa</span>
+        <div className={`${styles.recapStatCard} ${styles.recapTotal}`}>
+          <span className={styles.recapStatValue}>{students.length}</span>
+          <span className={styles.recapStatLabel}>Total Siswa</span>
         </div>
       </div>
 
@@ -270,7 +270,7 @@ export default function AttendanceSessionDetailPage() {
             <h2 className={styles.cardTitle}>Daftar Kehadiran Siswa</h2>
             <p className={styles.cardSubtitle}>Ubah status dan simpan koreksi manual per baris.</p>
           </div>
-          <button className={styles.btnSecondary} onClick={fetchDetail} style={{ fontSize: '0.8rem', padding: '7px 14px' }}>
+          <button className={`${styles.btnSecondary} ${styles.btnSmall}`} onClick={fetchDetail}>
             ↻ Refresh
           </button>
         </div>

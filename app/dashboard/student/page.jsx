@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import styles from './student-dashboard.module.css';
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -156,20 +157,35 @@ function AttendanceWidget() {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function StudentDashboardPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedYearId = searchParams.get('yearId') || '';
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('/api/student/dashboard')
+    setLoading(true);
+    const url = selectedYearId ? `/api/student/dashboard?yearId=${selectedYearId}` : '/api/student/dashboard';
+    fetch(url)
       .then(r => r.json())
       .then(d => {
         if (d.error) throw new Error(d.error);
         setData(d);
+        // If no year in URL but data has years, sync URL with last year (current)
+        if (!selectedYearId && d.enrolledYears?.length > 0) {
+          const currentYearId = d.enrolledYears[d.enrolledYears.length - 1].yearId;
+          router.replace(`/dashboard/student?yearId=${currentYearId}`);
+        }
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedYearId, router]);
+
+  const years = data?.enrolledYears || [];
+  const activeYear = years.find(y => y.yearId === selectedYearId) || (years.length > 0 ? years[years.length - 1] : null);
+  const isArchiveMode = activeYear && years.length > 0 && selectedYearId !== years[years.length - 1].yearId;
 
   const pending = data?.pendingAssignments ?? [];
   const exams = data?.availableExams ?? [];
@@ -185,12 +201,43 @@ export default function StudentDashboardPage() {
           <h1 className={styles.pageTitle}>Dashboard Saya</h1>
           <p className={styles.pageSubtitle}>Pantau tugas, ujian, dan nilai terbaru Anda.</p>
         </div>
+
+        {/* ── Academic Year Switcher (Refinement: Only show if > 1) ── */}
+        {!loading && years.length > 0 && (
+          <div className={styles.headerSwitcher}>
+            <span className={styles.yearLabel}>Tahun Ajaran:</span>
+            {years.length > 1 ? (
+              <select 
+                className={styles.yearSelect}
+                value={selectedYearId}
+                onChange={(e) => router.push(`/dashboard/student?yearId=${e.target.value}`)}
+              >
+                {years.map(y => (
+                  <option key={y.yearId} value={y.yearId}>{y.label}</option>
+                ))}
+              </select>
+            ) : (
+              <span className={styles.staticYear}>{years[0].label}</span>
+            )}
+          </div>
+        )}
       </div>
+
+      {isArchiveMode && (
+        <div className={styles.archiveBanner}>
+          <svg className={styles.archiveIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <div>
+            Mode Arsip: Anda sedang melihat data kelas tahun ajaran sebelumnya.
+          </div>
+        </div>
+      )}
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      {/* ── Active Attendance Session Widget ── */}
-      <AttendanceWidget />
+      {/* ── Active Attendance Session Widget (Hidden in Archive Mode) ── */}
+      {!isArchiveMode && <AttendanceWidget />}
 
       {/* ── Two Column Layout ── */}
       <div className={styles.grid}>
@@ -200,7 +247,7 @@ export default function StudentDashboardPage() {
           title="📋 To-Do List Tugas"
           subtitle="Tugas yang belum dikumpulkan, diurutkan dari deadline terdekat"
           action="Lihat semua"
-          actionHref="/dashboard/student/assignments"
+          actionHref={`/dashboard/student/assignments${selectedYearId ? `?yearId=${selectedYearId}` : ''}`}
         >
           {loading ? (
             <div className={styles.skeletonList}>
@@ -256,15 +303,15 @@ export default function StudentDashboardPage() {
             title="🎯 Ujian Tersedia"
             subtitle="Ujian yang sudah dipublish oleh guru"
             action="Lihat semua"
-            actionHref="/dashboard/student/exams"
+            actionHref={`/dashboard/student/exams${selectedYearId ? `?yearId=${selectedYearId}` : ''}`}
           >
             {loading ? (
               <div className={styles.skeletonList}>
                 {[0, 1].map(i => <Skeleton key={i} h={62} radius={12} />)}
               </div>
             ) : exams.length === 0 ? (
-              <div className={styles.emptyState} style={{ padding: '24px' }}>
-                <p style={{ fontSize: '0.85rem' }}>Tidak ada ujian aktif saat ini.</p>
+              <div className={`${styles.emptyState} ${styles.emptyStateCompact}`}>
+                <p className={styles.emptyStateText}>Tidak ada ujian aktif saat ini.</p>
               </div>
             ) : (
               <div className={styles.examList}>
@@ -294,15 +341,15 @@ export default function StudentDashboardPage() {
             title="📊 Nilai Terbaru"
             subtitle="Tugas yang sudah dikoreksi guru"
             action="Lihat semua"
-            actionHref="/dashboard/student/assignments"
+            actionHref={`/dashboard/student/assignments${selectedYearId ? `?yearId=${selectedYearId}` : ''}`}
           >
             {loading ? (
               <div className={styles.skeletonList}>
                 {[0, 1, 2].map(i => <Skeleton key={i} h={56} radius={12} />)}
               </div>
             ) : grades.length === 0 ? (
-              <div className={styles.emptyState} style={{ padding: '24px' }}>
-                <p style={{ fontSize: '0.85rem' }}>Belum ada nilai yang masuk.</p>
+              <div className={`${styles.emptyState} ${styles.emptyStateCompact}`}>
+                <p className={styles.emptyStateText}>Belum ada nilai yang masuk.</p>
               </div>
             ) : (
               <div className={styles.gradeList}>
@@ -321,6 +368,9 @@ export default function StudentDashboardPage() {
                           {g.subjectName} · {formatDate(g.gradedAt)}
                           {g.isLate && <span className={styles.lateBadge}>Terlambat</span>}
                         </div>
+                        {isArchiveMode && (
+                          <div className={styles.archiveNote}>File unggahan tugas telah dibersihkan dari server.</div>
+                        )}
                       </div>
                       <div className={`${styles.scoreCircle} ${scoreClass}`}>
                         {score % 1 === 0 ? score : score.toFixed(1)}

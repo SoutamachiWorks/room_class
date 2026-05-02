@@ -31,10 +31,13 @@ function Skeleton({ h = 20, w = '100%', radius = 8 }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function TeacherDashboardPage() {
   const [data, setData] = useState(null);
+  const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [schedulesLoading, setSchedulesLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // 1. Fetch dashboard stats
     fetch('/api/teacher/dashboard')
       .then(r => r.json())
       .then(d => {
@@ -43,6 +46,32 @@ export default function TeacherDashboardPage() {
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
+
+    // 2. Fetch today's schedule
+    const today = new Date().getDay();
+    const dayOfWeek = today === 0 ? 1 : today; // Jika minggu, anggap senin (fallback opsional, tapi biarkan saja)
+    
+    // Kita harus fetch api schedules untuk teacher. API sudah mendukung ?teacherId=...
+    // Tapi kita bisa gunakan fitur API saat ini atau modifikasi.
+    // Tunggu, API schedules kita mengambil payload.role == 'student' secara spesifik, 
+    // jika teacher, dia perlu memberikan teacherId. Mari panggil auth/me dulu, 
+    // atau biarkan API schedules yang mendeteksi otomatis jika role == 'teacher'.
+    
+    // Untuk efisiensi, panggil API auth/me lalu schedules
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(d => {
+        if (d.user?.role === 'teacher') {
+          // fetch schedule
+          return fetch(`/api/schedules?teacherId=${d.user.username}&dayOfWeek=${dayOfWeek}`); // Di DB teacherId biasanya sama dengan username (G-100X)
+        }
+        throw new Error('Not a teacher');
+      })
+      .then(r => r.json())
+      .then(d => setSchedules(d.schedules || []))
+      .catch(e => console.error('Schedule fetch error', e))
+      .finally(() => setSchedulesLoading(false));
+
   }, []);
 
   const stats = data?.stats;
@@ -125,13 +154,68 @@ export default function TeacherDashboardPage() {
         )}
       </div>
 
-      {/* ── Ungraded Submissions Table ── */}
-      <div className={styles.card}>
-        <div className={styles.cardHeader}>
-          <div>
-            <h2 className={styles.cardTitle}>Perlu Dikoreksi</h2>
-            <p className={styles.cardSubtitle}>Jawaban siswa yang belum mendapat nilai</p>
+      <div className={styles.twoColumnGrid}>
+        {/* ── Today's Schedule Widget ── */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <div>
+              <h2 className={styles.cardTitle}>Jadwal Mengajar Hari Ini</h2>
+              <p className={styles.cardSubtitle}>Mata pelajaran yang harus Anda asuh hari ini.</p>
+            </div>
           </div>
+
+          {schedulesLoading ? (
+            <div className={styles.skeletonList}>
+              <Skeleton h={52} radius={10} />
+              <Skeleton h={52} radius={10} />
+            </div>
+          ) : schedules.length === 0 ? (
+            <div className={styles.emptyState}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-subtext)', marginBottom: 12 }}>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <p>Tidak ada jadwal mengajar hari ini. Selamat beristirahat! ☕</p>
+            </div>
+          ) : (
+            <div className={styles.scheduleList}>
+              {schedules.map((sch) => {
+                const now = new Date();
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                const [sh, sm] = sch.startTime.split(':').map(Number);
+                const [eh, em] = sch.endTime.split(':').map(Number);
+                const startMins = sh * 60 + sm;
+                const endMins = eh * 60 + em;
+                const isActive = currentMinutes >= startMins && currentMinutes <= endMins;
+
+                return (
+                  <div key={sch._id} className={`${styles.scheduleItem} ${isActive ? styles.scheduleItemActive : ''}`}>
+                    <div className={styles.scheduleTime}>
+                      <span className={styles.scheduleStartTime}>{sch.startTime}</span>
+                      <span className={styles.scheduleEndTime}>{sch.endTime}</span>
+                    </div>
+                    <div className={styles.scheduleDetails}>
+                      <h4 className={styles.scheduleSubject}>{sch.subjectDetails?.subjectName || 'Mata Pelajaran'}</h4>
+                      <span className={styles.scheduleClassBadge}>{sch.classCode}</span>
+                    </div>
+                    {isActive && (
+                      <div className={styles.scheduleStatus}>
+                        <span className={styles.badgeActive}>Sedang Berlangsung</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── Ungraded Submissions Table ── */}
+        <div className={styles.card}>
+          <div className={styles.cardHeader}>
+            <div>
+              <h2 className={styles.cardTitle}>Perlu Dikoreksi</h2>
+              <p className={styles.cardSubtitle}>Jawaban siswa yang belum dinilai</p>
+            </div>
           {!loading && ungraded.length > 0 && (
             <span className={styles.badgeRed}>{ungraded.length} tugas</span>
           )}
@@ -208,6 +292,8 @@ export default function TeacherDashboardPage() {
           </div>
         )}
       </div>
+
+      </div> {/* Tutup twoColumnGrid */}
 
     </div>
   );

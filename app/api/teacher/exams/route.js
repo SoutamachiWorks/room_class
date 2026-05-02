@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
+import { createNotificationsForClass } from '@/lib/notification';
 
 /**
  * GET /api/teacher/exams
@@ -111,6 +112,7 @@ export async function POST(request) {
     // Normalize question order
     const normalizedQuestions = questions.map((q, idx) => ({
       order: idx + 1,
+      imageUrl: q.imageUrl || null,
       multipleChoice: q.multipleChoice || null,
       essay: q.essay || null,
       fileUpload: q.fileUpload || null,
