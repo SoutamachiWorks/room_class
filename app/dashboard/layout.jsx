@@ -6,6 +6,7 @@ import Link from 'next/link';
 import ThemeToggle from '@/components/ThemeToggle';
 import BottomNav from '@/components/BottomNav';
 import NotificationBell from '@/components/NotificationBell';
+import InstallPwaPrompt from '@/components/InstallPwaPrompt';
 import styles from './dashboard.module.css';
 
 // Navigation config per role
@@ -491,6 +492,9 @@ export default function DashboardLayout({ children }) {
           {children}
         </main>
       </div>
+
+      {/* PWA Install Prompt */}
+      {userRole === 'student' && <InstallPwaPrompt />}
 
       {/* Bottom Navigation — All roles, mobile only */}
       <BottomNav role={userRole} />

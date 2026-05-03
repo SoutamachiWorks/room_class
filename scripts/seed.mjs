@@ -1,8 +1,26 @@
 import { MongoClient } from 'mongodb';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-const MONGODB_DB = process.env.MONGODB_DB || 'room_class';
+// Fungsi sederhana untuk membaca .env.local tanpa library tambahan
+function loadEnv() {
+  const envPath = path.resolve(process.cwd(), '.env.local');
+  if (fs.existsSync(envPath)) {
+    const envConfig = fs.readFileSync(envPath, 'utf-8');
+    envConfig.split('\n').forEach(line => {
+      const [key, ...valueParts] = line.split('=');
+      if (key && valueParts.length > 0) {
+        process.env[key.trim()] = valueParts.join('=').trim();
+      }
+    });
+  }
+}
+
+loadEnv();
+
+const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_DB = process.env.MONGODB_DB || 'RoomClass';
 
 async function seed() {
   console.log('🌱 Seeding database...');
