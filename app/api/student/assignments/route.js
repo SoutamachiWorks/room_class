@@ -86,13 +86,13 @@ export async function GET(request) {
     let result = await Promise.all(assignments.map(async (a) => {
       // Sign assignment files
       if (a.files && a.files.length > 0) {
-        a.files = await Promise.all(a.files.map(async (f) => ({ ...f, url: await generatePresignedUrl(f.fileKey) })));
+        a.files = await Promise.all(a.files.map(async (f) => ({ ...f, url: await generatePresignedUrl(f.fileKey, f.originalName) })));
       }
       
       const sub = submissionMap[a._id.toString()] || null;
       // Sign submission files if they exist
       if (sub && sub.files && sub.files.length > 0) {
-        sub.files = await Promise.all(sub.files.map(async (f) => ({ ...f, url: await generatePresignedUrl(f.fileKey) })));
+        sub.files = await Promise.all(sub.files.map(async (f) => ({ ...f, url: await generatePresignedUrl(f.fileKey, f.originalName) })));
       }
 
       return {

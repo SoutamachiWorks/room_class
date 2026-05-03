@@ -184,7 +184,9 @@ export default function StudentMaterialsPage() {
                                        {selectedMat.files.map((f, i) => (
                                           <a
                                              key={i}
-                                             href={f.url}
+                                             href={f.url || '#'}
+                                             target="_blank"
+                                             rel="noopener noreferrer"
                                              download={f.originalName}
                                              className={localStyles.fileItem}
                                           >

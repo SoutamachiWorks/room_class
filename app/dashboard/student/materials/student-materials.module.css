@@ -256,6 +256,7 @@
   border: 1px solid var(--color-border);
   transition: all 0.2s;
   word-break: break-all;
+  cursor: pointer;
 }
 
 .fileItem:hover {

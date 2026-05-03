@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
+import { generatePresignedUrl } from '@/lib/s3Client';
 
 /**
  * GET /api/teacher/assignments/[id]/submissions
@@ -42,8 +43,16 @@ export async function GET(request, { params }) {
       }).toArray();
 
       // Mapping Submissions natively towards Students Array securely
-      const studentMap = enrolledStudents.map(student => {
+      const studentMap = await Promise.all(enrolledStudents.map(async (student) => {
          const subInfo = submissions.find(s => s.studentId === student.studentId);
+         
+         if (subInfo && subInfo.files && subInfo.files.length > 0) {
+            subInfo.files = await Promise.all(subInfo.files.map(async (f) => ({
+               ...f,
+               url: await generatePresignedUrl(f.fileKey, f.originalName)
+            })));
+         }
+
          return {
             _id: student._id.toString(),
             studentId: student.studentId,
@@ -54,7 +63,7 @@ export async function GET(request, { params }) {
                _id: subInfo._id.toString()
             } : null
          };
-      });
+      }));
 
       // Secure payload delivery
       return NextResponse.json({ 

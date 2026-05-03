@@ -73,7 +73,7 @@ export async function GET(request) {
        if (mat.files && mat.files.length > 0) {
            mat.files = await Promise.all(mat.files.map(async (f) => ({
                ...f,
-               url: await generatePresignedUrl(f.fileKey)
+               url: await generatePresignedUrl(f.fileKey, f.originalName)
            })));
        }
        return mat;
