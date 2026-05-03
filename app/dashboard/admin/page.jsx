@@ -8,7 +8,7 @@ import styles from './admin-home.module.css';
 function StatCard({ icon, label, value, sub, accent, href }) {
   const content = (
     <div className={styles.statCard} style={{ '--accent': accent }}>
-      <div className={styles.statIconWrap}>{icon}</div>
+      <div className={styles.statIconWrap} aria-hidden="true">{icon}</div>
       <div className={styles.statBody}>
         <span className={styles.statValue}>{value ?? '—'}</span>
         <span className={styles.statLabel}>{label}</span>
@@ -24,7 +24,7 @@ function QuickAction({ icon, label, href, onClick, accent }) {
   const cls = styles.quickAction;
   const inner = (
     <>
-      <div className={styles.qaIcon} style={{ '--accent': accent }}>{icon}</div>
+      <div className={styles.qaIcon} style={{ '--accent': accent }} aria-hidden="true">{icon}</div>
       <span className={styles.qaLabel}>{label}</span>
     </>
   );
@@ -34,7 +34,7 @@ function QuickAction({ icon, label, href, onClick, accent }) {
 
 // ── Skeleton ────────────────────────────────────────────────────────────────
 function Skeleton({ h = 20, radius = 8 }) {
-  return <div className={styles.skeleton} style={{ height: h, borderRadius: radius }} />;
+  return <div className={styles.skeleton} style={{ height: h, borderRadius: radius }} aria-hidden="true" />;
 }
 
 const LOG_COLORS = {
