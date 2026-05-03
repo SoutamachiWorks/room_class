@@ -435,6 +435,14 @@ a.statCardLink:hover .statCard {
   color: var(--color-subtext);
 }
 
+.emptyLogs {
+  font-size: 0.8125rem;
+  color: var(--color-subtext);
+  text-align: center;
+  padding: 20px 0;
+  font-style: italic;
+}
+
 .logFooter {
   padding-top: 16px;
   border-top: 1px solid var(--color-border);

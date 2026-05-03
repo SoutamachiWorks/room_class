@@ -37,16 +37,6 @@ function Skeleton({ h = 20, radius = 8 }) {
   return <div className={styles.skeleton} style={{ height: h, borderRadius: radius }} />;
 }
 
-// ── Log Item ────────────────────────────────────────────────────────────────
-const DUMMY_LOGS = [
-  { id: 1, time: '17:25', type: 'auth',    msg: 'Login berhasil oleh admin@roomclass.id' },
-  { id: 2, time: '16:48', type: 'create',  msg: 'Akun guru baru ditambahkan: Ibu Sari Dewi (GR-009)' },
-  { id: 3, time: '16:12', type: 'import',  msg: 'Import 32 siswa kelas 10A selesai (0 gagal)' },
-  { id: 4, time: '15:30', type: 'update',  msg: 'Password direset untuk akun siswa: andi.s (NIS: 2024015)' },
-  { id: 5, time: '14:55', type: 'delete',  msg: 'Akun nonaktif dihapus: budi.lama (Siswa - 9B)' },
-  { id: 6, time: '13:20', type: 'create',  msg: 'Mata pelajaran baru dibuat: Pemrograman Web (Kelas 11A)' },
-];
-
 const LOG_COLORS = {
   auth:   { bg: 'rgba(120,163,255,0.15)', color: 'var(--color-primary)',      dot: '🔐' },
   create: { bg: 'rgba(16,185,129,0.12)',  color: 'var(--color-success-text)', dot: '➕' },
@@ -58,18 +48,20 @@ const LOG_COLORS = {
 export default function AdminHomePage() {
   const [stats, setStats] = useState(null);
   const [classes, setClasses] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
         // Fetch real user counts from existing API
-        const [allRes, teacherRes, studentRes, classRes, storageRes] = await Promise.all([
+        const [allRes, teacherRes, studentRes, classRes, storageRes, logsRes] = await Promise.all([
           fetch('/api/admin/users?limit=1&role='),
           fetch('/api/admin/users?limit=1&role=teacher'),
           fetch('/api/admin/users?limit=1&role=student'),
           fetch('/api/admin/class-codes'),
           fetch('/api/admin/storage'),
+          fetch('/api/admin/logs?limit=6'),
         ]);
 
         const allData     = allRes.ok     ? await allRes.json()     : {};
@@ -77,6 +69,7 @@ export default function AdminHomePage() {
         const studentData = studentRes.ok ? await studentRes.json() : {};
         const classData   = classRes.ok   ? await classRes.json()   : {};
         const storageData = storageRes.ok ? await storageRes.json() : { totalBytes: 0 };
+        const logsData    = logsRes.ok    ? await logsRes.json()    : { logs: [] };
 
         setStats({
           total:    allData.pagination?.totalCount     ?? 0,
@@ -89,6 +82,9 @@ export default function AdminHomePage() {
         // Show first 6 classes with their info
         const rawClasses = classData.classCodes ?? classData.data ?? [];
         setClasses(rawClasses.slice(0, 6));
+
+        // Set logs
+        setLogs(logsData.logs || []);
       } catch (e) {
         console.error('Admin stats load failed:', e);
         setStats({ total: 0, teachers: 0, students: 0, classes: 0 });
@@ -345,20 +341,38 @@ export default function AdminHomePage() {
               <Link href="/dashboard/admin/logs" className={styles.cardAction}>Lihat semua →</Link>
             </div>
             <div className={styles.logList}>
-              {DUMMY_LOGS.map(log => {
-                const meta = LOG_COLORS[log.type] ?? LOG_COLORS.auth;
-                return (
-                  <div key={log.id} className={styles.logItem}>
-                    <div className={styles.logDot} style={{ background: meta.bg }}>
-                      <span style={{ fontSize: '0.85rem' }}>{meta.dot}</span>
-                    </div>
-                    <div className={styles.logBody}>
-                      <p className={styles.logMsg}>{log.msg}</p>
-                      <span className={styles.logTime}>Hari ini, {log.time} WIB</span>
-                    </div>
+              {loading ? (
+                [0, 1, 2, 3].map(i => (
+                  <div key={i} className={styles.logItem}>
+                    <Skeleton h={40} radius={8} />
                   </div>
-                );
-              })}
+                ))
+              ) : logs.length === 0 ? (
+                <p className={styles.emptyLogs}>Belum ada aktivitas tercatat.</p>
+              ) : (
+                logs.map(log => {
+                  const meta = LOG_COLORS[log.action] ?? LOG_COLORS.auth;
+                  const logDate = new Date(log.timestamp);
+                  const isToday = logDate.toDateString() === new Date().toDateString();
+                  const timeStr = logDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                  const dateLabel = isToday ? 'Hari ini' : logDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+
+                  return (
+                    <div key={log._id} className={styles.logItem}>
+                      <div className={styles.logDot} style={{ background: meta.bg }}>
+                        <span style={{ fontSize: '0.85rem' }}>{meta.dot}</span>
+                      </div>
+                      <div className={styles.logBody}>
+                        <p className={styles.logMsg}>
+                          {log.userName && <strong>{log.userName}: </strong>}
+                          {log.action === 'auth' ? 'Login berhasil' : `${log.action} ${log.target || ''}`}
+                        </p>
+                        <span className={styles.logTime}>{dateLabel}, {timeStr} WIB</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
             <div className={styles.logFooter}>
               <Link href="/dashboard/admin/logs" className={styles.logMoreLink}>
