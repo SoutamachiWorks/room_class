@@ -31,7 +31,49 @@ export default function ArchivePage() {
   // Now ALL entries in enrolledYears are actually archived history
   const archivedYears = enrolledYears;
 
-
+  const archiveLinks = (yearId) => [
+    {
+      label: 'Materi Guru',
+      desc: 'Modul dan referensi dari guru',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+      ),
+      href: `/dashboard/student/materials?yearId=${yearId}`,
+      color: 'blue',
+      available: true,
+    },
+    {
+      label: 'Tugas & Nilai',
+      desc: 'Riwayat pengumpulan dan penilaian',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+      ),
+      href: `/dashboard/student/assignments?yearId=${yearId}`,
+      color: 'orange',
+      available: true,
+    },
+    {
+      label: 'Hasil Ujian',
+      desc: 'Skor dan jawaban ujian lama',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 11l3 3L22 4" />
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+        </svg>
+      ),
+      href: `/dashboard/student/exams?yearId=${yearId}`,
+      color: 'green',
+      available: true,
+    },
+  ];
 
   if (loading) {
     return (
@@ -131,13 +173,24 @@ export default function ArchivePage() {
                   )}
                 </div>
 
-                <div className={styles.archiveAction}>
-                  <Link 
-                    href={`/dashboard/student/archive/${year.yearId}`} 
-                    className={styles.openArchiveBtn}
-                  >
-                    Buka Detail Arsip &rarr;
-                  </Link>
+                {/* Access Links */}
+                <div className={styles.archiveLinkGrid}>
+                  {archiveLinks(year.yearId).map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={`${styles.archiveLink} ${styles[`archiveLink_${link.color}`]}`}
+                    >
+                      <span className={styles.archiveLinkIcon} aria-hidden="true">{link.icon}</span>
+                      <div>
+                        <div className={styles.archiveLinkLabel}>{link.label}</div>
+                        <div className={styles.archiveLinkDesc}>{link.desc}</div>
+                      </div>
+                      <svg className={styles.archiveLinkArrow} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </Link>
+                  ))}
                 </div>
               </div>
             ))}

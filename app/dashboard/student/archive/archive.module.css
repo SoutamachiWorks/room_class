@@ -207,28 +207,86 @@
   width: 100%;
 }
 
-/* ── Archive Action ── */
-.archiveAction {
+/* ── Archive Link Grid ── */
+.archiveLinkGrid {
+  display: flex;
+  flex-direction: column;
+}
+
+.archiveLink {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   padding: 16px 22px;
+  text-decoration: none;
+  color: var(--color-text);
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.archiveLink:last-child {
+  border-bottom: none;
+}
+
+.archiveLink:hover {
   background: var(--bg-app);
 }
 
-.openArchiveBtn {
-  display: block;
-  text-align: center;
-  padding: 12px 20px;
-  background: var(--color-primary);
-  color: white;
-  border-radius: 8px;
-  font-weight: 600;
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: opacity 0.2s, transform 0.2s;
+.archiveLinkIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.openArchiveBtn:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
+.archiveLinkIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Color variants */
+.archiveLink_blue .archiveLinkIcon {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.archiveLink_orange .archiveLinkIcon {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.archiveLink_green .archiveLinkIcon {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.archiveLinkLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-heading);
+  margin-bottom: 2px;
+}
+
+.archiveLinkDesc {
+  font-size: 0.775rem;
+  color: var(--color-subtext);
+}
+
+.archiveLinkArrow {
+  width: 18px;
+  height: 18px;
+  color: var(--color-subtext);
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.archiveLink:hover .archiveLinkArrow {
+  transform: translateX(3px);
+  color: var(--color-primary);
 }
 
 /* ── Empty State ── */
@@ -283,7 +341,7 @@
     padding: 14px 16px;
   }
 
-  .archiveAction {
+  .archiveLink {
     padding: 14px 16px;
   }
 
