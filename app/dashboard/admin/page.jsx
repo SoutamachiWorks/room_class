@@ -54,40 +54,26 @@ export default function AdminHomePage() {
   useEffect(() => {
     async function load() {
       try {
-        // Fetch real user counts from existing API
-        const [allRes, teacherRes, studentRes, classRes, storageRes, logsRes] = await Promise.all([
-          fetch('/api/admin/users?limit=1&role='),
-          fetch('/api/admin/users?limit=1&role=teacher'),
-          fetch('/api/admin/users?limit=1&role=student'),
-          fetch('/api/admin/class-codes'),
+        // Fetch all-in-one stats + storage in parallel
+        const [overviewRes, storageRes] = await Promise.all([
+          fetch('/api/admin/dashboard-overview'),
           fetch('/api/admin/storage'),
-          fetch('/api/admin/logs?limit=6'),
         ]);
 
-        const allData     = allRes.ok     ? await allRes.json()     : {};
-        const teacherData = teacherRes.ok ? await teacherRes.json() : {};
-        const studentData = studentRes.ok ? await studentRes.json() : {};
-        const classData   = classRes.ok   ? await classRes.json()   : {};
-        const storageData = storageRes.ok ? await storageRes.json() : { totalBytes: 0 };
-        const logsData    = logsRes.ok    ? await logsRes.json()    : { logs: [] };
+        const overview = overviewRes.ok ? await overviewRes.json() : {};
+        const storage  = storageRes.ok  ? await storageRes.json()  : { totalBytes: 0 };
 
-        setStats({
-          total:    allData.pagination?.totalCount     ?? 0,
-          teachers: teacherData.pagination?.totalCount ?? 0,
-          students: studentData.pagination?.totalCount ?? 0,
-          classes:  (classData.classCodes ?? classData.data ?? []).length,
-          storageBytes: storageData.totalBytes ?? 0,
-        });
-
-        // Show first 6 classes with their info
-        const rawClasses = classData.classCodes ?? classData.data ?? [];
-        setClasses(rawClasses.slice(0, 6));
-
-        // Set logs
-        setLogs(logsData.logs || []);
+        if (overview.stats) {
+          setStats({
+            ...overview.stats,
+            storageBytes: storage.totalBytes ?? 0,
+          });
+        }
+        
+        setClasses(overview.classes || []);
+        setLogs(overview.logs || []);
       } catch (e) {
-        console.error('Admin stats load failed:', e);
-        setStats({ total: 0, teachers: 0, students: 0, classes: 0 });
+        console.error('Admin dashboard load failed:', e);
       } finally {
         setLoading(false);
       }
