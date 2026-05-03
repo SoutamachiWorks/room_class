@@ -103,7 +103,7 @@ export default function GradingPage() {
           if (!qd) return null;
 
           return (
-            <div key={idx} className={styles.contentCard}>
+            <div key={idx} className={styles.gradingCard}>
               <div className={styles.gradingCardHeader}>
                 <span className={styles.questionNumber}>Soal #{ans.questionOrder}</span>
                 <div className={styles.scoreBox}>

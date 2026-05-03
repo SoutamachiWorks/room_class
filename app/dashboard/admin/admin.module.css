@@ -1265,13 +1265,23 @@
   gap: 20px;
 }
 
+.gradingCard {
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  padding: 24px;
+}
+
 .gradingCardHeader {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 16px;
   flex-wrap: wrap;
   gap: 12px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 12px;
 }
 
 .questionNumber {
@@ -1359,6 +1369,11 @@
   white-space: pre-wrap;
   line-height: 1.6;
   color: var(--color-text);
+  margin-top: 8px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
 }
 
 .noAnswer {
