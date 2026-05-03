@@ -41,7 +41,8 @@ export default function AdminDashboardPage() {
     phone: '',
     teacherId: '',
     studentId: '',
-    classCode: '1A',
+    classCode: '',
+    academicYearId: '',
   });
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
@@ -92,12 +93,13 @@ export default function AdminDashboardPage() {
       setFormData({
         fullName: user.fullName || '',
         username: user.username || '',
-        password: '', // Leave blank when editing unless changing
+        password: '',
         email: user.email || '',
         phone: user.phone || '',
         teacherId: user.teacherId || '',
         studentId: user.studentId || '',
         classCode: user.classCode || '',
+        academicYearId: user.academicYearId || '',
       });
     } else {
       setFormData({
@@ -108,7 +110,8 @@ export default function AdminDashboardPage() {
         phone: '',
         teacherId: '',
         studentId: '',
-        classCode: '', // Leave empty to require selection
+        classCode: '',
+        academicYearId: '',
       });
     }
     setFormError('');
@@ -167,6 +170,9 @@ export default function AdminDashboardPage() {
       }
       payload.studentId = formData.studentId;
       payload.classCode = formData.classCode;
+      if (formData.academicYearId) {
+        payload.academicYearId = formData.academicYearId;
+      }
     }
 
     try {
@@ -496,9 +502,22 @@ export default function AdminDashboardPage() {
           
           {formType === 'student' && (
              <div className={styles.formRow}>
-               <div className={`${styles.fieldGroup} ${styles.fieldFull}`}>
+               <div className={styles.fieldGroup}>
                 <label className={styles.fieldLabel}>Kode Kelas*</label>
                 <input name="classCode" value={formData.classCode} onChange={handleFormChange} className={styles.input} placeholder="Contoh: 10A" required />
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.fieldLabel}>Tahun Ajaran</label>
+                <input
+                  name="academicYearId"
+                  value={formData.academicYearId}
+                  onChange={handleFormChange}
+                  className={styles.input}
+                  placeholder="Contoh: 2025/2026"
+                />
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)', marginTop: 4, display: 'block' }}>
+                  Opsional. Digunakan untuk Riwayat Belajar saat siswa naik kelas.
+                </span>
               </div>
              </div>
           )}

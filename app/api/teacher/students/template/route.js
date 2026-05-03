@@ -9,8 +9,8 @@ export async function GET(request) {
     
     // Create an array of arrays representing rows
     const data = [
-      ['Nama Lengkap', 'NPM/NIS', 'Email', 'Kode Kelas'], // Header
-      ['Contoh Siswa', '12345678', 'siswa@example.com', 'KODEKLS01'] // Example Row
+      ['Nama Lengkap', 'NPM/NIS', 'Email', 'Kode Kelas', 'Tahun Ajaran'], // Header
+      ['Contoh Siswa', '12345678', 'siswa@example.com', 'KODEKLS01', '2025/2026'] // Example Row
     ];
     
     // Create Worksheet
@@ -21,7 +21,8 @@ export async function GET(request) {
       { wch: 30 }, // Nama Lengkap
       { wch: 15 }, // NPM/NIS
       { wch: 25 }, // Email
-      { wch: 15 }  // Kode Kelas
+      { wch: 15 }, // Kode Kelas
+      { wch: 15 }, // Tahun Ajaran
     ];
 
     // Create Workbook

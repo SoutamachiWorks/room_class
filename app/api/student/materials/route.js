@@ -5,6 +5,9 @@ import { requireRole, handleAuthError } from '@/lib/auth';
 
 import { generatePresignedUrl } from '@/lib/s3Client';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * GET /api/student/materials
  * Returns all materials scoped to the student's classCode.
@@ -39,49 +42,56 @@ export async function GET(request) {
     const matchingSubjects = await db.collection('subjects').find({ classCode }).toArray();
     const subjectIds = matchingSubjects.map(s => s._id.toString());
 
-    if (subjectIds.length === 0) {
-      return NextResponse.json({ materials: [] });
+    let materials = [];
+
+    if (subjectIds.length > 0) {
+      const pipeline = [
+        { $match: { subjectId: { $in: subjectIds } } },
+        {
+          $addFields: {
+            subjectObjectId: { $toObjectId: '$subjectId' },
+          },
+        },
+        {
+          $lookup: {
+            from: 'subjects',
+            localField: 'subjectObjectId',
+            foreignField: '_id',
+            as: 'subjectDetails',
+          },
+        },
+        {
+          $unwind: {
+            path: '$subjectDetails',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        { $sort: { createdAt: -1 } },
+      ];
+
+      materials = await db.collection('materials').aggregate(pipeline).toArray();
+
+      materials = await Promise.all(materials.map(async (mat) => {
+        if (mat.files && mat.files.length > 0) {
+            mat.files = await Promise.all(mat.files.map(async (f) => ({
+                ...f,
+                url: await generatePresignedUrl(f.fileKey, f.originalName)
+            })));
+        }
+        return mat;
+      }));
     }
-
-    const pipeline = [
-      { $match: { subjectId: { $in: subjectIds } } },
-      {
-        $addFields: {
-          subjectObjectId: { $toObjectId: '$subjectId' },
-        },
-      },
-      {
-        $lookup: {
-          from: 'subjects',
-          localField: 'subjectObjectId',
-          foreignField: '_id',
-          as: 'subjectDetails',
-        },
-      },
-      {
-        $unwind: {
-          path: '$subjectDetails',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      { $sort: { createdAt: -1 } },
-    ];
-
-    let materials = await db.collection('materials').aggregate(pipeline).toArray();
-
-    materials = await Promise.all(materials.map(async (mat) => {
-       if (mat.files && mat.files.length > 0) {
-           mat.files = await Promise.all(mat.files.map(async (f) => ({
-               ...f,
-               url: await generatePresignedUrl(f.fileKey, f.originalName)
-           })));
-       }
-       return mat;
-    }));
 
     return NextResponse.json({ 
       materials,
-      enrolledYears
+      enrolledYears: userDoc?.enrolledYears || [],
+      currentYear: {
+        classCode: userDoc?.classCode || 'Tidak Diketahui',
+        academicYear: userDoc?.academicYearId || 'Tidak Diketahui',
+        label: userDoc?.academicYearId && userDoc?.classCode 
+          ? `${userDoc.academicYearId} (${userDoc.classCode})` 
+          : 'Data Kelas Aktif Tidak Lengkap'
+      }
     });
   } catch (err) {
     const { status, error } = handleAuthError(err);

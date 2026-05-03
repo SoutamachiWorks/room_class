@@ -59,7 +59,7 @@ export async function PUT(request, { params }) {
 
     // Build update object — exclude role from updates
     const updateFields = {};
-    const allowedFields = ['fullName', 'username', 'email', 'phone', 'teacherId', 'studentId', 'classCode'];
+    const allowedFields = ['fullName', 'username', 'email', 'phone', 'teacherId', 'studentId', 'classCode', 'academicYearId'];
 
     for (const field of allowedFields) {
       if (body[field] !== undefined) {

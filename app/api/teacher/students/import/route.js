@@ -39,6 +39,8 @@ export async function POST(request) {
     const idxNis = headers.findIndex(h => h.includes('npm') || h.includes('nis'));
     const idxEmail = headers.findIndex(h => h.includes('email'));
     const idxKelas = headers.findIndex(h => h.includes('kode class') || h.includes('kode kelas') || h.includes('kelas'));
+    // Optional: Tahun Ajaran column
+    const idxTahunAjaran = headers.findIndex(h => h.includes('tahun ajaran') || h.includes('tahun') || h.includes('academic year'));
 
     if (idxNama === -1 || idxNis === -1 || idxEmail === -1 || idxKelas === -1) {
       return NextResponse.json({ error: 'Format kolom salah. Pastikan menggunakan Template yang diberikan.' }, { status: 400 });
@@ -58,6 +60,8 @@ export async function POST(request) {
         const studentId = row[idxNis] ? String(row[idxNis]).trim() : '';
         const email = row[idxEmail] ? String(row[idxEmail]).trim() : '';
         const classCode = row[idxKelas] ? String(row[idxKelas]).trim() : '';
+        // Tahun Ajaran is optional
+        const academicYearId = (idxTahunAjaran !== -1 && row[idxTahunAjaran]) ? String(row[idxTahunAjaran]).trim() : '';
 
         if (!fullName || !studentId || !email || !classCode) {
             errors.push({ row: i + 1, email, reason: 'Baris memiliki data yang kosong (incomplete)' });
@@ -73,7 +77,7 @@ export async function POST(request) {
         parsedEmails.add(email);
         parsedNis.add(studentId);
 
-        studentsToProcess.push({ fullName, studentId, email, classCode, rowIdx: i + 1 });
+        studentsToProcess.push({ fullName, studentId, email, classCode, academicYearId, rowIdx: i + 1 });
     }
 
     if (studentsToProcess.length === 0) {
@@ -128,9 +132,10 @@ export async function POST(request) {
                 username: doc.username,
                 password: hashedPassword,
                 email: doc.email,
-                phone: '-', // default
+                phone: '-',
                 studentId: doc.studentId,
                 classCode: doc.classCode,
+                ...(doc.academicYearId ? { academicYearId: doc.academicYearId } : {}),
                 status: 'active',
                 createdAt: new Date(),
                 updatedAt: new Date(),

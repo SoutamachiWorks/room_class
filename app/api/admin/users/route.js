@@ -72,7 +72,7 @@ export async function POST(request) {
     const db = await getDb();
     const body = await request.json();
 
-    const { role, fullName, username, password, email, phone, teacherId, studentId, classCode } = body;
+    const { role, fullName, username, password, email, phone, teacherId, studentId, classCode, academicYearId } = body;
 
     // Validate required fields
     if (!role || !fullName || !username || !password || !email) {
@@ -163,6 +163,9 @@ export async function POST(request) {
     if (role === 'student') {
       userDoc.studentId = studentId;
       userDoc.classCode = classCode;
+      if (academicYearId) {
+        userDoc.academicYearId = academicYearId;
+      }
     }
 
     const result = await db.collection('users').insertOne(userDoc);

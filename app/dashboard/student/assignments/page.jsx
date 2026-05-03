@@ -279,8 +279,37 @@ export default function StudentAssignmentsPage() {
                     <td data-label="Aksi" className={styles.tdCenter}>
                       <div className={`${styles.actionBtns} ${styles.actionBtnsCenter}`}>
                         {isArchiveMode ? (
-                          <div className={styles.archiveNote}>
-                            File unggahan tugas telah dibersihkan dari server.
+                          <div style={{ textAlign: 'center' }}>
+                            {asm.submission ? (
+                              <div>
+                                {/* Show archived file notice if files were deleted */}
+                                {asm.submission.isDeletedFromStorage && (
+                                  <div className={styles.archiveNote} title="File dihapus otomatis saat kenaikan kelas untuk menghemat storage">
+                                    🗑️ File tugas dihapus otomatis.
+                                    Nilai &amp; jawaban tetap tersimpan.
+                                  </div>
+                                )}
+                                {/* Show submission text if any */}
+                                {asm.submission.text && (
+                                  <div className={styles.noDataText} style={{ marginTop: 4 }}>
+                                    ✏️ "{asm.submission.text.substring(0, 40)}{asm.submission.text.length > 40 ? '...' : ''}"
+                                  </div>
+                                )}
+                                {/* Show files if still available */}
+                                {!asm.submission.isDeletedFromStorage && asm.submission.files?.length > 0 && (
+                                  <div className={styles.fileChipList}>
+                                    {asm.submission.files.map((f, i) => (
+                                      <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
+                                        className={styles.fileChipSuccess}>
+                                        📎 {f.originalName}
+                                      </a>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className={styles.noDataText}>Tidak mengumpulkan</span>
+                            )}
                           </div>
                         ) : !asm.submission ? (
                           /* Submit button */
