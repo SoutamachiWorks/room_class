@@ -16,7 +16,6 @@ export const viewport = {
 export const metadata = {
   title: 'RoomClass — Sistem Manajemen Kelas',
   description: 'Platform manajemen kelas digital untuk guru dan siswa. Kelola tugas, materi, dan ujian dalam satu tempat.',
-  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
