@@ -6,7 +6,8 @@ import PageHeader from '@/components/PageHeader';
 import ContentCard from '@/components/ContentCard';
 import StatusBadge from '@/components/StatusBadge';
 import EmptyState from '@/components/EmptyState';
-import styles from '../../../../admin/admin.module.css'; 
+import Modal from '@/components/Modal';
+import styles from '../../../../admin/admin.module.css';
 
 export default function TeacherSubmissionPage({ params }) {
   const router = useRouter();
@@ -18,12 +19,19 @@ export default function TeacherSubmissionPage({ params }) {
   const [assignmentMeta, setAssignmentMeta] = useState(null);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('all');
 
   // Grading states natively
-   const [gradingStudentId, setGradingStudentId] = useState(null);
-   const [gradeInput, setGradeInput] = useState('');
-   const [feedbackInput, setFeedbackInput] = useState('');
-   const [gradeLoading, setGradeLoading] = useState(false);
+  const [gradingStudentId, setGradingStudentId] = useState(null);
+  const [gradeInput, setGradeInput] = useState('');
+  const [feedbackInput, setFeedbackInput] = useState('');
+  const [gradeLoading, setGradeLoading] = useState(false);
+  
+  // Search and Pagination states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedStudentDetail, setSelectedStudentDetail] = useState(null);
+  const itemsPerPage = 10;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -49,218 +57,670 @@ export default function TeacherSubmissionPage({ params }) {
 
   const submitGrade = async (studentId) => {
     if (gradeInput === '' || isNaN(gradeInput)) {
-        alert('Format nilai harus diisi murni dengan angka bulat.');
-        return;
+      alert('Format nilai harus diisi murni dengan angka bulat.');
+      return;
     }
     
     setGradeLoading(true);
     try {
-        const res = await fetch(`/api/teacher/assignments/${assignmentId}/submissions/${studentId}/grade`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                score: Number(gradeInput),
-                feedback: feedbackInput
-            })
-        });
+      const res = await fetch(`/api/teacher/assignments/${assignmentId}/submissions/${studentId}/grade`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          score: Number(gradeInput),
+          feedback: feedbackInput
+        })
+      });
 
-        if (res.ok) {
-            setGradingStudentId(null);
-            setGradeInput('');
-            setFeedbackInput('');
-            fetchData();
-        } else {
-            const data = await res.json();
-            alert(data.error || 'Eksekusi mutasi gagal, data tak simetri.');
-        }
+      if (res.ok) {
+        setGradingStudentId(null);
+        setGradeInput('');
+        setFeedbackInput('');
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Eksekusi mutasi gagal, data tak simetri.');
+      }
     } catch (e) {
-        alert('Koneksi terputus saat meramban database.');
+      alert('Koneksi terputus saat meramban database.');
     } finally {
-        setGradeLoading(false);
+      setGradeLoading(false);
     }
   };
 
   const handleDownloadAllSelected = (filesArray) => {
-      // Loop map rendering physical anchors dynamically and chaining DOM clicks securely natively
-      filesArray.forEach(file => {
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = file.url;
-          a.download = file.originalName || file.filename;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-      });
+    filesArray.forEach(file => {
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = file.url;
+      a.download = file.originalName || file.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
   };
+
+  // Calculate statistics
+  const totalStudents = students.length;
+  const submittedCount = students.filter(s => s.submission).length;
+  const notSubmittedCount = totalStudents - submittedCount;
+  const lateCount = students.filter(s => s.submission?.isLate).length;
+  const gradedCount = students.filter(s => s.submission?.score !== undefined && s.submission?.score !== null).length;
+  const notGradedCount = submittedCount - gradedCount;
+  const averageScore = gradedCount > 0 
+    ? (students.reduce((acc, s) => acc + (s.submission?.score || 0), 0) / gradedCount).toFixed(1)
+    : '0';
+  const progressPercentage = totalStudents > 0 ? Math.round((submittedCount / totalStudents) * 100) : 0;
+
+  // Filter students based on active tab and search query
+  const filteredStudents = students.filter(student => {
+    const sub = student.submission;
+    const nameMatch = (student.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const idMatch = (student.studentId || '').toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (!nameMatch && !idMatch) return false;
+
+    switch (activeTab) {
+      case 'submitted': return sub && !sub.isLate;
+      case 'not-submitted': return !sub;
+      case 'late': return sub?.isLate;
+      case 'graded': return sub?.score !== undefined && sub?.score !== null;
+      case 'not-graded': return sub && (sub?.score === undefined || sub?.score === null);
+      default: return true;
+    }
+  });
+
+  // Dynamic Pagination Logic
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  const paginatedStudents = filteredStudents.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const handleExportCSV = () => {
+    if (students.length === 0) return;
+    
+    const headers = ['NO', 'NAMA SISWA', 'NIM/ID', 'STATUS', 'WAKTU', 'NILAI', 'FEEDBACK'];
+    const rows = students.map((s, i) => [
+      i + 1,
+      s.name || '-',
+      s.studentId || '-',
+      s.submission ? (s.submission.isLate ? 'Terlambat' : 'Tepat Waktu') : 'Belum Mengumpulkan',
+      s.submission ? new Date(s.submission.submittedAt).toLocaleString('id-ID') : '-',
+      s.submission?.score || '-',
+      s.submission?.feedback || '-'
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `submissions_${assignmentId}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getAvatarColor = (name) => {
+    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
+
 
   return (
     <>
-      <div className={styles.pageHeader}>
-        <div className={styles.subPageHeaderCol}>
-           <h1 className={`${styles.pageTitle} ${styles.pageTitleRow}`}>
-             <button onClick={() => router.push('/dashboard/teacher/assignments')} className={styles.btnBack}>
-                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.btnBackIcon}><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-             </button>
-             Monitor Evaluasi Penugasan
-           </h1>
-           {assignmentMeta && (
-               <div className={styles.subPageMeta}>
-                   Tugas: {assignmentMeta.text?.substring(0, 40)}... | Kelas: <span className={styles.subPageMetaAccent}>{assignmentMeta.subjectDetails?.classCode}</span>
-               </div>
-           )}
-        </div>
-      </div>
-
-      <div className={styles.submissionStatsRow}>
-        <div className={styles.submissionStatCol}>
-            <span className={styles.submissionStatLabel}>Aturan Batas Waktu Terkunci:</span>
+      {/* Page Header with Back Button */}
+      {/* Header Section */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', marginBottom: '32px', flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
+            <button 
+              onClick={() => router.push('/dashboard/teacher/assignments')}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--color-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'var(--color-heading)'
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+            </button>
+            <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-heading)', margin: 0 }}>Monitor Evaluasi Penugasan</h1>
+          </div>
+          <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--color-subtext)', marginBottom: '16px', marginLeft: '48px' }}>
+            <span>Tugas: <span style={{ color: 'var(--color-heading)', fontWeight: 500 }}>{assignmentMeta?.title || 'Test Modul'}</span></span>
+            <span>Kelas: <span style={{ color: '#3B82F6', fontWeight: 600 }}>{assignmentMeta?.subjectDetails?.classCode || '-'}</span></span>
+          </div>
+          <div style={{ marginLeft: '48px' }}>
             <StatusBadge variant={assignmentMeta?.deadline ? 'danger' : 'success'}>
-                {assignmentMeta?.deadline ? new Date(assignmentMeta.deadline).toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' }) : 'Tidak Berbatas Ruang / Infinity'}
+              {assignmentMeta?.deadline 
+                ? `BATAS WAKTU: ${new Date(assignmentMeta.deadline).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}`.toUpperCase()
+                : 'TIDAK BERBATAS RUANG / INFINITY'}
             </StatusBadge>
+          </div>
         </div>
-        <div className={`${styles.submissionStatCol} ${styles.submissionStatColBorder}`}>
-            <span className={styles.submissionStatLabel}>Terkumpul (Aktivasi Rasio):</span>
-            <strong className={styles.submissionStatValue}>
-                {students.filter(s => s.submission).length} / {students.length} Siswa
-            </strong>
+
+        {/* Progress Card */}
+        <div style={{ 
+          background: 'var(--bg-card)', 
+          border: '1px solid var(--color-border)', 
+          borderRadius: '16px', 
+          padding: '24px', 
+          minWidth: '320px',
+          flex: '1',
+          maxWidth: '500px',
+          boxShadow: 'var(--shadow-sm)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-heading)' }}>Progress Pengumpulan</span>
+            <span style={{ fontSize: '16px', fontWeight: 700, color: '#3B82F6' }}>{progressPercentage}%</span>
+          </div>
+          <div style={{ height: '8px', background: 'var(--bg-app)', borderRadius: '4px', overflow: 'hidden', marginBottom: '12px' }}>
+            <div style={{ width: `${progressPercentage}%`, height: '100%', background: '#3B82F6', borderRadius: '4px', transition: 'width 1s ease' }} />
+          </div>
+          <div style={{ fontSize: '13px', color: 'var(--color-subtext)' }}>
+            <strong>{submittedCount}</strong> dari {totalStudents} siswa sudah mengumpulkan
+          </div>
         </div>
       </div>
 
+      {/* Stats Cards Row */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+        gap: '16px', 
+        marginBottom: '32px' 
+      }}>
+        {[
+          { label: 'Total Siswa', value: totalStudents, sub: `Semua siswa di kelas ${assignmentMeta?.subjectDetails?.classCode || '-'}`, color: '#3B82F6', icon: 'users' },
+          { label: 'Sudah Mengumpulkan', value: submittedCount, sub: `${progressPercentage}% dari total siswa`, color: '#10B981', icon: 'check' },
+          { label: 'Belum Mengumpulkan', value: notSubmittedCount, sub: `${Math.round((notSubmittedCount/totalStudents)*100) || 0}% dari total siswa`, color: '#F59E0B', icon: 'clock' },
+          { label: 'Terlambat', value: lateCount, sub: `${Math.round((lateCount/totalStudents)*100) || 0}% dari total siswa`, color: '#EF4444', icon: 'alert' },
+          { label: 'Rata-rata Nilai', value: averageScore, sub: `Dari ${gradedCount} siswa dinilai`, color: '#8B5CF6', icon: 'star' },
+        ].map((stat, i) => (
+          <div key={i} style={{ 
+            background: 'var(--bg-card)', 
+            border: '1px solid var(--color-border)', 
+            borderRadius: '16px', 
+            padding: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              background: `rgba(${parseInt(stat.color.slice(1,3), 16)}, ${parseInt(stat.color.slice(3,5), 16)}, ${parseInt(stat.color.slice(5,7), 16)}, 0.1)`,
+              color: stat.color,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              {stat.icon === 'users' && <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
+              {stat.icon === 'check' && <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
+              {stat.icon === 'clock' && <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
+              {stat.icon === 'alert' && <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>}
+              {stat.icon === 'star' && <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>}
+            </div>
+            <div>
+              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-heading)' }}>{stat.value}</div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '2px' }}>{stat.label}</div>
+              <div style={{ fontSize: '10px', color: 'var(--color-subtext)', whiteSpace: 'nowrap' }}>{stat.sub}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters Section */}
+      {/* Filters & Tabs Row */}
+      <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--color-border)', padding: '24px', boxShadow: 'var(--shadow-sm)', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', marginBottom: '24px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '300px' }}>
+            <div className={styles.searchBox} style={{ flex: 1, border: '1px solid var(--color-border)', borderRadius: '10px' }}>
+              <svg className={styles.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input 
+                type="text" 
+                placeholder="Cari nama siswa..." 
+                className={styles.searchInput}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '0 16px',
+              background: 'var(--bg-app)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: 'var(--color-text)',
+              cursor: 'pointer'
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+              </svg>
+              Filter Status
+            </button>
+          </div>
+          <button 
+            onClick={handleExportCSV}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: 'var(--color-heading)',
+              cursor: 'pointer'
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+          {[
+            { key: 'all', label: 'Semua', count: totalStudents },
+            { key: 'submitted', label: 'Sudah Dikumpulkan', count: submittedCount - lateCount, color: '#10B981' },
+            { key: 'not-submitted', label: 'Belum Dikumpulkan', count: notSubmittedCount, color: '#F59E0B' },
+            { key: 'late', label: 'Terlambat', count: lateCount, color: '#EF4444' },
+            { key: 'graded', label: 'Sudah Dinilai', count: gradedCount, color: '#3B82F6' },
+            { key: 'not-graded', label: 'Belum Dinilai', count: notGradedCount, color: 'var(--color-subtext)' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => { setActiveTab(tab.key); setCurrentPage(1); }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                background: activeTab === tab.key ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                border: activeTab === tab.key ? '1px solid #3B82F6' : '1px solid transparent',
+                borderRadius: '99px',
+                fontSize: '13px',
+                fontWeight: activeTab === tab.key ? 600 : 500,
+                color: activeTab === tab.key ? '#3B82F6' : 'var(--color-subtext)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {tab.label}
+              <span style={{
+                padding: '2px 8px',
+                background: activeTab === tab.key ? '#3B82F6' : 'rgba(0,0,0,0.1)',
+                color: activeTab === tab.key ? 'white' : 'var(--color-subtext)',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: 700
+              }}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Data Table */}
       <ContentCard>
         <div className={styles.tableContainer}>
           {loading ? (
-             <div className={styles.loadingBox}>
-               <div className="spinner"></div> 
-               Mengenkripsi Saluran File Siswa...
-             </div>
-          ) : students.length === 0 ? (
+            <div className={styles.loadingBox}>
+              <div className="spinner"></div> 
+              Memuat data pengumpulan siswa...
+            </div>
+          ) : paginatedStudents.length === 0 ? (
             <EmptyState
-              title="Tidak Ada Siswa"
-              description="Lokus Array Siswa Kosong. Tidak ada siswa di kelas mapping ini."
+              title="Tidak Ada Data"
+              description="Tidak ada siswa yang sesuai dengan kriteria pencarian atau filter."
             />
           ) : (
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Siswa</th>
-                  <th>Pernyataan / File Terlampir</th>
-                  <th>Keterangan / Tenggat</th>
-                  <th className={styles.thCenter}>Input Nilai Otentik</th>
+                  <th style={{ width: '50px', textAlign: 'center' }}>NO</th>
+                  <th style={{ width: '20%' }}>NAMA SISWA</th>
+                  <th style={{ width: '15%' }}>STATUS</th>
+                  <th style={{ width: '15%' }}>WAKTU PENGUMPULAN</th>
+                  <th style={{ width: '15%' }}>FILE TERKUMPUL</th>
+                  <th style={{ width: '10%', textAlign: 'center' }}>NILAI</th>
+                  <th style={{ width: '8%', textAlign: 'center' }}>FEEDBACK</th>
+                  <th style={{ width: '17%' }}>AKSI</th>
                 </tr>
               </thead>
               <tbody>
-                {students.map((student) => {
+                {paginatedStudents.map((student, index) => {
                   const sub = student.submission;
                   const isGrading = gradingStudentId === student.studentId;
+                  const avatarColor = getAvatarColor(student.name || '');
 
                   return (
-                      <tr key={student._id}>
-                        <td data-label="Siswa">
-                          <div className={styles.userName}>{student.name || 'Nama Tidak Tersedia'}</div>
-                          <div className={styles.subIdChip}>[{student.studentId}]</div>
-                        </td>
-                        <td data-label="Jawaban / File">
-                          {sub ? (
-                              <div className={styles.submissionContent}>
-                                 {sub.text && (
-                                     <div className={styles.submissionTextBox}>
-                                         {sub.text}
-                                     </div>
-                                 )}
-                                 
-                                 {sub.files && sub.files.length > 0 && (
-                                      <div className={styles.submissionFileSection}>
-                                        <div className={styles.submissionFileHeader}>
-                                             <span className={styles.submissionFileLabel}>Lampiran File ({sub.files.length})</span>
-                                             <button 
-                                                onClick={() => handleDownloadAllSelected(sub.files)} 
-                                                className={styles.downloadAllBtn}
-                                             >
-                                                Unduh Semua 👇
-                                             </button>
-                                        </div>
-                                        <div className={styles.fileChipList}>
-                                            {sub.files.map((fl, x) => (
-                                                <a key={x} href={fl.url} target="_blank" rel="noopener noreferrer" className={styles.fileChipSuccess}>
-                                                    <span>📎</span>
-                                                    <span className={styles.fileChipName}>{fl.originalName}</span>
-                                                </a>
-                                            ))}
-                                        </div>
-                                     </div>
-                                 )}
+                    <tr key={student._id} style={{ transition: 'background 0.2s', borderBottom: '1px solid var(--color-border)' }}>
+                      <td data-label="NO" style={{ textAlign: 'center', color: 'var(--color-subtext)', fontSize: '13px', fontWeight: 600 }}>
+                        {(currentPage - 1) * itemsPerPage + index + 1}
+                      </td>
+                      <td data-label="NAMA SISWA">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                          <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '12px',
+                            backgroundColor: avatarColor,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '14px',
+                            fontWeight: 700,
+                            color: 'white',
+                            flexShrink: 0,
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+                          }}>
+                            {getInitials(student.name)}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ fontWeight: 700, color: 'var(--color-heading)', fontSize: '14px', marginBottom: '2px' }}>{student.name || 'Siswa'}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--color-subtext)', letterSpacing: '0.5px' }}>{student.studentId}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td data-label="STATUS">
+                        {sub ? (
+                          <div style={{ 
+                            padding: '6px 12px', 
+                            background: sub.isLate ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                            color: sub.isLate ? '#EF4444' : '#10B981',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            textAlign: 'center',
+                            display: 'inline-block',
+                            width: '100%'
+                          }}>
+                            {sub.isLate ? 'Terlambat' : 'Sudah Dikumpulkan'}
+                          </div>
+                        ) : (
+                          <div style={{ 
+                            padding: '6px 12px', 
+                            background: 'rgba(245, 158, 11, 0.1)',
+                            color: '#F59E0B',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            textAlign: 'center',
+                            display: 'inline-block',
+                            width: '100%'
+                          }}>
+                            Belum Dikumpulkan
+                          </div>
+                        )}
+                      </td>
+                      <td data-label="WAKTU PENGUMPULAN">
+                        {sub ? (
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-heading)' }}>
+                              {new Date(sub.submittedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--color-subtext)' }}>
+                              {new Date(sub.submittedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                            </div>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--color-subtext)' }}>-</span>
+                        )}
+                      </td>
+                      <td data-label="FILE TERKUMPUL">
+                        {sub?.files && sub.files.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {sub.files.map((fl, x) => (
+                              <div key={x} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontSize: '11px', color: 'var(--color-heading)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>{fl.originalName}</div>
+                                  <div style={{ fontSize: '10px', color: 'var(--color-subtext)' }}>{formatFileSize(fl.size)}</div>
+                                </div>
                               </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--color-subtext)' }}>-</span>
+                        )}
+                      </td>
+                      <td data-label="NILAI" style={{ textAlign: 'center' }}>
+                        {isGrading ? (
+                          <input 
+                            type="number" 
+                            value={gradeInput}
+                            onChange={e => setGradeInput(e.target.value)}
+                            style={{
+                              width: '50px',
+                              padding: '4px',
+                              border: '1px solid #3B82F6',
+                              borderRadius: '4px',
+                              textAlign: 'center',
+                              fontSize: '12px',
+                              fontWeight: 700
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          sub?.score !== undefined && sub?.score !== null ? (
+                            <div style={{
+                              display: 'inline-flex',
+                              width: '32px',
+                              height: '32px',
+                              background: sub.score >= 80 ? 'rgba(16, 185, 129, 0.15)' : 
+                                         sub.score >= 60 ? 'rgba(245, 158, 11, 0.15)' : 
+                                         'rgba(239, 68, 68, 0.15)',
+                              color: sub.score >= 80 ? '#10B981' : 
+                                    sub.score >= 60 ? '#F59E0B' : 
+                                    '#EF4444',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              fontWeight: 800,
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              {sub.score}
+                            </div>
                           ) : (
-                             <span className={styles.noDataText}>Belum Mengerjakan</span>
-                          )}
-                        </td>
-                        <td data-label="Keterangan">
-                           {sub ? (
-                               <div className={styles.submissionMeta}>
-                                  <span className={styles.submissionMetaBold}>Dikumpulkan:</span>
-                                  <span className={styles.cellSecondary}>{new Date(sub.submittedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                                  {sub.isLate && (
-                                      <StatusBadge variant="danger">Terlambat</StatusBadge>
-                                  )}
-                               </div>
-                           ) : (
-                               <span>-</span>
-                           )}
-                        </td>
-                        <td data-label="Nilai" className={styles.tdCenter}>
-                            {sub ? (
-                                isGrading ? (
-                                    <div className={styles.gradingInlineBox}>
-                                        <input 
-                                            type="number" 
-                                            value={gradeInput}
-                                            onChange={e => setGradeInput(e.target.value)}
-                                            className={styles.gradingInlineInput}
-                                            placeholder="0-100"
-                                            autoFocus
-                                        />
-                                        <textarea 
-                                            value={feedbackInput}
-                                            onChange={e => setFeedbackInput(e.target.value)}
-                                            placeholder="Catatan / Feedback Guru (Opsional)"
-                                            className={styles.gradingInlineTextarea}
-                                        />
-                                        <div className={styles.gradingInlineActions}>
-                                            <button onClick={() => setGradingStudentId(null)} disabled={gradeLoading} className={styles.gradingInlineBtnCancel}>Batal</button>
-                                            <button onClick={() => submitGrade(student.studentId)} disabled={gradeLoading} className={styles.gradingInlineBtnSave}>Simpan</button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className={styles.gradingResultCol}>
-                                        {sub.score !== undefined && sub.score !== null ? (
-                                            <div className={styles.scoreBadgeLarge}>
-                                                {sub.score} <span className={styles.scoreBadgeSuffix}>/ 100</span>
-                                            </div>
-                                        ) : (
-                                            <span className={styles.noDataText}>Belum Dinilai</span>
-                                        )}
-                                        {sub.feedback && (
-                                            <div className={styles.gradingFeedbackText}>
-                                                &quot;{sub.feedback}&quot;
-                                            </div>
-                                        )}
-                                        <button 
-                                            onClick={() => { 
-                                                setGradingStudentId(student.studentId); 
-                                                setGradeInput(sub.score || ''); 
-                                                setFeedbackInput(sub.feedback || '');
-                                            }}
-                                            className={styles.gradingEditLink}
-                                        >
-                                            Ubah / Setel Nilai
-                                        </button>
-                                    </div>
-                                )
-                            ) : (
-                                <span className={styles.cellSecondary}>-</span>
+                            <span style={{ color: 'var(--color-subtext)' }}>-</span>
+                          )
+                        )}
+                      </td>
+                      <td data-label="FEEDBACK" style={{ textAlign: 'center' }}>
+                        {isGrading ? (
+                          <input 
+                            type="text" 
+                            placeholder="Feedback..."
+                            value={feedbackInput}
+                            onChange={(e) => setFeedbackInput(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              border: '1.5px solid #3B82F6',
+                              fontSize: '13px',
+                              background: 'var(--bg-card)',
+                              color: 'var(--color-text)',
+                              outline: 'none'
+                            }}
+                          />
+                        ) : (
+                          <button 
+                            onClick={() => setSelectedStudentDetail({
+                              ...student,
+                              classCode: assignmentMeta?.subjectDetails?.classCode
+                            })}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              background: sub?.feedback ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-app)',
+                              border: '1px solid var(--color-border)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: sub?.feedback ? '#3B82F6' : 'var(--color-subtext)',
+                              cursor: 'pointer',
+                              margin: '0 auto',
+                              transition: 'all 0.2s'
+                            }}
+                            title={sub?.feedback || 'Belum ada feedback'}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                            </svg>
+                          </button>
+                        )}
+                      </td>
+                      <td data-label="AKSI">
+                        {isGrading ? (
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                            <button 
+                              onClick={() => submitGrade(student.studentId)} 
+                              disabled={gradeLoading}
+                              style={{
+                                width: '36px',
+                                height: '36px',
+                                background: '#10B981',
+                                border: 'none',
+                                borderRadius: '8px',
+                                color: 'white',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              title="Simpan Nilai"
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <polyline points="20 6 9 17 4 12"/>
+                              </svg>
+                            </button>
+                            <button 
+                              onClick={() => setGradingStudentId(null)} 
+                              disabled={gradeLoading}
+                              style={{
+                                width: '36px',
+                                height: '36px',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '1px solid rgba(239, 68, 68, 0.2)',
+                                borderRadius: '8px',
+                                color: '#EF4444',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              title="Batal"
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                            <button 
+                              onClick={() => setSelectedStudentDetail({
+                                ...student,
+                                classCode: assignmentMeta?.subjectDetails?.classCode
+                              })}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 14px',
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                border: '1px solid rgba(59, 130, 246, 0.2)',
+                                borderRadius: '8px',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                color: '#3B82F6',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              Detail
+                            </button>
+                            {sub && (
+                              <button 
+                                onClick={() => { 
+                                  setGradingStudentId(student.studentId); 
+                                  setGradeInput(sub.score || ''); 
+                                  setFeedbackInput(sub.feedback || '');
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  padding: '8px 14px',
+                                  background: 'var(--bg-app)',
+                                  border: '1px solid var(--color-border)',
+                                  borderRadius: '8px',
+                                  fontSize: '13px',
+                                  fontWeight: 600,
+                                  color: 'var(--color-heading)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                Nilai
+                              </button>
                             )}
-                        </td>
-                      </tr>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -268,6 +728,300 @@ export default function TeacherSubmissionPage({ params }) {
           )}
         </div>
       </ContentCard>
+
+      {/* Pagination */}
+      {!loading && totalPages > 1 && (
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          marginTop: '24px',
+          padding: '0 4px'
+        }}>
+          <div style={{ fontSize: '13px', color: 'var(--color-subtext)', fontWeight: 500 }}>
+            Menampilkan <span style={{ color: 'var(--color-heading)', fontWeight: 600 }}>{Math.min((currentPage - 1) * itemsPerPage + 1, filteredStudents.length)}</span> sampai <span style={{ color: 'var(--color-heading)', fontWeight: 600 }}>{Math.min(currentPage * itemsPerPage, filteredStudents.length)}</span> dari <span style={{ color: 'var(--color-heading)', fontWeight: 600 }}>{filteredStudents.length}</span> Siswa
+          </div>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                border: '1px solid var(--color-border)',
+                background: 'var(--bg-card)',
+                color: currentPage === 1 ? 'var(--color-subtext)' : 'var(--color-heading)',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: currentPage === 1 ? 0.5 : 1,
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button 
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  border: currentPage === page ? 'none' : '1px solid var(--color-border)',
+                  background: currentPage === page ? '#3B82F6' : 'var(--bg-card)',
+                  color: currentPage === page ? 'white' : 'var(--color-heading)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
+                  boxShadow: currentPage === page ? '0 4px 10px rgba(59, 130, 246, 0.3)' : 'none'
+                }}
+              >
+                {page}
+              </button>
+            ))}
+
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                border: '1px solid var(--color-border)',
+                background: 'var(--bg-card)',
+                color: currentPage === totalPages ? 'var(--color-subtext)' : 'var(--color-heading)',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: currentPage === totalPages ? 0.5 : 1,
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M9 18l6-6 6-6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Submission Detail Modal */}
+      <Modal
+        isOpen={!!selectedStudentDetail}
+        onClose={() => setSelectedStudentDetail(null)}
+        title="Detail Pengumpulan Siswa"
+        maxWidth="800px"
+      >
+        {selectedStudentDetail && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Student Info Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--color-border)' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                backgroundColor: getAvatarColor(selectedStudentDetail.name || ''),
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '18px',
+                fontWeight: 700,
+                color: 'white'
+              }}>
+                {getInitials(selectedStudentDetail.name)}
+              </div>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-heading)', margin: 0 }}>{selectedStudentDetail.name}</h3>
+                <p style={{ fontSize: '14px', color: 'var(--color-subtext)', margin: '4px 0 0 0' }}>NIM: {selectedStudentDetail.studentId} • Kelas: {selectedStudentDetail.classCode}</p>
+              </div>
+              <div style={{ marginLeft: 'auto' }}>
+                <StatusBadge variant={selectedStudentDetail.submission ? (selectedStudentDetail.submission.isLate ? 'danger' : 'success') : 'warning'}>
+                  {selectedStudentDetail.submission ? (selectedStudentDetail.submission.isLate ? 'Terlambat' : 'Tepat Waktu') : 'Belum Mengumpulkan'}
+                </StatusBadge>
+              </div>
+            </div>
+
+            {/* Submission Content */}
+            {selectedStudentDetail.submission ? (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '24px' }}>
+                  <div>
+                    <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '10px' }}>Pesan / Jawaban:</h4>
+                    <div style={{ 
+                      padding: '16px', 
+                      background: 'var(--bg-app)', 
+                      borderRadius: '8px', 
+                      fontSize: '14px', 
+                      lineHeight: '1.6', 
+                      color: 'var(--color-text)',
+                      minHeight: '100px',
+                      whiteSpace: 'pre-wrap',
+                      border: '1px solid var(--color-border)'
+                    }}>
+                      {selectedStudentDetail.submission.text || <span style={{ fontStyle: 'italic', color: 'var(--color-subtext)' }}>Tidak ada pesan tambahan.</span>}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '10px' }}>Metadata:</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed var(--color-border)' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--color-subtext)' }}>Waktu Pengumpulan</span>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>
+                          {new Date(selectedStudentDetail.submission.submittedAt).toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed var(--color-border)' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--color-subtext)' }}>Status Nilai</span>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: selectedStudentDetail.submission.score !== null ? '#10B981' : '#F59E0B' }}>
+                          {selectedStudentDetail.submission.score !== null ? 'Sudah Dinilai' : 'Belum Dinilai'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed var(--color-border)' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--color-subtext)' }}>Total File</span>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>
+                          {selectedStudentDetail.submission.files?.length || 0} File
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Files Section */}
+                <div>
+                  <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    File Terlampir
+                    {selectedStudentDetail.submission.files?.length > 1 && (
+                      <button 
+                        onClick={() => handleDownloadAllSelected(selectedStudentDetail.submission.files)}
+                        style={{ fontSize: '12px', color: '#3B82F6', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      >
+                        Download Semua
+                      </button>
+                    )}
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+                    {selectedStudentDetail.submission.files?.map((file, idx) => (
+                      <a
+                        key={idx}
+                        href={file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '12px',
+                          background: 'var(--bg-card)',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: '8px',
+                          textDecoration: 'none',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px' }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                          </svg>
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {file.originalName}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--color-subtext)' }}>{formatFileSize(file.size)}</div>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Grading Summary */}
+                {selectedStudentDetail.submission.score !== null && (
+                  <div style={{ padding: '16px', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#3B82F6', margin: 0 }}>Hasil Penilaian</h4>
+                      <div style={{ padding: '4px 12px', background: '#3B82F6', color: 'white', borderRadius: '20px', fontSize: '16px', fontWeight: 800 }}>
+                        {selectedStudentDetail.submission.score}
+                      </div>
+                    </div>
+                    {selectedStudentDetail.submission.feedback && (
+                      <div>
+                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-subtext)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Feedback Guru:</span>
+                        <p style={{ fontSize: '13px', color: 'var(--color-text)', margin: '8px 0 0 0', lineHeight: '1.5' }}>{selectedStudentDetail.submission.feedback}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ padding: '40px', textAlign: 'center', background: 'var(--bg-app)', borderRadius: '12px', border: '1px dashed var(--color-border)' }}>
+                <div style={{ width: '64px', height: '64px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                </div>
+                <h4 style={{ margin: '0 0 8px 0', color: 'var(--color-heading)' }}>Siswa Belum Mengumpulkan</h4>
+                <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-subtext)' }}>Belum ada data pengumpulan yang tersedia untuk ditampilkan.</p>
+              </div>
+            )}
+
+            {/* Modal Footer Actions */}
+            <div style={{ display: 'flex', gap: '12px', marginTop: '10px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
+              <button 
+                onClick={() => setSelectedStudentDetail(null)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: 'var(--bg-app)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: 'var(--color-text)',
+                  cursor: 'pointer'
+                }}
+              >
+                Tutup
+              </button>
+              {selectedStudentDetail.submission && (
+                <button 
+                  onClick={() => {
+                    setGradingStudentId(selectedStudentDetail.studentId);
+                    setGradeInput(selectedStudentDetail.submission.score || '');
+                    setFeedbackInput(selectedStudentDetail.submission.feedback || '');
+                    setSelectedStudentDetail(null);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    background: '#3B82F6',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: 'white',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Beri Nilai / Edit Nilai
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
     </>
   );
 }

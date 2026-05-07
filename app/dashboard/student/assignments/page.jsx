@@ -1,447 +1,346 @@
-'use client';
-
+﻿'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import PageHeader from '@/components/PageHeader';
-import ContentCard from '@/components/ContentCard';
-import StatusBadge from '@/components/StatusBadge';
-import EmptyState from '@/components/EmptyState';
 import { uploadWithProgress } from '@/lib/xhrUpload';
 import { ACCEPT_STR, validateFiles } from '@/lib/fileValidation';
-import styles from '../../admin/admin.module.css';
+import s from './assignments.module.css';
+
+const TABS = ['Semua','Belum Dikumpulkan','Sudah Dikumpulkan','Terlambat'];
+
+function getStatus(asm) {
+  if (!asm.submission) {
+    const dl = asm.deadline ? new Date(asm.deadline) : null;
+    if (dl && new Date() > dl) return 'late';
+    return 'pending';
+  }
+  return asm.submission.isLate ? 'submitted-late' : 'submitted';
+}
+
+function StatusPill({ status }) {
+  const map = {
+    pending: [s.statusPending, 'Belum Dikumpulkan'],
+    late: [s.statusLate, 'Terlambat'],
+    'submitted-late': [s.statusLate, 'Terlambat Dikumpulkan'],
+    submitted: [s.statusSubmitted, 'Sudah Dikumpulkan'],
+  };
+  const [cls, label] = map[status] || [s.statusPending, status];
+  return <span className={s.statusBadge + ' ' + cls}>{label}</span>;
+}
+
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : null; }
+function fmtTime(d) { return d ? new Date(d).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})+' WIB' : null; }
+function daysLate(dl) { return Math.max(0, Math.floor((new Date()-new Date(dl))/86400000)); }
+
+function StatCard({label,value,desc,border,iconBg,iconCol,icon}) {
+  return (
+    <div className={s.statCard} style={{borderLeftColor:border}}>
+      <div className={s.statTop}>
+        <div className={s.statIconWrap} style={{background:iconBg}}>
+          <svg viewBox="0 0 24 24" fill="none" stroke={iconCol} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+        </div>
+        <span className={s.statValue}>{value}</span>
+      </div>
+      <div className={s.statLabel}>{label}</div>
+      <div className={s.statDesc}>{desc}</div>
+    </div>
+  );
+}
 
 export default function StudentAssignmentsPage() {
   const searchParams = useSearchParams();
   const yearId = searchParams.get('yearId');
-
   const [assignments, setAssignments] = useState([]);
   const [enrolledYears, setEnrolledYears] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState(0);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const PER = 10;
 
-  // Submission modal
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedAssignment, setSelectedAssignment] = useState(null);
-  const [editingSubmission, setEditingSubmission] = useState(null);
-
-  // Delete modal
+  const [selectedAsm, setSelectedAsm] = useState(null);
+  const [editingSub, setEditingSub] = useState(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-
-  // Form state
   const [formText, setFormText] = useState('');
   const [attachedFiles, setAttachedFiles] = useState([]);
-  const [retainedOldFiles, setRetainedOldFiles] = useState([]);
-  const fileInputRef = useRef(null);
-  const [formError, setFormError] = useState('');
+  const [retainedOld, setRetainedOld] = useState([]);
+  const fileRef = useRef(null);
+  const [formErr, setFormErr] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [progress, setProgress] = useState(0);
 
-  const fetchAssignments = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const url = yearId ? `/api/student/assignments?yearId=${yearId}` : '/api/student/assignments';
+      const url = yearId ? '/api/student/assignments?yearId='+yearId : '/api/student/assignments';
       const res = await fetch(url);
       const data = await res.json();
-      if (res.ok) {
-        setAssignments(data.assignments || []);
-        setEnrolledYears(data.enrolledYears || []);
-      }
-    } catch (err) {
-      console.error('Error fetching assignments:', err);
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) { setAssignments(data.assignments||[]); setEnrolledYears(data.enrolledYears||[]); }
+    } catch(e){ console.error(e); } finally { setLoading(false); }
   }, [yearId]);
 
-  useEffect(() => {
-    fetchAssignments();
-  }, [fetchAssignments]);
+  useEffect(()=>{ fetchData(); },[fetchData]);
 
-  // Open submit / edit modal
-  const handleOpenForm = (assignment, existingSubmission = null) => {
-    setSelectedAssignment(assignment);
-    setEditingSubmission(existingSubmission);
-    setFormError('');
-
-    if (existingSubmission) {
-      setFormText(existingSubmission.text || '');
-      setRetainedOldFiles(existingSubmission.files || []);
-      setAttachedFiles([]);
-    } else {
-      setRetainedOldFiles([]);
-      setAttachedFiles([]);
-    }
-    setUploadProgress(0);
+  const openForm = (asm, existing=null) => {
+    setSelectedAsm(asm); setEditingSub(existing); setFormErr('');
+    setFormText(existing?.text||''); setRetainedOld(existing?.files||[]); setAttachedFiles([]); setProgress(0);
     setIsFormOpen(true);
   };
-
-  const handleCloseForm = () => {
-    setIsFormOpen(false);
-    setSelectedAssignment(null);
-    setEditingSubmission(null);
-  };
+  const closeForm = () => { setIsFormOpen(false); setSelectedAsm(null); setEditingSub(null); };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setFormError('');
-    setFormLoading(true);
-
-    const isEdit = !!editingSubmission;
-
-    if (!formText && attachedFiles.length === 0 && retainedOldFiles.length === 0) {
-      setFormError('Isi teks jawaban atau lampirkan file.');
-      setFormLoading(false);
-      return;
-    }
-
+    e.preventDefault(); setFormErr(''); setFormLoading(true);
+    if (!formText && !attachedFiles.length && !retainedOld.length) { setFormErr('Isi teks atau lampirkan file.'); setFormLoading(false); return; }
     try {
-      // 10MB limit validation for normal student homework Submissions
-      const MAX_SIZE = 10 * 1024 * 1024;
-      let totalSize = 0;
-      for (const obj of attachedFiles) totalSize += obj.size;
-      
-      if (totalSize > MAX_SIZE) {
-         setFormError('Sistem menolak! Total batasan memori untuk jawaban Anda melebihi angka 10 MB.');
-         setFormLoading(false);
-         return;
-      }
-
-      const formData = new FormData();
-      formData.append('text', formText);
-
-      if (isEdit) {
-        const keepArray = retainedOldFiles.map(f => f.fileKey || f.filename);
-        formData.append('retainedFiles', JSON.stringify(keepArray));
-      } else {
-        formData.append('assignmentId', selectedAssignment._id);
-      }
-
-      for (const fileItem of attachedFiles) {
-        formData.append('files', fileItem);
-      }
-
-      const url = isEdit
-        ? `/api/student/submissions/${editingSubmission._id}`
-        : '/api/student/submissions';
-      const method = isEdit ? 'PUT' : 'POST';
-
-      setUploadProgress(0);
-      const data = await uploadWithProgress(url, formData, method, (val) => setUploadProgress(val));
-
-      fetchAssignments();
-      handleCloseForm();
-    } catch (err) {
-      setFormError(err.message || 'Koneksi ke server gagal.');
-    } finally {
-      setFormLoading(false);
-      setUploadProgress(0);
-    }
+      let total=0; for(const f of attachedFiles) total+=f.size;
+      if(total>10*1024*1024){ setFormErr('File melebihi 10 MB.'); setFormLoading(false); return; }
+      const fd = new FormData();
+      fd.append('text', formText);
+      if(editingSub) fd.append('retainedFiles', JSON.stringify(retainedOld.map(f=>f.fileKey||f.filename)));
+      else fd.append('assignmentId', selectedAsm._id);
+      for(const f of attachedFiles) fd.append('files', f);
+      const url = editingSub ? '/api/student/submissions/'+editingSub._id : '/api/student/submissions';
+      await uploadWithProgress(url, fd, editingSub?'PUT':'POST', v=>setProgress(v));
+      fetchData(); closeForm();
+    } catch(err){ setFormErr(err.message||'Gagal.'); } finally { setFormLoading(false); setProgress(0); }
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleteLoading(true);
+    if(!deleteTarget) return; setDeleteLoading(true);
     try {
-      const res = await fetch(`/api/student/submissions/${deleteTarget._id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (res.ok) {
-        fetchAssignments();
-        setIsDeleteOpen(false);
-      } else {
-        alert(data.error || 'Gagal menghapus.');
-        setIsDeleteOpen(false);
-      }
-    } catch {
-      alert('Koneksi ke server gagal.');
-      setIsDeleteOpen(false);
-    } finally {
-      setDeleteLoading(false);
-    }
+      const res = await fetch('/api/student/submissions/'+deleteTarget._id,{method:'DELETE'});
+      if(res.ok){ fetchData(); setIsDeleteOpen(false); }
+      else { const d=await res.json(); alert(d.error||'Gagal.'); setIsDeleteOpen(false); }
+    } catch { alert('Koneksi gagal.'); setIsDeleteOpen(false); } finally { setDeleteLoading(false); }
   };
 
-  const removeRetainedFile = (fileName) => {
-    setRetainedOldFiles(prev => prev.filter(f => f.filename !== fileName));
+  const isArchive = yearId && enrolledYears.length>0 && yearId!==enrolledYears[enrolledYears.length-1]?.yearId;
+
+  const filtered = assignments.filter(a => {
+    const q = search.toLowerCase();
+    const match = !q||(a.text||'').toLowerCase().includes(q)||(a.subjectDetails?.subjectName||'').toLowerCase().includes(q);
+    const st = getStatus(a);
+    if(activeTab===1) return match&&(st==='pending'||st==='late');
+    if(activeTab===2) return match&&(st==='submitted'||st==='submitted-late');
+    if(activeTab===3) return match&&(st==='late'||st==='submitted-late');
+    return match;
+  });
+
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total/PER));
+  const paged = filtered.slice((page-1)*PER, page*PER);
+  const stats = {
+    total: assignments.length,
+    done: assignments.filter(a=>getStatus(a)==='submitted').length,
+    pending: assignments.filter(a=>getStatus(a)==='pending').length,
+    late: assignments.filter(a=>['late','submitted-late'].includes(getStatus(a))).length,
   };
 
-  const removeAttachedFile = (idx) => {
-    setAttachedFiles(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const isArchiveMode = yearId && enrolledYears.length > 0 && yearId !== enrolledYears[enrolledYears.length - 1].yearId;
+  const ClipIcon = ()=><><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>;
 
   return (
-    <>
-      <PageHeader
-        title={<>Tugas Saya {isArchiveMode && <span className={styles.archiveTag}>(Mode Arsip)</span>}</>}
-        subtitle="Daftar tugas dari guru berdasarkan kelas Anda. Klik 'Kumpulkan' untuk mengirim jawaban."
-      />
-
-      {isArchiveMode && (
-        <div className={styles.archiveBanner}>
-          ⚠️ Anda sedang melihat tugas tahun ajaran sebelumnya. Mode baca-saja aktif.
+    <div className={s.page}>
+      <div className={s.pageHeaderRow}>
+        <div className={s.pageTitleGroup}>
+          <h1 className={s.pageTitle}>Tugas Saya</h1>
+          <p className={s.pageSubtitle}>Kelola dan pantau tugas yang diberikan oleh guru.</p>
         </div>
-      )}
+        <button className={s.btnPrimary} onClick={()=>assignments[0]&&openForm(assignments[0])}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Kumpulkan Tugas
+        </button>
+      </div>
 
-      <ContentCard>
-        <div className={styles.tableContainer}>
+      {isArchive&&<div className={s.archiveBanner}>⚠️ Mode Arsip — Tampilan baca saja.</div>}
+
+      <div className={s.controlsRow}>
+        <div className={s.searchWrapper}>
+          <svg className={s.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input className={s.searchInput} placeholder="Cari tugas..." value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/>
+        </div>
+        <button className={s.btnFilter}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Filter
+        </button>
+      </div>
+
+      <div className={s.statsGrid}>
+        <StatCard label="Total Tugas" value={stats.total} desc="Semua tugas yang diberikan" border="#78A3FF" iconBg="rgba(120,163,255,0.12)" iconCol="#78A3FF"
+          icon={<ClipIcon/>}/>
+        <StatCard label="Selesai" value={stats.done} desc="Tugas yang sudah dikumpulkan" border="#22C55E" iconBg="rgba(34,197,94,0.12)" iconCol="#22C55E"
+          icon={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>}/>
+        <StatCard label="Belum Dikumpulkan" value={stats.pending} desc="Tugas yang perlu dikerjakan" border="#F59E0B" iconBg="rgba(245,158,11,0.12)" iconCol="#F59E0B"
+          icon={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>}/>
+        <StatCard label="Terlambat" value={stats.late} desc="Tugas melewati batas waktu" border="#EF4444" iconBg="rgba(239,68,68,0.12)" iconCol="#EF4444"
+          icon={<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}/>
+      </div>
+
+      <div className={s.mainCard}>
+        <div className={s.tabsRow}>
+          {TABS.map((t,i)=>(
+            <button key={t} className={s.tabBtn+(activeTab===i?' '+s.tabBtnActive:'')} onClick={()=>{setActiveTab(i);setPage(1);}}>{t}</button>
+          ))}
+        </div>
+
+        <div className={s.tableWrapper}>
           {loading ? (
-            <div className={styles.loadingBox}>
-              <div className="spinner"></div>
-              Memuat daftar tugas...
+            <div className={s.loadingBox}><div className="spinner"/>Memuat...</div>
+          ) : paged.length===0 ? (
+            <div className={s.emptyState}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <div className={s.emptyTitle}>Tidak ada tugas</div>
+              <div className={s.emptyDesc}>Belum ada tugas pada kategori ini.</div>
             </div>
-          ) : assignments.length === 0 ? (
-            <EmptyState
-              title="Belum Ada Tugas"
-              description="Belum ada tugas untuk kelas Anda saat ini."
-            />
           ) : (
-            <table className={styles.table}>
+            <table className={s.table}>
               <thead>
                 <tr>
-                  <th>Tanggal</th>
-                  <th>Mata Pelajaran</th>
-                  <th>Instruksi Tugas</th>
-                  <th>Lampiran</th>
-                  <th className={styles.thCenter}>Batas Akhir</th>
-                  <th className={styles.thCenter}>Nilai</th>
-                  <th className={styles.thCenter}>Status</th>
-                  <th className={styles.thCenter}>Aksi</th>
+                  {['TUGAS','MATA PELAJARAN','DEADLINE','STATUS','AKSI'].map(h=>(
+                    <th key={h}><span className={s.thSort}>{h}
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="8 9 12 5 16 9"/><polyline points="16 15 12 19 8 15"/></svg>
+                    </span></th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {assignments.map((asm) => (
-                  <tr key={asm._id}>
-                    <td data-label="Tanggal">
-                      <div className={styles.cellBold}>
-                        {new Date(asm.createdAt).toLocaleDateString('id-ID')}
-                      </div>
-                    </td>
-                    <td data-label="Mata Pelajaran">
-                      <div className={styles.cellAccent}>
-                        {asm.subjectDetails?.subjectName || '-'}
-                      </div>
-                      <div className={styles.cellChipWrap}>
-                        <StatusBadge variant="student">
-                          {asm.subjectDetails?.classCode || '-'}
-                        </StatusBadge>
-                      </div>
-                    </td>
-                    <td data-label="Instruksi">
-                      <div className={styles.cellPrewrap}>
-                        {asm.text}
-                      </div>
-                    </td>
-                    <td data-label="Lampiran">
-                      <div className={styles.fileChipList}>
-                        {(asm.files || []).map((f, i) => (
-                          <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
-                            className={styles.fileChipWarm}
-                            title={f.originalName}
-                          >
-                            <span className={styles.fileChipIcon}>📎</span>
-                            <span className={styles.fileChipName}>{f.originalName}</span>
-                          </a>
-                        ))}
-                        {(!asm.files || asm.files.length === 0) && <span className={styles.cellSecondary}>-</span>}
-                      </div>
-                    </td>
-                    <td data-label="Batas Akhir" className={styles.tdCenter}>
-                      <div className={`${styles.deadlineText} ${asm.deadline ? styles.deadlineActive : ''}`}>
-                        {asm.deadline ? new Date(asm.deadline).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : 'Tidak Ada'}
-                      </div>
-                    </td>
-                    <td data-label="Nilai" className={styles.tdCenter}>
-                      {asm.submission?.score !== undefined && asm.submission?.score !== null && (
-                        <div className={styles.scoreBadge}>
-                          {asm.submission.score}/100
-                        </div>
-                      )}
-                      {isArchiveMode && asm.submission?.feedback && (
-                        <div className={styles.feedbackNote}>
-                          Feedback: &quot;{asm.submission.feedback}&quot;
-                        </div>
-                      )}
-                    </td>
-                    <td data-label="Status" className={styles.tdCenter}>
-                      {asm.submission ? (
-                        asm.submission?.isLate ? (
-                          <StatusBadge variant="danger">Terlambat Dikumpulkan</StatusBadge>
-                        ) : (
-                          <StatusBadge variant="success">Sudah Dikumpulkan</StatusBadge>
-                        )
-                      ) : (
-                        <StatusBadge variant="neutral">Belum dikumpulkan</StatusBadge>
-                      )}
-                    </td>
-                    <td data-label="Aksi" className={styles.tdCenter}>
-                      <div className={`${styles.actionBtns} ${styles.actionBtnsCenter}`}>
-                        {isArchiveMode ? (
-                          <div style={{ textAlign: 'center' }}>
-                            {asm.submission ? (
-                              <div>
-                                {/* Show archived file notice if files were deleted */}
-                                {asm.submission.isDeletedFromStorage && (
-                                  <div className={styles.archiveNote} title="File dihapus otomatis saat kenaikan kelas untuk menghemat storage">
-                                    🗑️ File tugas dihapus otomatis.
-                                    Nilai &amp; jawaban tetap tersimpan.
-                                  </div>
-                                )}
-                                {/* Show submission text if any */}
-                                {asm.submission.text && (
-                                  <div className={styles.noDataText} style={{ marginTop: 4 }}>
-                                    ✏️ "{asm.submission.text.substring(0, 40)}{asm.submission.text.length > 40 ? '...' : ''}"
-                                  </div>
-                                )}
-                                {/* Show files if still available */}
-                                {!asm.submission.isDeletedFromStorage && asm.submission.files?.length > 0 && (
-                                  <div className={styles.fileChipList}>
-                                    {asm.submission.files.map((f, i) => (
-                                      <a key={i} href={f.url} target="_blank" rel="noopener noreferrer"
-                                        className={styles.fileChipSuccess}>
-                                        📎 {f.originalName}
-                                      </a>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span className={styles.noDataText}>Tidak mengumpulkan</span>
-                            )}
+                {paged.map(asm=>{
+                  const st=getStatus(asm), dl=asm.deadline?new Date(asm.deadline):null, late=dl?daysLate(dl):0;
+                  return (
+                    <tr key={asm._id}>
+                      <td data-label="TUGAS">
+                        <div className={s.taskCellInner}>
+                          <div className={s.taskIconWrap}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ClipIcon/></svg>
                           </div>
-                        ) : !asm.submission ? (
-                          /* Submit button */
-                          <button
-                            className={`${styles.btnSmall} ${styles.btnSmallPrimary}`}
-                            onClick={() => handleOpenForm(asm)}
-                          >
-                            Kumpulkan
+                          <div className={s.taskBody}>
+                            <div className={s.taskTitle}>{asm.subjectDetails?.subjectName||'Tugas'}</div>
+                            <div className={s.taskSubtitle}>{(asm.text||'').substring(0,60)||'-'}</div>
+                            {(asm.files||[]).slice(0,1).map((f,i)=>(
+                              <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" className={s.attachmentChip}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                <span className={s.attachmentName}>{f.originalName}</span>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      </td>
+                      <td data-label="MATA PELAJARAN">
+                        <div className={s.subjectName}>{asm.subjectDetails?.subjectName||'-'}</div>
+                        {asm.subjectDetails?.classCode&&<span className={s.classBadge}>{asm.subjectDetails.classCode}</span>}
+                      </td>
+                      <td data-label="DEADLINE">
+                        {dl?(
+                          <div className={s.deadlineCellInner}>
+                            <div className={s.deadlineRow}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                              {fmtDate(dl)}
+                            </div>
+                            <div className={s.deadlineRow}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                              <span className={s.deadlineTime}>{fmtTime(dl)}</span>
+                            </div>
+                            {(st==='late'||st==='submitted-late')&&late>0&&<span className={s.lateBadge}>Terlambat {late} hari</span>}
+                          </div>
+                        ):<span style={{color:'var(--color-subtext)',fontSize:'0.8rem'}}>Tidak ada</span>}
+                      </td>
+                      <td data-label="STATUS"><StatusPill status={st}/></td>
+                      <td data-label="AKSI">
+                        <div className={s.actionCell}>
+                          {isArchive?(
+                            <span style={{fontSize:'0.75rem',color:'var(--color-subtext)'}}>{asm.submission?'Dikumpulkan':'Tidak dikumpulkan'}</span>
+                          ):!asm.submission?(
+                            <button className={s.btnKumpulkan} onClick={()=>openForm(asm)}>Kumpulkan</button>
+                          ):(
+                            <>
+                              <button className={s.iconBtn} title="Edit" onClick={()=>openForm(asm,asm.submission)}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              </button>
+                              <button className={s.iconBtn+' '+s.iconBtnDanger} title="Hapus" onClick={()=>{setDeleteTarget(asm.submission);setIsDeleteOpen(true);}}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                              </button>
+                            </>
+                          )}
+                          <button className={s.btnMoreOpts} title="Opsi lain">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                           </button>
-                        ) : (
-                          <>
-                            {/* Edit */}
-                            <button
-                              className={styles.iconBtn}
-                              title="Edit Jawaban"
-                              onClick={() => handleOpenForm(asm, asm.submission)}
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                              </svg>
-                            </button>
-                            {/* Delete */}
-                            <button
-                              className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
-                              title="Hapus Jawaban"
-                              onClick={() => { setDeleteTarget(asm.submission); setIsDeleteOpen(true); }}
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="3 6 5 6 21 6" />
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                              </svg>
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
         </div>
-      </ContentCard>
 
-      {/* Submit / Edit Submission Modal */}
-      <Modal
-        isOpen={isFormOpen}
-        onClose={handleCloseForm}
-        title={editingSubmission ? 'Edit Jawaban' : `Kumpulkan Jawaban`}
-      >
-        <form onSubmit={handleSubmit} className={styles.form}>
-          {formError && <div className={styles.formError}>{formError}</div>}
-
-          {/* Show assignment context */}
-          <div className={styles.contextBox}>
-            <div className={styles.contextLabel}>
-              {selectedAssignment?.subjectDetails?.subjectName || 'Mata Pelajaran'}
-            </div>
-            <div className={styles.contextText}>
-              {selectedAssignment?.text}
-            </div>
-          </div>
-
-          <div className={styles.fieldGroup}>
-            <label className={styles.fieldLabel}>Jawaban / Catatan (Teks)</label>
-            <textarea
-              value={formText}
-              onChange={e => setFormText(e.target.value)}
-              className={`${styles.input} ${styles.inputTextarea}`}
-              placeholder="Tuliskan jawaban atau catatan Anda di sini..."
-            />
-          </div>
-
-          <div className={`${styles.fieldGroup} ${styles.fieldGroupSpaced}`}>
-            <label className={styles.fieldLabel}>Lampirkan File (Opsional)</label>
-            <input
-              type="file"
-              multiple
-              accept={ACCEPT_STR}
-              ref={fileInputRef}
-              className={`${styles.input} ${styles.inputFile}`}
-              onChange={(e) => {
-                const newFiles = Array.from(e.target.files);
-                const validation = validateFiles(newFiles);
-                
-                if (!validation.valid) {
-                  alert(`Kesalahan Upload:\n${validation.errors.join('\n')}\n\nPastikan format file sesuai dan ukuran maksimal 50MB per file.`);
-                  if (fileInputRef.current) fileInputRef.current.value = "";
-                  return;
-                }
-
-                setAttachedFiles(prev => [...prev, ...newFiles]);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-              }}
-            />
-
-            <div className={styles.filePreviewList}>
-              {retainedOldFiles.map((f) => (
-                <div key={f.filename} className={styles.fileChipRetained}>
-                  <span className={styles.fileChipRetainedLabel}>📎 {f.originalName} (Sebelumnya)</span>
-                  <button type="button" onClick={() => removeRetainedFile(f.filename)} className={styles.fileChipRemoveBtn}>Hapus</button>
-                </div>
-              ))}
-              {attachedFiles.map((fl, idx) => (
-                <div key={idx} className={styles.fileChipNew}>
-                  <span className={styles.fileChipNewLabel}>📄 {fl.name} (Baru)</span>
-                  <button type="button" onClick={() => removeAttachedFile(idx)} className={styles.fileChipRemoveBtn}>Batalkan</button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className={styles.formActions}>
-            {formLoading && uploadProgress > 0 && <span className={styles.uploadProgressText}>Terkirim... {uploadProgress}%</span>}
-            <button type="button" onClick={handleCloseForm} className={styles.btnCancel} disabled={formLoading}>Batal</button>
-            <button type="submit" className={styles.btnSubmit} disabled={formLoading}>
-              {formLoading ? 'Memproses...' : (editingSubmission ? 'Perbarui Jawaban' : 'Kirim Jawaban')}
+        <div className={s.paginationFooter}>
+          <span className={s.paginationInfo}>
+            Menampilkan {total===0?0:(page-1)*PER+1} - {Math.min(page*PER,total)} dari {total} tugas
+          </span>
+          <div className={s.paginationControls}>
+            <button className={s.pageBtn} onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
+            {Array.from({length:pages},(_,i)=>i+1).map(n=>(
+              <button key={n} className={s.pageBtn+(n===page?' '+s.pageBtnActive:'')} onClick={()=>setPage(n)}>{n}</button>
+            ))}
+            <button className={s.pageBtn} onClick={()=>setPage(p=>Math.min(pages,p+1))} disabled={page===pages}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <Modal isOpen={isFormOpen} onClose={closeForm} title={editingSub?'Edit Jawaban':'Kumpulkan Jawaban'}>
+        <form onSubmit={handleSubmit} className={s.form}>
+          {formErr&&<div className={s.formError}>{formErr}</div>}
+          <div className={s.contextBox}>
+            <div className={s.contextLabel}>{selectedAsm?.subjectDetails?.subjectName}</div>
+            <div className={s.contextText}>{selectedAsm?.text}</div>
+          </div>
+          <div className={s.fieldGroup}>
+            <label className={s.fieldLabel}>Jawaban / Catatan</label>
+            <textarea value={formText} onChange={e=>setFormText(e.target.value)} className={s.input+' '+s.inputTextarea} placeholder="Tuliskan jawaban Anda..."/>
+          </div>
+          <div className={s.fieldGroup}>
+            <label className={s.fieldLabel}>Lampirkan File (Opsional)</label>
+            <input type="file" multiple accept={ACCEPT_STR} ref={fileRef} className={s.input+' '+s.inputFile}
+              onChange={e=>{
+                const nf=Array.from(e.target.files);
+                const v=validateFiles(nf);
+                if(!v.valid){alert('Kesalahan:\n'+v.errors.join('\n'));if(fileRef.current)fileRef.current.value='';return;}
+                setAttachedFiles(p=>[...p,...nf]);
+                if(fileRef.current)fileRef.current.value='';
+              }}/>
+            <div className={s.filePreviewList}>
+              {retainedOld.map(f=>(
+                <div key={f.filename} className={s.fileChipRetained}>
+                  <span className={s.fileChipRetainedLabel}>📎 {f.originalName} (Sebelumnya)</span>
+                  <button type="button" className={s.fileChipRemoveBtn} onClick={()=>setRetainedOld(p=>p.filter(x=>x.filename!==f.filename))}>Hapus</button>
+                </div>
+              ))}
+              {attachedFiles.map((f,i)=>(
+                <div key={i} className={s.fileChipNew}>
+                  <span className={s.fileChipNewLabel}>📄 {f.name} (Baru)</span>
+                  <button type="button" className={s.fileChipRemoveBtn} onClick={()=>setAttachedFiles(p=>p.filter((_,j)=>j!==i))}>Batal</button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className={s.formActions}>
+            {formLoading&&progress>0&&<span className={s.uploadProgressText}>Terkirim... {progress}%</span>}
+            <button type="button" className={s.btnCancel} onClick={closeForm} disabled={formLoading}>Batal</button>
+            <button type="submit" className={s.btnSubmit} disabled={formLoading}>{formLoading?'Memproses...':editingSub?'Perbarui':'Kirim'}</button>
           </div>
         </form>
       </Modal>
 
-      {/* Delete Confirmation */}
-      <ConfirmDialog
-        isOpen={isDeleteOpen}
-        onClose={() => setIsDeleteOpen(false)}
-        onConfirm={handleDelete}
-        title="Hapus Jawaban"
-        message="Anda yakin ingin menghapus jawaban Anda? Seluruh file yang telah dilampirkan juga akan dihapus. Tindakan ini tidak dapat dibatalkan."
-        loading={deleteLoading}
-      />
-    </>
+      <ConfirmDialog isOpen={isDeleteOpen} onClose={()=>setIsDeleteOpen(false)} onConfirm={handleDelete}
+        title="Hapus Jawaban" message="Yakin ingin menghapus jawaban ini? Tindakan tidak dapat dibatalkan." loading={deleteLoading}/>
+    </div>
   );
 }
