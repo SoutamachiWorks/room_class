@@ -418,6 +418,83 @@
   padding: 24px;
 }
 
+[data-theme="light"] .backBtn {
+  background: var(--bg-card);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+[data-theme="light"] .statCard,
+[data-theme="light"] .examBar,
+[data-theme="light"] .tableCard {
+  background: var(--bg-card);
+  border-color: var(--color-border);
+}
+
+[data-theme="light"] .statCard p,
+[data-theme="light"] .examLeft p,
+[data-theme="light"] .pagination p,
+[data-theme="light"] .studentId,
+[data-theme="light"] .table th {
+  color: var(--color-subtext);
+}
+
+[data-theme="light"] .statCard strong,
+[data-theme="light"] .examTitleRow strong,
+[data-theme="light"] .table td,
+[data-theme="light"] .studentName,
+[data-theme="light"] .timeItem strong {
+  color: var(--color-heading);
+}
+
+[data-theme="light"] .searchWrap input,
+[data-theme="light"] .toolbarRight select,
+[data-theme="light"] .exportBtn,
+[data-theme="light"] .pageControls button,
+[data-theme="light"] .moreMenu summary,
+[data-theme="light"] .actionSecondary {
+  background: var(--bg-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+[data-theme="light"] .table th {
+  background: var(--bg-surface);
+}
+
+[data-theme="light"] .table td {
+  border-bottom-color: var(--color-border);
+}
+
+[data-theme="light"] .table tr:hover td {
+  background: var(--bg-surface-hover);
+}
+
+[data-theme="light"] .progressBar {
+  background: var(--bg-surface-active);
+}
+
+[data-theme="light"] .moreMenuContent {
+  background: var(--bg-card);
+  border-color: var(--color-border);
+}
+
+[data-theme="light"] .moreMenuContent button {
+  color: var(--color-text);
+}
+
+[data-theme="light"] .moreMenuContent button:hover {
+  background: var(--bg-surface-hover);
+}
+
+[data-theme="light"] .tipsCard {
+  background: rgba(234, 179, 8, 0.12);
+}
+
+[data-theme="light"] .tipsCard p {
+  color: var(--color-text);
+}
+
 @media (max-width: 1200px) {
   .statsGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
