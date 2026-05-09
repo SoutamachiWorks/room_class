@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
-import { requireAuth, handleAuthError } from '@/lib/auth';
+import { getAuthUser, handleAuthError } from '@/lib/auth';
 
 /**
  * PATCH /api/notifications/read-all
@@ -8,7 +8,10 @@ import { requireAuth, handleAuthError } from '@/lib/auth';
  */
 export async function PATCH(request) {
   try {
-    const user = await requireAuth(request);
+    const user = await getAuthUser(request);
+    if (!user?.userId) {
+      return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+    }
     const db = await getDb();
 
     await db.collection('notifications').updateMany(
