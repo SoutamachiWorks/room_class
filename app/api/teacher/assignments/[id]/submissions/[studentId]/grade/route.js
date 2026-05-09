@@ -59,7 +59,7 @@ export async function PUT(request, { params }) {
         await createNotification(db, {
           userId: studentUser._id,
           title: 'Nilai Tugas',
-          message: `Nilai untuk tugas pada mata pelajaran ${subject?.name || 'terkait'} telah diberikan oleh guru.`,
+          message: `Nilai untuk tugas pada mata pelajaran ${subject?.subjectName || 'terkait'} telah diberikan oleh guru.`,
           type: 'success',
           actionUrl: `/dashboard/student/assignments`
         });

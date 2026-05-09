@@ -191,10 +191,10 @@ export default function TeacherSubmissionPage({ params }) {
 
 
   return (
-    <>
+    <div className={styles.teacherSubmissionPage}>
       {/* Page Header with Back Button */}
       {/* Header Section */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', marginBottom: '32px', flexWrap: 'wrap' }}>
+      <div className={styles.submissionHero} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', marginBottom: '32px', flexWrap: 'wrap' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
             <button 
@@ -256,7 +256,7 @@ export default function TeacherSubmissionPage({ params }) {
       </div>
 
       {/* Stats Cards Row */}
-      <div style={{ 
+      <div className={styles.submissionStatsGrid} style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
         gap: '16px', 
@@ -307,9 +307,9 @@ export default function TeacherSubmissionPage({ params }) {
 
       {/* Filters Section */}
       {/* Filters & Tabs Row */}
-      <div style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--color-border)', padding: '24px', boxShadow: 'var(--shadow-sm)', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', marginBottom: '24px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '300px' }}>
+      <div className={styles.submissionFiltersCard} style={{ background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--color-border)', padding: '24px', boxShadow: 'var(--shadow-sm)', marginBottom: '24px' }}>
+        <div className={styles.submissionFiltersTop} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', marginBottom: '24px', flexWrap: 'wrap' }}>
+          <div className={styles.submissionFiltersLeft} style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '300px' }}>
             <div className={styles.searchBox} style={{ flex: 1, border: '1px solid var(--color-border)', borderRadius: '10px' }}>
               <svg className={styles.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -322,7 +322,7 @@ export default function TeacherSubmissionPage({ params }) {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <button style={{
+            <button className={styles.submissionFilterButton} style={{
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -342,6 +342,7 @@ export default function TeacherSubmissionPage({ params }) {
             </button>
           </div>
           <button 
+            className={styles.submissionExportButton}
             onClick={handleExportCSV}
             style={{
               display: 'flex',
@@ -365,7 +366,7 @@ export default function TeacherSubmissionPage({ params }) {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+        <div className={styles.submissionTabs} style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
           {[
             { key: 'all', label: 'Semua', count: totalStudents },
             { key: 'submitted', label: 'Sudah Dikumpulkan', count: submittedCount - lateCount, color: '#10B981' },
@@ -375,6 +376,7 @@ export default function TeacherSubmissionPage({ params }) {
             { key: 'not-graded', label: 'Belum Dinilai', count: notGradedCount, color: 'var(--color-subtext)' },
           ].map((tab) => (
             <button
+              className={styles.submissionTabBtn}
               key={tab.key}
               onClick={() => { setActiveTab(tab.key); setCurrentPage(1); }}
               style={{
@@ -432,7 +434,7 @@ export default function TeacherSubmissionPage({ params }) {
                   <th style={{ width: '15%' }}>FILE TERKUMPUL</th>
                   <th style={{ width: '10%', textAlign: 'center' }}>NILAI</th>
                   <th style={{ width: '8%', textAlign: 'center' }}>FEEDBACK</th>
-                  <th style={{ width: '17%' }}>AKSI</th>
+                  <th style={{ width: '17%', textAlign: 'center' }}>AKSI</th>
                 </tr>
               </thead>
               <tbody>
@@ -731,7 +733,7 @@ export default function TeacherSubmissionPage({ params }) {
 
       {/* Pagination */}
       {!loading && totalPages > 1 && (
-        <div style={{ 
+        <div className={styles.submissionPagination} style={{ 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'space-between',
@@ -1022,6 +1024,6 @@ export default function TeacherSubmissionPage({ params }) {
           </div>
         )}
       </Modal>
-    </>
+    </div>
   );
 }

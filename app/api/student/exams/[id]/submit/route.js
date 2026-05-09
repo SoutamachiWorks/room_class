@@ -132,7 +132,7 @@ export async function POST(request, { params }) {
       await createNotification(db, {
         userId: teacherUser._id,
         title: 'Pengumpulan Ujian',
-        message: `Siswa ${userDoc.name || studentId} telah mengumpulkan ujian "${exam.title}".`,
+        message: `Siswa ${userDoc.fullName || studentId} telah mengumpulkan ujian "${exam.title}".`,
         type: 'success',
         actionUrl: `/dashboard/teacher/exams/${exam._id}/results` // Ensure this route exists or matches the teacher's dashboard
       });

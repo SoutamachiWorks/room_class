@@ -8,6 +8,14 @@ import { ACCEPT_STR, validateFiles } from '@/lib/fileValidation';
 import s from './assignments.module.css';
 
 const TABS = ['Semua','Belum Dikumpulkan','Sudah Dikumpulkan','Terlambat'];
+const CLIP_ICON = (
+  <>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="16" y1="13" x2="8" y2="13"/>
+    <line x1="16" y1="17" x2="8" y2="17"/>
+  </>
+);
 
 function getStatus(asm) {
   if (!asm.submission) {
@@ -71,6 +79,7 @@ export default function StudentAssignmentsPage() {
   const [formErr, setFormErr] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteErr, setDeleteErr] = useState('');
   const [progress, setProgress] = useState(0);
 
   const fetchData = useCallback(async () => {
@@ -83,7 +92,12 @@ export default function StudentAssignmentsPage() {
     } catch(e){ console.error(e); } finally { setLoading(false); }
   }, [yearId]);
 
-  useEffect(()=>{ fetchData(); },[fetchData]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchData]);
 
   const openForm = (asm, existing=null) => {
     setSelectedAsm(asm); setEditingSub(existing); setFormErr('');
@@ -110,12 +124,12 @@ export default function StudentAssignmentsPage() {
   };
 
   const handleDelete = async () => {
-    if(!deleteTarget) return; setDeleteLoading(true);
+    if(!deleteTarget) return; setDeleteLoading(true); setDeleteErr('');
     try {
       const res = await fetch('/api/student/submissions/'+deleteTarget._id,{method:'DELETE'});
       if(res.ok){ fetchData(); setIsDeleteOpen(false); }
-      else { const d=await res.json(); alert(d.error||'Gagal.'); setIsDeleteOpen(false); }
-    } catch { alert('Koneksi gagal.'); setIsDeleteOpen(false); } finally { setDeleteLoading(false); }
+      else { const d=await res.json(); setDeleteErr(d.error||'Gagal menghapus jawaban.'); }
+    } catch { setDeleteErr('Koneksi gagal.'); } finally { setDeleteLoading(false); }
   };
 
   const isArchive = yearId && enrolledYears.length>0 && yearId!==enrolledYears[enrolledYears.length-1]?.yearId;
@@ -139,8 +153,6 @@ export default function StudentAssignmentsPage() {
     pending: assignments.filter(a=>getStatus(a)==='pending').length,
     late: assignments.filter(a=>['late','submitted-late'].includes(getStatus(a))).length,
   };
-
-  const ClipIcon = ()=><><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>;
 
   return (
     <div className={s.page}>
@@ -170,7 +182,7 @@ export default function StudentAssignmentsPage() {
 
       <div className={s.statsGrid}>
         <StatCard label="Total Tugas" value={stats.total} desc="Semua tugas yang diberikan" border="#78A3FF" iconBg="rgba(120,163,255,0.12)" iconCol="#78A3FF"
-          icon={<ClipIcon/>}/>
+          icon={CLIP_ICON}/>
         <StatCard label="Selesai" value={stats.done} desc="Tugas yang sudah dikumpulkan" border="#22C55E" iconBg="rgba(34,197,94,0.12)" iconCol="#22C55E"
           icon={<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>}/>
         <StatCard label="Belum Dikumpulkan" value={stats.pending} desc="Tugas yang perlu dikerjakan" border="#F59E0B" iconBg="rgba(245,158,11,0.12)" iconCol="#F59E0B"
@@ -214,7 +226,7 @@ export default function StudentAssignmentsPage() {
                       <td data-label="TUGAS">
                         <div className={s.taskCellInner}>
                           <div className={s.taskIconWrap}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ClipIcon/></svg>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{CLIP_ICON}</svg>
                           </div>
                           <div className={s.taskBody}>
                             <div className={s.taskTitle}>{asm.subjectDetails?.subjectName||'Tugas'}</div>
@@ -312,15 +324,15 @@ export default function StudentAssignmentsPage() {
               onChange={e=>{
                 const nf=Array.from(e.target.files);
                 const v=validateFiles(nf);
-                if(!v.valid){alert('Kesalahan:\n'+v.errors.join('\n'));if(fileRef.current)fileRef.current.value='';return;}
+                if(!v.valid){setFormErr(v.errors.join(' '));if(fileRef.current)fileRef.current.value='';return;}
                 setAttachedFiles(p=>[...p,...nf]);
                 if(fileRef.current)fileRef.current.value='';
               }}/>
             <div className={s.filePreviewList}>
               {retainedOld.map(f=>(
-                <div key={f.filename} className={s.fileChipRetained}>
+                <div key={f.fileKey || f.filename || f.originalName} className={s.fileChipRetained}>
                   <span className={s.fileChipRetainedLabel}>📎 {f.originalName} (Sebelumnya)</span>
-                  <button type="button" className={s.fileChipRemoveBtn} onClick={()=>setRetainedOld(p=>p.filter(x=>x.filename!==f.filename))}>Hapus</button>
+                  <button type="button" className={s.fileChipRemoveBtn} onClick={()=>setRetainedOld(p=>p.filter(x=>(x.fileKey||x.filename)!==(f.fileKey||f.filename)))}>Hapus</button>
                 </div>
               ))}
               {attachedFiles.map((f,i)=>(
@@ -339,8 +351,8 @@ export default function StudentAssignmentsPage() {
         </form>
       </Modal>
 
-      <ConfirmDialog isOpen={isDeleteOpen} onClose={()=>setIsDeleteOpen(false)} onConfirm={handleDelete}
-        title="Hapus Jawaban" message="Yakin ingin menghapus jawaban ini? Tindakan tidak dapat dibatalkan." loading={deleteLoading}/>
+      <ConfirmDialog isOpen={isDeleteOpen} onClose={()=>{ setIsDeleteOpen(false); setDeleteErr(''); }} onConfirm={handleDelete}
+        title="Hapus Jawaban" message={deleteErr || "Yakin ingin menghapus jawaban ini? Tindakan tidak dapat dibatalkan."} loading={deleteLoading}/>
     </div>
   );
 }

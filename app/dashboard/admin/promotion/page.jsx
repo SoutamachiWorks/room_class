@@ -216,7 +216,7 @@ export default function PromotionPage() {
                   required
                 >
                   <option value="">Pilih Kelas Asal...</option>
-                  {classCodes.map(c => <option key={c._id} value={c.code}>{c.code} - {c.name}</option>)}
+                  {classCodes.map(c => <option key={c._id} value={c.code}>{c.code} - {c.label}</option>)}
                 </select>
               </div>
 
@@ -230,7 +230,7 @@ export default function PromotionPage() {
                 >
                   <option value="">Pilih Kelas Tujuan...</option>
                   <option value="GRADUATED" style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>🎓 LULUS / ALUMNI</option>
-                  {classCodes.map(c => <option key={c._id} value={c.code}>{c.code} - {c.name}</option>)}
+                  {classCodes.map(c => <option key={c._id} value={c.code}>{c.code} - {c.label}</option>)}
                 </select>
               </div>
             </div>
@@ -271,7 +271,7 @@ export default function PromotionPage() {
                   required
                 >
                   <option value="">Pilih Kelas Asal...</option>
-                  {classCodes.map(c => <option key={c._id} value={c.code}>{c.code} - {c.name}</option>)}
+                  {classCodes.map(c => <option key={c._id} value={c.code}>{c.code} - {c.label}</option>)}
                 </select>
               </div>
 
@@ -285,7 +285,7 @@ export default function PromotionPage() {
                 >
                   <option value="">Pilih Kelas Tujuan...</option>
                   <option value="GRADUATED" style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>🎓 LULUS / ALUMNI</option>
-                  {classCodes.map(c => <option key={c._id} value={c.code}>{c.code} - {c.name}</option>)}
+                  {classCodes.map(c => <option key={c._id} value={c.code}>{c.code} - {c.label}</option>)}
                 </select>
               </div>
             </div>

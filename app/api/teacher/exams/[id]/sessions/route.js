@@ -55,6 +55,8 @@ export async function GET(request, { params }) {
           gradingStatus: 1,
           startedAt: 1,
           submittedAt: 1,
+          answers: 1,
+          questions: 1,
           'studentInfo.fullName': 1,
           'studentInfo.studentId': 1,
           'studentInfo.classCode': 1
@@ -65,7 +67,74 @@ export async function GET(request, { params }) {
 
     const sessions = await db.collection('examSessions').aggregate(pipeline).toArray();
 
-    return NextResponse.json({ sessions, examTitle: exam.title });
+    const mappedSessions = sessions.map((sess) => {
+      const questionCount = Array.isArray(sess.questions) ? sess.questions.length : (exam.questions?.length || 0);
+      const answeredCount = Array.isArray(sess.answers) ? sess.answers.filter((ans) => {
+        if (ans.mcAnswer === 0) return true;
+        if (ans.mcAnswer) return true;
+        if (ans.essayAnswer?.trim()) return true;
+        if (Array.isArray(ans.uploadedFiles) && ans.uploadedFiles.length > 0) return true;
+        return false;
+      }).length : 0;
+      return {
+        ...sess,
+        questionCount,
+        answeredCount,
+      };
+    });
+
+    const classStudents = subject?.classCode
+      ? await db.collection('users')
+        .find(
+          { role: 'student', classCode: subject.classCode },
+          { projection: { fullName: 1, studentId: 1, classCode: 1 } }
+        )
+        .toArray()
+      : [];
+
+    const sessionByStudentId = new Map(
+      mappedSessions
+        .filter((sess) => sess.studentInfo?.studentId)
+        .map((sess) => [sess.studentInfo.studentId, sess])
+    );
+
+    const completeSessions = classStudents.map((student) => {
+      const existing = sessionByStudentId.get(student.studentId);
+      if (existing) return existing;
+      return {
+        _id: `not-started-${student.studentId}`,
+        exitCount: 0,
+        status: 'not-started',
+        gradingStatus: null,
+        startedAt: null,
+        submittedAt: null,
+        answers: [],
+        questions: exam.questions || [],
+        questionCount: exam.questions?.length || 0,
+        answeredCount: 0,
+        studentInfo: {
+          fullName: student.fullName,
+          studentId: student.studentId,
+          classCode: student.classCode,
+        },
+      };
+    });
+
+    const totalStudents = classStudents.length || mappedSessions.length;
+    completeSessions.sort((a, b) => (a.studentInfo?.fullName || '').localeCompare(b.studentInfo?.fullName || '', 'id'));
+
+    return NextResponse.json({
+      sessions: completeSessions,
+      examTitle: exam.title,
+      examMeta: {
+        classCode: subject?.classCode || '-',
+        duration: exam.duration || null,
+        deadline: exam.deadline || null,
+        status: exam.status || 'draft',
+        createdAt: exam.createdAt || null,
+      },
+      totalStudents,
+    });
   } catch (err) {
     const { status, error } = handleAuthError(err);
     return NextResponse.json({ error }, { status });

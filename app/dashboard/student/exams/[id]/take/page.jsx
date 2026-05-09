@@ -66,6 +66,80 @@ export default function TakeExamPage() {
     submittingRef.current = submitting;
   }, [submitting]);
 
+  async function processSubmit(isLockout = false) {
+    setError('');
+
+    try {
+      const MAX_SIZE = 10 * 1024 * 1024;
+      let totalSize = 0;
+      for (const q of questions) {
+        const files = fileAnswers[q.displayOrder];
+        if (files) {
+          for (const f of files) totalSize += f.size;
+        }
+      }
+
+      if (totalSize > MAX_SIZE) {
+        setError('Gagal. Total lampiran berkas ujian melampaui batas maksimal sebesar 10 MB.');
+        setSubmitting(false);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('sessionId', sessionId);
+
+      const answersArray = questions.map(q => {
+        const ans = answers[q.displayOrder] || {};
+        return {
+          questionOrder: q.displayOrder,
+          originalOrder: q.order,
+          mcAnswer: ans.mcAnswer ?? null,
+          essayAnswer: ans.essayAnswer ?? '',
+        };
+      });
+
+      formData.append('answers', JSON.stringify(answersArray));
+
+      for (const q of questions) {
+        const files = fileAnswers[q.displayOrder];
+        if (files && files.length > 0) {
+          for (const file of files) {
+            formData.append(`file-${q.displayOrder}`, file);
+          }
+        }
+      }
+
+      const url = `/api/student/exams/${examId}/submit`;
+      setUploadProgress(0);
+      if (isLockout) formData.append('isLockout', 'true');
+      await uploadWithProgress(url, formData, 'POST', (val) => setUploadProgress(val));
+
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+
+      if (isLockout) {
+        router.replace('/dashboard/student/exams/lockout');
+      } else {
+        router.replace('/dashboard/student/exams?submitted=1');
+      }
+    } catch (err) {
+      if (err.payload && err.payload.locked) {
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        router.replace('/dashboard/student/exams/lockout');
+        return;
+      }
+      setError(err.message || 'Koneksi ke server gagal.');
+    } finally {
+      setSubmitting(false);
+      setUploadProgress(0);
+    }
+  }
+
+  async function handleSubmitAuto() {
+    if (submittingRef.current) return;
+    setSubmitting(true);
+    await processSubmit();
+  }
+
   const triggerStrike = useCallback(async () => {
     if (!sessionId || isChoosingFile) return;
 
@@ -265,12 +339,6 @@ export default function TakeExamPage() {
     setFileAnswers(prev => ({ ...prev, [questionOrder]: files }));
   };
 
-  async function handleSubmitAuto() {
-    if (submittingRef.current) return;
-    setSubmitting(true);
-    await processSubmit();
-  }
-
   const handleSubmit = async () => {
     if (submitting) return;
 
@@ -279,75 +347,6 @@ export default function TakeExamPage() {
 
     setSubmitting(true);
     await processSubmit();
-  };
-
-  async function processSubmit(isLockout = false) {
-    setError('');
-
-    try {
-      // 10MB limit enforcement across ALL file inputs organically globally.
-      const MAX_SIZE = 10 * 1024 * 1024;
-      let totalSize = 0;
-      for (const q of questions) {
-        const files = fileAnswers[q.displayOrder];
-        if (files) {
-           for (const f of files) totalSize += f.size;
-        }
-      }
-
-      if (totalSize > MAX_SIZE) {
-         setError('Gagal. Total lampiran berkas ujian melampaui batas maksimal sebesar 10 MB.');
-         setSubmitting(false);
-         return;
-      }
-
-      const formData = new FormData();
-      formData.append('sessionId', sessionId);
-
-      const answersArray = questions.map(q => {
-        const ans = answers[q.displayOrder] || {};
-        return {
-          questionOrder: q.displayOrder,
-          originalOrder: q.order,
-          mcAnswer: ans.mcAnswer ?? null,
-          essayAnswer: ans.essayAnswer ?? '',
-        };
-      });
-
-      formData.append('answers', JSON.stringify(answersArray));
-
-      for (const q of questions) {
-        const files = fileAnswers[q.displayOrder];
-        if (files && files.length > 0) {
-          for (const file of files) {
-            formData.append(`file-${q.displayOrder}`, file);
-          }
-        }
-      }
-
-      const url = `/api/student/exams/${examId}/submit`;
-      setUploadProgress(0);
-      if (isLockout) formData.append('isLockout', 'true');
-      const data = await uploadWithProgress(url, formData, 'POST', (val) => setUploadProgress(val));
-
-      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-      
-      if (isLockout) {
-         router.replace('/dashboard/student/exams/lockout');
-      } else {
-         router.replace('/dashboard/student/exams?submitted=1');
-      }
-    } catch (err) {
-      if (err.payload && err.payload.locked) {
-         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-         router.replace('/dashboard/student/exams/lockout');
-         return;
-      }
-      setError(err.message || 'Koneksi ke server gagal.');
-    } finally {
-      setSubmitting(false);
-      setUploadProgress(0);
-    }
   };
 
   // ── Loading state ──────────────────────────────────────────────────────

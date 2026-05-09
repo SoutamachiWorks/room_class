@@ -58,19 +58,9 @@ const withPWA = withPWAInit({
           },
         },
       },
-      {
-        // API Data (Jadwal, Daftar Soal, Nilai)
-        urlPattern: /\/api\/.*$/i,
-        handler: 'NetworkFirst',
-        options: {
-          cacheName: 'api-data',
-          networkTimeoutSeconds: 5,
-          expiration: {
-            maxEntries: 64,
-            maxAgeSeconds: 60 * 60 * 24, // 1 hari
-          },
-        },
-      }
+      // NOTE:
+      // Do not cache authenticated API responses in service worker.
+      // It can leak stale/private data across user sessions on shared devices.
     ]
   }
 });

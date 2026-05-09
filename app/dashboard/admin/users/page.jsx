@@ -277,6 +277,10 @@ export default function AdminDashboardPage() {
     return 'Siswa';
   };
 
+  const teacherCount = users.filter((u) => u.role === 'teacher').length;
+  const studentCount = users.filter((u) => u.role === 'student').length;
+  const adminCount = users.filter((u) => u.role === 'admin').length;
+
   // ── Filter bar (used as ContentCard header) ────────────────────────────
   const filterBar = (
     <div className={styles.filterSection}>
@@ -294,6 +298,50 @@ export default function AdminDashboardPage() {
         />
       </div>
 
+      <div className={styles.roleTabs}>
+        <button className={`${styles.tabBtn} ${roleFilter === '' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter(''); setPage(1); }}>Semua</button>
+        <button className={`${styles.tabBtn} ${roleFilter === 'admin' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter('admin'); setPage(1); }}>Admin</button>
+        <button className={`${styles.tabBtn} ${roleFilter === 'teacher' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter('teacher'); setPage(1); }}>Guru</button>
+        <button className={`${styles.tabBtn} ${roleFilter === 'student' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter('student'); setPage(1); }}>Siswa</button>
+      </div>
+    </div>
+  );
+
+  const mobileQuickActions = (
+    <div className={styles.mobileQuickActions}>
+      <button className={styles.mobileActionCardPrimary} onClick={() => handleOpenForm('teacher')}>
+        <span className={styles.mobileActionTitle}>Tambah Guru</span>
+        <span className={styles.mobileActionDesc}>Buat akun guru baru</span>
+      </button>
+      <button className={styles.mobileActionCard} onClick={() => handleOpenForm('student')}>
+        <span className={styles.mobileActionTitle}>Tambah Siswa</span>
+        <span className={styles.mobileActionDesc}>Buat akun siswa baru</span>
+      </button>
+      <button
+        className={styles.mobileActionCardTeal}
+        onClick={() => { setIsImportModalOpen(true); setImportResult(null); }}
+      >
+        <span className={styles.mobileActionTitle}>Import Siswa</span>
+        <span className={styles.mobileActionDesc}>Import dari file Excel</span>
+      </button>
+    </div>
+  );
+
+  const mobileFilterPanel = (
+    <div className={styles.mobileFilterPanel}>
+      <div className={styles.searchBox}>
+        <svg className={styles.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          type="text"
+          className={styles.searchInput}
+          placeholder="Cari nama, username, ID, atau email..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+      </div>
       <div className={styles.roleTabs}>
         <button className={`${styles.tabBtn} ${roleFilter === '' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter(''); setPage(1); }}>Semua</button>
         <button className={`${styles.tabBtn} ${roleFilter === 'admin' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter('admin'); setPage(1); }}>Admin</button>
@@ -334,15 +382,15 @@ export default function AdminDashboardPage() {
   return (
     <>
       {/* ── Page Header ──────────────────────────────────────────────────── */}
-      <PageHeader title="Manajemen Akun">
-        <button className={styles.btnPrimary} onClick={() => handleOpenForm('teacher')}>
+      <PageHeader title="Manajemen Akun" subtitle="Kelola data guru dan siswa dengan mudah">
+        <button className={`${styles.btnPrimary} ${styles.headerActionBtn}`} onClick={() => handleOpenForm('teacher')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           Tambah Guru
         </button>
-        <button className={`${styles.btnPrimary} ${styles.btnDark}`} onClick={() => handleOpenForm('student')}>
+        <button className={`${styles.btnPrimary} ${styles.btnDark} ${styles.headerActionBtn}`} onClick={() => handleOpenForm('student')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
@@ -350,7 +398,7 @@ export default function AdminDashboardPage() {
           Tambah Siswa
         </button>
         <button 
-          className={`${styles.btnPrimary} ${styles.btnOutline}`}
+          className={`${styles.btnPrimary} ${styles.btnOutline} ${styles.headerActionBtn}`}
           onClick={() => { setIsImportModalOpen(true); setImportResult(null); }} 
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -358,12 +406,17 @@ export default function AdminDashboardPage() {
         </button>
       </PageHeader>
 
+      <section className={styles.mobileOnlyBlock}>
+        {mobileQuickActions}
+        {mobileFilterPanel}
+      </section>
+
       {/* ── Main Content Card ────────────────────────────────────────────── */}
       <ContentCard
         header={filterBar}
         footer={paginationFooter}
       >
-        <div className={styles.tableContainer}>
+        <div className={`${styles.tableContainer} ${styles.desktopOnlyBlock}`}>
           {loading ? (
             <div className={styles.loadingBox}>
               <div className="spinner"></div>
@@ -388,7 +441,7 @@ export default function AdminDashboardPage() {
               </thead>
               <tbody>
               {users.map((u) => (
-                  <tr key={u._id}>
+                  <tr key={u._id} className={styles.userRow}>
                     <td data-label="Pengguna">
                       <div className={styles.userCell}>
                         <div className={styles.avatar}>{u.fullName?.charAt(0) || '?'}</div>
@@ -446,7 +499,82 @@ export default function AdminDashboardPage() {
             </table>
           )}
         </div>
+        <div className={styles.mobileUserList}>
+          {!loading && users.map((u) => (
+            <article key={`mobile-${u._id}`} className={styles.mobileUserCard}>
+              <div className={styles.mobileUserHead}>
+                <div className={styles.userCell}>
+                  <div className={styles.avatar}>{u.fullName?.charAt(0) || '?'}</div>
+                  <div>
+                    <div className={styles.userName}>{u.fullName}</div>
+                    <div className={styles.userId}>@{u.username}</div>
+                  </div>
+                </div>
+                <div className={styles.mobileStatusWrap}>
+                  <StatusBadge variant={roleBadgeVariant(u.role)}>{roleLabel(u.role)}</StatusBadge>
+                  <StatusBadge variant={u.status === 'active' ? 'success' : 'neutral'}>
+                    {u.status === 'active' ? 'Aktif' : 'Nonaktif'}
+                  </StatusBadge>
+                </div>
+              </div>
+
+              <div className={styles.mobileUserMeta}>
+                <div>
+                  <div className={styles.mobileMetaLabel}>Email</div>
+                  <div className={styles.cellPrimary}>{u.email}</div>
+                </div>
+                <div>
+                  <div className={styles.mobileMetaLabel}>Kontak</div>
+                  <div className={styles.cellPrimary}>{u.phone || '-'}</div>
+                </div>
+                <div>
+                  <div className={styles.mobileMetaLabel}>ID</div>
+                  <div className={styles.cellPrimary}>
+                    {u.role === 'teacher' ? u.teacherId : u.role === 'student' ? u.studentId : '-'}
+                  </div>
+                </div>
+                <div>
+                  <div className={styles.mobileMetaLabel}>Kelas</div>
+                  <div className={styles.cellPrimary}>
+                    {u.role === 'student' ? (u.classCode || '-') : '-'}
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.mobileUserActions}>
+                <button className={styles.mobileActionBtn} onClick={() => handleOpenForm(u.role, u)}>Edit</button>
+                <button className={styles.mobileActionBtn} onClick={() => handleToggleStatus(u)}>
+                  {u.status === 'active' ? 'Nonaktifkan' : 'Aktifkan'}
+                </button>
+                {u.role !== 'admin' && (
+                  <button className={`${styles.mobileActionBtn} ${styles.mobileActionBtnDanger}`} onClick={() => { setSelectedUser(u); setIsDeleteOpen(true); }}>
+                    Hapus
+                  </button>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
       </ContentCard>
+
+      <section className={styles.mobileStats}>
+        <div className={styles.mobileStatCard}>
+          <div className={styles.mobileStatValue}>{totalCount}</div>
+          <div className={styles.mobileStatLabel}>Total Pengguna</div>
+        </div>
+        <div className={styles.mobileStatCard}>
+          <div className={styles.mobileStatValue}>{teacherCount}</div>
+          <div className={styles.mobileStatLabel}>Guru</div>
+        </div>
+        <div className={styles.mobileStatCard}>
+          <div className={styles.mobileStatValue}>{studentCount}</div>
+          <div className={styles.mobileStatLabel}>Siswa</div>
+        </div>
+        <div className={styles.mobileStatCard}>
+          <div className={styles.mobileStatValue}>{adminCount}</div>
+          <div className={styles.mobileStatLabel}>Admin</div>
+        </div>
+      </section>
 
       {/* ── Form Modal (Create/Edit Teacher/Student) ──────────────────────── */}
       <Modal

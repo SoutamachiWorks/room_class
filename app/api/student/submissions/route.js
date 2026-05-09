@@ -31,6 +31,9 @@ export async function POST(request) {
     if (!assignmentId) {
       return NextResponse.json({ error: 'assignmentId wajib diisi.' }, { status: 400 });
     }
+    if (!ObjectId.isValid(assignmentId)) {
+      return NextResponse.json({ error: 'assignmentId tidak valid.' }, { status: 400 });
+    }
 
     // Verify assignment exists and is scoped to the student's class
     const assignment = await db.collection('assignments').findOne({ _id: new ObjectId(assignmentId) });
@@ -39,6 +42,9 @@ export async function POST(request) {
     }
 
     // Verify subject classCode matches student's classCode
+    if (!ObjectId.isValid(assignment.subjectId)) {
+      return NextResponse.json({ error: 'Data mata pelajaran pada tugas tidak valid.' }, { status: 400 });
+    }
     const subject = await db.collection('subjects').findOne({ _id: new ObjectId(assignment.subjectId) });
     if (!subject || subject.classCode !== classCode) {
       return NextResponse.json({ error: 'Anda tidak memiliki akses ke tugas ini.' }, { status: 403 });
@@ -92,7 +98,7 @@ export async function POST(request) {
       await createNotification(db, {
         userId: teacherUser._id,
         title: 'Pengumpulan Tugas',
-        message: `Siswa ${userDoc.name || studentId} telah mengumpulkan tugas untuk mata pelajaran ${subject?.name || 'terkait'}.`,
+        message: `Siswa ${userDoc.fullName || studentId} telah mengumpulkan tugas untuk mata pelajaran ${subject?.subjectName || 'terkait'}.`,
         type: 'success',
         actionUrl: `/dashboard/teacher/assignments/${assignmentId}`
       });

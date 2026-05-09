@@ -18,11 +18,15 @@ export async function GET(request) {
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10')));
     const role = searchParams.get('role') || '';
     const search = searchParams.get('search') || '';
+    const classCode = searchParams.get('classCode') || '';
 
     // Build filter
     const filter = {};
     if (role && ['admin', 'teacher', 'student'].includes(role)) {
       filter.role = role;
+    }
+    if (classCode) {
+      filter.classCode = classCode;
     }
     if (search) {
       filter.$or = [

@@ -41,7 +41,10 @@ export async function GET(request) {
 
     return NextResponse.json({ totalBytes });
   } catch (error) {
-    if (error.message.includes('auth')) return handleAuthError(error);
+    if (error && error.status && error.error) {
+      const { status, error: authError } = handleAuthError(error);
+      return NextResponse.json({ error: authError }, { status });
+    }
     console.error('Storage stats failed:', error);
     return NextResponse.json({ error: 'Failed to fetch storage stats' }, { status: 500 });
   }

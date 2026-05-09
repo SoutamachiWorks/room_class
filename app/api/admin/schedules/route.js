@@ -14,6 +14,9 @@ export async function POST(request) {
     if (!classCode || !subjectId || !teacherId || dayOfWeek === undefined || !startTime || !endTime) {
       return NextResponse.json({ error: 'Data tidak lengkap' }, { status: 400 });
     }
+    if (!ObjectId.isValid(subjectId)) {
+      return NextResponse.json({ error: 'subjectId tidak valid' }, { status: 400 });
+    }
 
     // Validasi Subject exist
     const subject = await db.collection('subjects').findOne({ _id: new ObjectId(subjectId) });

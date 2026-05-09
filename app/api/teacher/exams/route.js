@@ -34,9 +34,32 @@ export async function GET(request) {
         },
       },
       {
+        $lookup: {
+          from: 'examSessions',
+          let: { examIdStr: { $toString: '$_id' } },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$examId', '$$examIdStr'] } } },
+            { $count: 'total' },
+          ],
+          as: 'usageStats',
+        },
+      },
+      {
         $unwind: {
           path: '$subjectDetails',
           preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          usedCount: {
+            $ifNull: [{ $arrayElemAt: ['$usageStats.total', 0] }, 0],
+          },
+        },
+      },
+      {
+        $project: {
+          usageStats: 0,
         },
       },
       { $sort: { createdAt: -1 } },
@@ -66,7 +89,7 @@ export async function POST(request) {
     if (!teacherId) return NextResponse.json({ error: 'Identifikasi guru gagal' }, { status: 403 });
 
     const body = await request.json();
-    const { title, subjectId, questions, isRandomized, duration, deadline } = body;
+    const { title, subjectId, questions, typeSettings, isRandomized, duration, deadline } = body;
 
     // Validation
     if (!title || typeof title !== 'string') {
@@ -103,6 +126,15 @@ export async function POST(request) {
       }
     }
 
+    const normalizedTypeSettings = {
+      multipleChoice: typeSettings?.multipleChoice !== false,
+      essay: !!typeSettings?.essay,
+      fileUpload: !!typeSettings?.fileUpload,
+    };
+    if (!normalizedTypeSettings.multipleChoice && !normalizedTypeSettings.essay && !normalizedTypeSettings.fileUpload) {
+      return NextResponse.json({ error: 'Minimal satu jenis soal harus aktif.' }, { status: 400 });
+    }
+
     // Verify subject ownership
     const verifySubject = await db.collection('subjects').findOne({ _id: new ObjectId(subjectId), teacherId });
     if (!verifySubject) {
@@ -123,6 +155,7 @@ export async function POST(request) {
       subjectId,
       title,
       questions: normalizedQuestions,
+      typeSettings: normalizedTypeSettings,
       isRandomized: !!isRandomized,
       duration: duration ? parseInt(duration, 10) : null,
       deadline: deadline ? new Date(deadline) : null,

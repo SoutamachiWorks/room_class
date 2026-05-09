@@ -2163,3 +2163,547 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Admin users page polish: cleaner responsive layout */
+.headerActionBtn {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.userRow {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.userRow:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .headerActionBtn {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 140px;
+  }
+
+  .searchBox {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .roleTabs {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .table tr {
+    padding: 12px;
+    margin: 0 10px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--bg-card) 94%, var(--color-primary-light) 6%);
+    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.06);
+  }
+
+  .table td {
+    padding: 4px 0;
+  }
+
+  .table td::before {
+    margin-bottom: 4px;
+  }
+
+  .table td:not(:first-child):not(:last-child) {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 6px;
+    align-items: start;
+  }
+
+  .table td:not(:first-child):not(:last-child)::before {
+    margin: 0;
+    line-height: 1.35;
+    font-size: 0.66rem;
+  }
+
+  .userCell {
+    align-items: flex-start;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8125rem;
+  }
+
+  .userName {
+    font-size: 0.98rem;
+    line-height: 1.25;
+  }
+
+  .userId {
+    font-size: 0.75rem;
+  }
+
+  .cellPrimary,
+  .cellMedium {
+    font-size: 0.86rem;
+  }
+
+  .actionBtns {
+    margin-top: 8px;
+    padding-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .iconBtn {
+    width: 100%;
+    min-height: 40px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--bg-card));
+    color: var(--color-heading);
+  }
+
+  .iconBtn:hover {
+    background: color-mix(in srgb, var(--color-primary) 18%, var(--bg-card));
+  }
+
+  .iconBtnDanger {
+    background: color-mix(in srgb, var(--color-failed-text) 12%, var(--bg-card));
+    color: var(--color-failed-text);
+  }
+
+  .iconBtnDanger:hover {
+    background: color-mix(in srgb, var(--color-failed-text) 18%, var(--bg-card));
+  }
+
+  .iconBtn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .pageControls {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .pageBtn {
+    flex: 1;
+  }
+
+  .cellSecondary {
+    margin-top: 1px;
+    font-size: 0.74rem;
+  }
+
+  .pageInfo {
+    font-size: 0.77rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .headerActionBtn {
+    flex: 1 1 100%;
+  }
+
+  .btnPrimary {
+    width: 100%;
+  }
+
+  .roleTabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 0;
+    background: transparent;
+  }
+
+  .tabBtn {
+    background: var(--bg-app);
+    border-radius: 10px;
+    min-width: 88px;
+    flex: 1 0 auto;
+  }
+
+  .tabBtnActive {
+    border: 1px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
+  }
+}
+
+/* Mobile-first admin users revamp */
+.mobileOnlyBlock,
+.mobileUserList,
+.mobileStats {
+  display: none;
+}
+
+.desktopOnlyBlock {
+  display: block;
+}
+
+.mobileQuickActions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.mobileActionCard,
+.mobileActionCardPrimary,
+.mobileActionCardTeal {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 14px 12px;
+  text-align: left;
+  min-height: 90px;
+}
+
+.mobileActionCardPrimary {
+  background: linear-gradient(135deg, #4f6dff, #4053d9);
+  color: #fff;
+}
+
+.mobileActionCard {
+  background: linear-gradient(135deg, rgba(51, 76, 141, 0.24), rgba(32, 49, 95, 0.2));
+  color: var(--color-heading);
+}
+
+.mobileActionCardTeal {
+  background: linear-gradient(135deg, rgba(25, 145, 172, 0.18), rgba(7, 52, 68, 0.2));
+  color: #9defff;
+}
+
+.mobileActionTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  display: block;
+}
+
+.mobileActionDesc {
+  font-size: 0.82rem;
+  opacity: 0.88;
+  margin-top: 4px;
+  display: block;
+}
+
+.mobileFilterPanel {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 10px;
+  background: linear-gradient(180deg, rgba(20, 36, 78, 0.28), rgba(8, 18, 40, 0.2));
+  margin-bottom: 14px;
+}
+
+.mobileFilterPanel .searchBox {
+  margin-bottom: 8px;
+}
+
+.mobileFilterPanel .roleTabs {
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  padding-top: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  overflow: visible;
+}
+
+.mobileUserCard {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 8px 10px 10px;
+  background: linear-gradient(180deg, rgba(18, 31, 62, 0.28), rgba(7, 14, 31, 0.2));
+  margin-bottom: 10px;
+}
+
+.mobileUserHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mobileStatusWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.mobileUserMeta {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.mobileMetaLabel {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-subtext);
+  margin-bottom: 1px;
+}
+
+.mobileUserActions {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.mobileActionBtn {
+  min-height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: rgba(33, 56, 110, 0.25);
+  color: var(--color-heading);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.mobileActionBtnDanger {
+  color: #ff6868;
+  border-color: rgba(255, 104, 104, 0.35);
+  background: rgba(83, 16, 16, 0.25);
+}
+
+.mobileUserActions .mobileActionBtnDanger:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+}
+
+.mobileStats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.mobileStatCard {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(22, 41, 85, 0.25), rgba(9, 18, 40, 0.18));
+}
+
+.mobileStatValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-heading);
+  line-height: 1.1;
+}
+
+.mobileStatLabel {
+  font-size: 0.8rem;
+  color: var(--color-subtext);
+  margin-top: 4px;
+}
+
+.mobileLogHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.mobileLogBadge {
+  flex-shrink: 0;
+}
+
+.mobileLogDetailBox {
+  margin-top: 10px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 8px;
+}
+
+.mobileLogPre {
+  margin: 6px 0 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--color-subtext);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 140px;
+  overflow: auto;
+}
+
+@media (max-width: 768px) {
+  .mobileOnlyBlock {
+    display: block;
+  }
+
+  .headerActionBtn {
+    display: none;
+  }
+
+  .desktopOnlyBlock {
+    display: none;
+  }
+
+  .mobileUserList,
+  .mobileStats {
+    display: grid;
+  }
+
+  .filterSection {
+    display: none;
+  }
+
+  .mobileQuickActions {
+    grid-template-columns: 1fr;
+  }
+
+  .mobileFilterPanel .tabBtn {
+    min-width: 0;
+    width: 100%;
+    padding: 8px 4px;
+  }
+
+  .mobileActionBtn {
+    min-height: 42px;
+  }
+
+  .mobileLogHead :global([class*="badge"]) {
+    max-width: 86px;
+    justify-content: center;
+  }
+
+  .mobileStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pageInfo {
+    text-align: left;
+  }
+}
+
+/* Teacher assignment submissions mobile cleanup */
+@media (max-width: 768px) {
+  .teacherSubmissionPage .submissionHero {
+    margin-bottom: 18px !important;
+    gap: 12px !important;
+  }
+
+  .teacherSubmissionPage .submissionStatsGrid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    margin-bottom: 18px !important;
+  }
+
+  .teacherSubmissionPage .submissionStatsGrid > div {
+    padding: 14px !important;
+    border-radius: 12px !important;
+  }
+
+  .teacherSubmissionPage .submissionFiltersCard {
+    padding: 14px !important;
+    border-radius: 14px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .teacherSubmissionPage .submissionFiltersTop {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .teacherSubmissionPage .submissionFiltersLeft {
+    min-width: 0 !important;
+    width: 100% !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .teacherSubmissionPage .submissionFilterButton,
+  .teacherSubmissionPage .submissionExportButton {
+    width: 100% !important;
+    min-height: 42px !important;
+    justify-content: center !important;
+  }
+
+  .teacherSubmissionPage .submissionTabs {
+    gap: 6px !important;
+    padding-bottom: 2px !important;
+  }
+
+  .teacherSubmissionPage .submissionTabBtn {
+    padding: 7px 12px !important;
+    font-size: 12px !important;
+  }
+
+  .teacherSubmissionPage .table tr {
+    margin: 0 0 8px !important;
+    padding: 10px !important;
+    border-radius: 12px !important;
+  }
+
+  .teacherSubmissionPage .table td {
+    padding: 6px 0 !important;
+    display: grid !important;
+    grid-template-columns: 92px 1fr !important;
+    gap: 8px !important;
+    align-items: center !important;
+  }
+
+  .teacherSubmissionPage .table td::before {
+    margin: 0 !important;
+    font-size: 0.68rem !important;
+    line-height: 1.3 !important;
+    text-align: left !important;
+    justify-self: start !important;
+  }
+
+  .teacherSubmissionPage .table tr td:first-child {
+    display: none !important;
+  }
+
+  .teacherSubmissionPage .table td[data-label="NAMA SISWA"] > div,
+  .teacherSubmissionPage .table td[data-label="FILE TERKUMPUL"] > div {
+    justify-content: flex-start !important;
+    text-align: left !important;
+  }
+
+  .teacherSubmissionPage .table td[data-label="NILAI"] > div {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    min-height: 32px !important;
+    text-align: center !important;
+  }
+
+  .teacherSubmissionPage .table td[data-label="FEEDBACK"] > div {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    min-height: 32px !important;
+    text-align: left !important;
+  }
+
+  .teacherSubmissionPage .table td[data-label="AKSI"] > div {
+    justify-content: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .teacherSubmissionPage .table td[data-label="AKSI"]::before {
+    text-align: left !important;
+    justify-self: start !important;
+    width: auto !important;
+  }
+
+  .teacherSubmissionPage .submissionPagination {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+}

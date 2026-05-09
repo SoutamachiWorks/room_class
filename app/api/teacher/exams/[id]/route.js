@@ -74,7 +74,7 @@ export async function PUT(request, { params }) {
     }
 
     const body = await request.json();
-    const { title, questions, isRandomized, duration, deadline } = body;
+    const { title, questions, typeSettings, isRandomized, duration, deadline } = body;
 
     if (!title) {
       return NextResponse.json({ error: 'Judul ujian wajib diisi.' }, { status: 400 });
@@ -110,6 +110,15 @@ export async function PUT(request, { params }) {
       }
     }
 
+    const normalizedTypeSettings = {
+      multipleChoice: typeSettings?.multipleChoice !== false,
+      essay: !!typeSettings?.essay,
+      fileUpload: !!typeSettings?.fileUpload,
+    };
+    if (!normalizedTypeSettings.multipleChoice && !normalizedTypeSettings.essay && !normalizedTypeSettings.fileUpload) {
+      return NextResponse.json({ error: 'Minimal satu jenis soal harus aktif.' }, { status: 400 });
+    }
+
     const normalizedQuestions = questions.map((q, idx) => ({
       order: idx + 1,
       imageUrl: q.imageUrl || null,
@@ -124,6 +133,7 @@ export async function PUT(request, { params }) {
         $set: {
           title,
           questions: normalizedQuestions,
+          typeSettings: normalizedTypeSettings,
           isRandomized: !!isRandomized,
           duration: duration ? parseInt(duration, 10) : null,
           deadline: deadline ? new Date(deadline) : null,

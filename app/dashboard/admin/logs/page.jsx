@@ -88,7 +88,7 @@ export default function ActivityLogsPage() {
       <PageHeader title="Log Aktivitas Sistem" />
 
       <ContentCard header={filterBar} footer={paginationFooter}>
-        <div className={styles.tableContainer}>
+        <div className={`${styles.tableContainer} ${styles.desktopOnlyBlock}`}>
           {loading ? (
              <div className={styles.loadingBox}>
                 <div className="spinner"></div>
@@ -117,15 +117,15 @@ export default function ActivityLogsPage() {
                       <div className={styles.cellMedium}>{new Date(log.timestamp).toLocaleDateString('id-ID')}</div>
                       <div className={styles.cellSecondary}>{new Date(log.timestamp).toLocaleTimeString('id-ID')}</div>
                     </td>
-                    <td>{getActionBadge(log.action)}</td>
-                    <td>
+                    <td data-label="Aksi">{getActionBadge(log.action)}</td>
+                    <td data-label="Dilakukan Oleh">
                        <div className={styles.cellBold}>{log.userName}</div>
                        {log.userId && <div className={styles.cellSecondary}>ID: {log.userId.slice(-6)}</div>}
                     </td>
-                    <td>
+                    <td data-label="Target">
                        <div className={styles.cellPrimary}>{log.target}</div>
                     </td>
-                    <td>
+                    <td data-label="Detail">
                        <div className={styles.detailBox}>
                           <pre className={styles.detailPre}>
                              {JSON.stringify(log.details, null, 2)}
@@ -138,6 +138,39 @@ export default function ActivityLogsPage() {
             </table>
           )}
         </div>
+
+        {!loading && logs.length > 0 && (
+          <div className={styles.mobileUserList}>
+            {logs.map((log) => (
+              <article key={`mobile-log-${log._id}`} className={styles.mobileUserCard}>
+                <div className={styles.mobileLogHead}>
+                  <div>
+                    <div className={styles.cellMedium}>{new Date(log.timestamp).toLocaleDateString('id-ID')}</div>
+                    <div className={styles.cellSecondary}>{new Date(log.timestamp).toLocaleTimeString('id-ID')}</div>
+                  </div>
+                  <div className={styles.mobileLogBadge}>{getActionBadge(log.action)}</div>
+                </div>
+
+                <div className={styles.mobileUserMeta}>
+                  <div>
+                    <div className={styles.mobileMetaLabel}>Dilakukan Oleh</div>
+                    <div className={styles.cellPrimary}>{log.userName}</div>
+                    {log.userId && <div className={styles.cellSecondary}>ID: {log.userId.slice(-6)}</div>}
+                  </div>
+                  <div>
+                    <div className={styles.mobileMetaLabel}>Target</div>
+                    <div className={styles.cellPrimary}>{log.target}</div>
+                  </div>
+                </div>
+
+                <div className={styles.mobileLogDetailBox}>
+                  <div className={styles.mobileMetaLabel}>Detail</div>
+                  <pre className={styles.mobileLogPre}>{JSON.stringify(log.details, null, 2)}</pre>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </ContentCard>
     </>
   );

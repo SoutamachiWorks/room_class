@@ -7,7 +7,7 @@ import * as jose from 'jose';
 
 async function getUserIdFromToken(request) {
   const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token')?.value;
+  const token = cookieStore.get('auth-token')?.value;
   if (!token) throw new Error('Unauthenticated');
 
   const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret_for_dev_only');

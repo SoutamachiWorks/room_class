@@ -15,7 +15,10 @@ export default function NotificationBell() {
 
   // Close dropdown when path changes
   useEffect(() => {
-    setIsOpen(false);
+    const timer = setTimeout(() => {
+      setIsOpen(false);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [pathname]);
 
   // Click outside to close
@@ -46,17 +49,36 @@ export default function NotificationBell() {
   };
 
   useEffect(() => {
-    fetchNotifications();
+    const timer = setTimeout(() => {
+      fetchNotifications();
+    }, 0);
     // Optional: Set up a polling interval or WebSocket here if real-time is needed.
     // For now, poll every 60 seconds.
     const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleToggle = () => {
-    setIsOpen(!isOpen);
-    if (!isOpen) {
+    const willOpen = !isOpen;
+    setIsOpen(willOpen);
+    if (willOpen) {
       fetchNotifications();
+      if (unreadCount > 0) {
+        handleMarkAllAsRead();
+      }
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await fetch('/api/notifications/read-all', { method: 'PATCH' });
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (err) {
+      console.error('Failed to mark all notifications as read', err);
     }
   };
 

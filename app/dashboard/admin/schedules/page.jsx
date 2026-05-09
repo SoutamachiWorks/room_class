@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import styles from './admin-schedules.module.css';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
@@ -13,6 +14,10 @@ export default function AdminSchedulesPage() {
   const [loading, setLoading] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [formData, setFormData] = useState({
     subjectId: '',
     dayOfWeek: 1,
@@ -33,20 +38,7 @@ export default function AdminSchedulesPage() {
       .catch(console.error);
   }, []);
 
-  useEffect(() => {
-    if (!selectedClass) return;
-    
-    // Fetch subjects for this class
-    fetch(`/api/admin/subjects?classCode=${selectedClass}`)
-      .then(r => r.json())
-      .then(d => setSubjects(d.subjects || []))
-      .catch(console.error);
-
-    // Fetch schedules for this class
-    fetchSchedules(selectedClass);
-  }, [selectedClass]);
-
-  const fetchSchedules = async (code) => {
+  async function fetchSchedules(code) {
     setLoading(true);
     try {
       const res = await fetch(`/api/schedules?classCode=${code}`);
@@ -57,12 +49,32 @@ export default function AdminSchedulesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    if (!selectedClass) return;
+    
+    // Fetch subjects for this class
+    fetch(`/api/admin/subjects?classCode=${selectedClass}`)
+      .then(r => r.json())
+      .then(d => setSubjects(d.subjects || []))
+      .catch(console.error);
+
+    // Fetch schedules for this class
+    const timer = setTimeout(() => {
+      fetchSchedules(selectedClass);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [selectedClass]);
 
   const handleAddSchedule = async (e) => {
     e.preventDefault();
+    setFormError('');
     const subject = subjects.find(s => s._id === formData.subjectId);
-    if (!subject) return alert('Pilih mata pelajaran');
+    if (!subject) {
+      setFormError('Pilih mata pelajaran terlebih dahulu.');
+      return;
+    }
 
     try {
       const res = await fetch('/api/admin/schedules', {
@@ -79,29 +91,32 @@ export default function AdminSchedulesPage() {
       });
       if (res.ok) {
         setIsModalOpen(false);
+        setFormError('');
         fetchSchedules(selectedClass);
       } else {
         const d = await res.json();
-        alert(d.error || 'Gagal menyimpan');
+        setFormError(d.error || 'Gagal menyimpan jadwal.');
       }
     } catch (err) {
       console.error(err);
-      alert('Terjadi kesalahan jaringan');
+      setFormError('Terjadi kesalahan jaringan.');
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Yakin ingin menghapus jadwal ini?')) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetId) return;
+    setDeleteLoading(true);
     try {
-      const res = await fetch(`/api/admin/schedules/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/schedules/${deleteTargetId}`, { method: 'DELETE' });
       if (res.ok) {
+        setIsDeleteOpen(false);
+        setDeleteTargetId('');
         fetchSchedules(selectedClass);
-      } else {
-        const d = await res.json();
-        alert(d.error || 'Gagal menghapus');
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -171,7 +186,7 @@ export default function AdminSchedulesPage() {
                           <td>{sch.subjectDetails?.subjectName || 'Mata Pelajaran'}</td>
                           <td>{sch.teacherDetails?.fullName || sch.teacherId}</td>
                           <td>
-                            <button className={styles.btnDelete} onClick={() => handleDelete(sch._id)}>
+                            <button className={styles.btnDelete} onClick={() => { setDeleteTargetId(sch._id); setIsDeleteOpen(true); }}>
                               Hapus
                             </button>
                           </td>
@@ -244,10 +259,19 @@ export default function AdminSchedulesPage() {
                 <button type="button" className={styles.btnCancel} onClick={() => setIsModalOpen(false)}>Batal</button>
                 <button type="submit" className={styles.btnPrimary}>Simpan Jadwal</button>
               </div>
+              {formError && <p style={{ color: '#dc2626', fontSize: '0.9rem', marginTop: '0.75rem' }}>{formError}</p>}
             </form>
           </div>
         </div>
       )}
+      <ConfirmDialog
+        isOpen={isDeleteOpen}
+        onClose={() => { if (!deleteLoading) { setIsDeleteOpen(false); setDeleteTargetId(''); } }}
+        onConfirm={handleDeleteConfirm}
+        title="Hapus Jadwal"
+        message="Yakin ingin menghapus jadwal ini?"
+        loading={deleteLoading}
+      />
     </div>
   );
 }

@@ -236,7 +236,7 @@ export default function SubjectManagementPage() {
   return (
     <>
       <PageHeader title="Penamaan Resolusi Subjek / Mata Pelajaran">
-        <button className={styles.btnPrimary} onClick={() => handleOpenForm()} disabled={!dependenciesLoaded}>
+        <button className={`${styles.btnPrimary} ${styles.headerActionBtn}`} onClick={() => handleOpenForm()} disabled={!dependenciesLoaded}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
@@ -246,7 +246,7 @@ export default function SubjectManagementPage() {
       </PageHeader>
 
       <ContentCard header={filterBar} footer={paginationFooter}>
-        <div className={styles.tableContainer}>
+        <div className={`${styles.tableContainer} ${styles.desktopOnlyBlock}`}>
           {loading ? (
              <div className={styles.loadingBox}>
                <div className="spinner"></div> 
@@ -302,6 +302,45 @@ export default function SubjectManagementPage() {
             </table>
           )}
         </div>
+
+        {!loading && subjects.length > 0 && (
+          <div className={styles.mobileUserList}>
+            {subjects.map((sub) => (
+              <article key={`mobile-${sub._id}`} className={styles.mobileUserCard}>
+                <div className={styles.mobileUserHead}>
+                  <div className={styles.userCell}>
+                    <div className={styles.avatarIcon}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                    </div>
+                    <div>
+                      <div className={styles.mobileMetaLabel}>Mata Pelajaran</div>
+                      <div className={styles.userName}>{sub.subjectName}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.mobileUserMeta}>
+                  <div>
+                    <div className={styles.mobileMetaLabel}>Guru</div>
+                    <div className={styles.cellPrimary}>{sub.teacherName}</div>
+                    <div className={styles.cellSecondary}>ID: {sub.teacherId}</div>
+                  </div>
+                  <div>
+                    <div className={styles.mobileMetaLabel}>Kelas</div>
+                    <div className={styles.cellPrimary}>{sub.classCode}</div>
+                  </div>
+                </div>
+
+                <div className={styles.mobileUserActions}>
+                  <button className={styles.mobileActionBtn} onClick={() => handleOpenForm(sub)}>Edit</button>
+                  <button className={`${styles.mobileActionBtn} ${styles.mobileActionBtnDanger}`} onClick={() => { setSelectedSubject(sub); setIsDeleteOpen(true); }}>
+                    Hapus
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </ContentCard>
 
       {/* Creation/Adjustment Modals leveraging pre-fetched contextual states */}

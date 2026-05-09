@@ -128,11 +128,16 @@ export default function GradingPage() {
                 {qd.multipleChoice && (
                   <div>
                     <div className={ans.mcAnswer === qd.multipleChoice.correctAnswer ? styles.answerCorrect : styles.answerWrong}>
-                      {ans.mcAnswer ? `Opsi ${String(ans.mcAnswer).toUpperCase()}` : 'Tidak Menjawab'}
+                      {ans.mcAnswer !== null && ans.mcAnswer !== undefined
+                        ? `Opsi ${String.fromCharCode(65 + Number(ans.mcAnswer))}${qd.multipleChoice?.options?.[ans.mcAnswer] ? ` - ${qd.multipleChoice.options[ans.mcAnswer]}` : ''}`
+                        : 'Tidak Menjawab'}
                     </div>
-                    {ans.mcAnswer !== qd.multipleChoice.correctAnswer && qd.multipleChoice.correctAnswer && (
+                    {ans.mcAnswer !== qd.multipleChoice.correctAnswer && qd.multipleChoice.correctAnswer !== null && qd.multipleChoice.correctAnswer !== undefined && (
                       <div className={styles.correctKey}>
-                        Kunci Jawaban Benar: Opsi {String(qd.multipleChoice.correctAnswer).toUpperCase()}
+                        Kunci Jawaban Benar: Opsi {String.fromCharCode(65 + Number(qd.multipleChoice.correctAnswer))}
+                        {qd.multipleChoice?.options?.[qd.multipleChoice.correctAnswer]
+                          ? ` - ${qd.multipleChoice.options[qd.multipleChoice.correctAnswer]}`
+                          : ''}
                       </div>
                     )}
                   </div>

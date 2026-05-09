@@ -20,7 +20,7 @@ function loadEnv() {
 loadEnv();
 
 const MONGODB_URI = process.env.MONGODB_URI;
-const MONGODB_DB = process.env.MONGODB_DB || 'RoomClass';
+const MONGODB_DB = process.env.MONGODB_DB || 'room_class';
 
 async function seed() {
   console.log('🌱 Seeding database...');

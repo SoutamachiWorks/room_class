@@ -1,78 +1,87 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import styles from './exam-builder.module.css';
 
-// Default empty question block
-function createEmptyQuestion() {
+function createEmptyQuestion(type = 'multipleChoice') {
   return {
+    type,
+    points: type === 'essay' ? 20 : 10,
+    difficulty: 'Sedang',
+    required: true,
+    shuffleOptions: false,
+    timeLimitMinutes: '',
     imageUrl: null,
-    multipleChoice: null,
-    essay: null,
-    fileUpload: null,
-    // Toggle state (local only, not persisted)
-    _mcEnabled: false,
-    _essayEnabled: false,
-    _fileEnabled: false,
-    _uploadingImage: false,
-    _previewUrl: null,
+    multipleChoice: type === 'multipleChoice' ? { questionText: '', options: ['', ''], correctAnswer: null, explanation: '' } : null,
+    essay: type === 'essay' ? { questionText: '', explanation: '' } : null,
+    fileUpload: type === 'fileUpload' ? { questionText: '', explanation: '' } : null,
   };
 }
+
+const STEP_META = [
+  { key: 1, title: 'Informasi Ujian', subtitle: 'Atur detail ujian' },
+  { key: 2, title: 'Soal & Pengaturan', subtitle: 'Buat soal dan atur opsi' },
+  { key: 3, title: 'Tinjau & Publikasi', subtitle: 'Periksa dan publikasikan' },
+];
+
+const DEFAULT_TYPE_SETTINGS = [
+  { id: 'multipleChoice', label: 'Pilihan Ganda', desc: 'Siswa memilih satu jawaban yang benar', enabled: true, color: 'green' },
+  { id: 'essay', label: 'Esai', desc: 'Siswa menjawab dengan uraian', enabled: false, color: 'orange' },
+  { id: 'fileUpload', label: 'File Upload', desc: 'Siswa mengunggah file sebagai jawaban', enabled: false, color: 'blue' },
+];
 
 export default function ExamBuilderPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get('id');
 
+  const [currentStep, setCurrentStep] = useState(1);
+  const [savingState, setSavingState] = useState('idle');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [error, setError] = useState('');
+  const [initialLoading, setInitialLoading] = useState(!!editId);
+  const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(0);
+  const [uploadingImageIndex, setUploadingImageIndex] = useState(null);
+
   const [title, setTitle] = useState('');
   const [subjectId, setSubjectId] = useState('');
   const [classCode, setClassCode] = useState('');
-  const [isRandomized, setIsRandomized] = useState(false);
   const [duration, setDuration] = useState('');
   const [deadline, setDeadline] = useState('');
+  const [isRandomized, setIsRandomized] = useState(false);
+  const [showScoreToStudent, setShowScoreToStudent] = useState(false);
+  const [showExplanationToStudent, setShowExplanationToStudent] = useState(false);
+  const [restrictAccess, setRestrictAccess] = useState(false);
+  const [lockExamPro, setLockExamPro] = useState(false);
+
   const [teacherSubjects, setTeacherSubjects] = useState([]);
-  const [dependenciesLoaded, setDependenciesLoaded] = useState(false);
+  const [questions, setQuestions] = useState([createEmptyQuestion('multipleChoice')]);
+  const [typeSettings, setTypeSettings] = useState(DEFAULT_TYPE_SETTINGS);
 
-  // Question blocks
-  const [questions, setQuestions] = useState([createEmptyQuestion()]);
-
-  // UI state
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(!!editId);
-
-  // Load teacher subjects
   useEffect(() => {
-    async function loadSubjects() {
+    async function loadDependencies() {
       try {
         const res = await fetch('/api/teacher/subjects');
         const data = await res.json();
         if (res.ok) setTeacherSubjects(data.subjects || []);
       } catch (e) {
-        console.error('Failed to load subjects:', e);
-      } finally {
-        setDependenciesLoaded(true);
+        console.error('Failed loading dependencies:', e);
       }
     }
-    loadSubjects();
+    loadDependencies();
   }, []);
 
-  // Load existing exam for editing
   useEffect(() => {
-    if (!editId || !dependenciesLoaded) return;
-
+    if (!editId) return;
     async function loadExam() {
       try {
         const res = await fetch(`/api/teacher/exams/${editId}`);
         const data = await res.json();
-
         if (!res.ok) {
           setError(data.error || 'Gagal memuat ujian.');
-          setInitialLoading(false);
           return;
         }
-
         const exam = data.exam;
         setTitle(exam.title || '');
         setSubjectId(exam.subjectId || '');
@@ -80,635 +89,834 @@ export default function ExamBuilderPage() {
         setDuration(exam.duration ? exam.duration.toString() : '');
         if (exam.deadline) {
           const d = new Date(exam.deadline);
-          if (!isNaN(d.getTime())) {
-            const tzOffset = d.getTimezoneOffset() * 60000;
-            const localISOTime = new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
-            setDeadline(localISOTime);
+          const tzOffset = d.getTimezoneOffset() * 60000;
+          setDeadline(new Date(d.getTime() - tzOffset).toISOString().slice(0, 16));
+        }
+        const mapped = (exam.questions || []).map((q) => {
+          if (q.multipleChoice) {
+            return {
+              ...createEmptyQuestion('multipleChoice'),
+              type: 'multipleChoice',
+              imageUrl: q.imageUrl || null,
+              multipleChoice: {
+                questionText: q.multipleChoice.questionText || '',
+                options: q.multipleChoice.options?.length ? q.multipleChoice.options : ['', ''],
+                correctAnswer: q.multipleChoice.correctAnswer ?? null,
+                explanation: q.multipleChoice.explanation || '',
+              },
+            };
           }
-        }
-
-        // Resolve class code from subject
-        const targetSub = teacherSubjects.find(s => s._id === exam.subjectId);
-        if (targetSub) setClassCode(targetSub.classCode);
-
-        // Map questions with toggle state
-        if (exam.questions && exam.questions.length > 0) {
-          setQuestions(exam.questions.map(q => ({
+          if (q.essay) {
+            return {
+              ...createEmptyQuestion('essay'),
+              type: 'essay',
+              imageUrl: q.imageUrl || null,
+              essay: {
+                questionText: q.essay.questionText || '',
+                explanation: q.essay.explanation || '',
+              },
+            };
+          }
+          return {
+            ...createEmptyQuestion('fileUpload'),
+            type: 'fileUpload',
             imageUrl: q.imageUrl || null,
-            multipleChoice: q.multipleChoice || null,
-            essay: q.essay || null,
-            fileUpload: q.fileUpload || null,
-            _mcEnabled: !!q.multipleChoice,
-            _essayEnabled: !!q.essay,
-            _fileEnabled: !!q.fileUpload,
-            _uploadingImage: false,
-            _previewUrl: q.previewUrl || null,
-          })));
+            fileUpload: {
+              questionText: q.fileUpload?.questionText || '',
+              explanation: q.fileUpload?.explanation || '',
+            },
+          };
+        });
+        if (mapped.length) setQuestions(mapped);
+        const savedTypeSettings = exam.typeSettings;
+        if (savedTypeSettings && typeof savedTypeSettings === 'object') {
+          setTypeSettings((prev) =>
+            prev.map((t) => ({
+              ...t,
+              enabled: Boolean(savedTypeSettings[t.id]),
+            }))
+          );
+        } else {
+          const detected = {
+            multipleChoice: mapped.some((q) => q.type === 'multipleChoice'),
+            essay: mapped.some((q) => q.type === 'essay'),
+            fileUpload: mapped.some((q) => q.type === 'fileUpload'),
+          };
+          if (!detected.multipleChoice && !detected.essay && !detected.fileUpload) {
+            detected.multipleChoice = true;
+          }
+          setTypeSettings((prev) =>
+            prev.map((t) => ({
+              ...t,
+              enabled: Boolean(detected[t.id]),
+            }))
+          );
         }
-      } catch (e) {
+      } catch {
         setError('Gagal memuat data ujian.');
       } finally {
         setInitialLoading(false);
       }
     }
     loadExam();
-  }, [editId, dependenciesLoaded, teacherSubjects]);
+  }, [editId]);
 
-  // Subject change handler
-  const handleSubjectChange = (e) => {
-    const sId = e.target.value;
-    setSubjectId(sId);
-    const targetSub = teacherSubjects.find(s => s._id === sId);
-    setClassCode(targetSub ? targetSub.classCode : '');
+  useEffect(() => {
+    if (!editId) {
+      setInitialLoading(false);
+      return;
+    }
+  }, [editId]);
+
+  useEffect(() => {
+    const selected = teacherSubjects.find((s) => s._id === subjectId);
+    setClassCode(selected?.classCode || '');
+  }, [subjectId, teacherSubjects]);
+
+  const selectedQuestion = questions[selectedQuestionIndex] || null;
+  const totalPoints = questions.reduce((acc, q) => acc + (Number(q.points) || 0), 0);
+  const enabledQuestionTypes = typeSettings.filter((t) => t.enabled);
+  const enabledQuestionTypeIds = enabledQuestionTypes.map((t) => t.id);
+  const typeCounts = useMemo(() => ({
+    multipleChoice: questions.filter((q) => q.type === 'multipleChoice').length,
+    essay: questions.filter((q) => q.type === 'essay').length,
+    fileUpload: questions.filter((q) => q.type === 'fileUpload').length,
+  }), [questions]);
+
+  const canGoStep2 = title.trim() && subjectId;
+  const canGoStep3 = questions.length > 0 && questions.every((q) => {
+    if (q.type === 'multipleChoice') {
+      return q.multipleChoice?.questionText?.trim() && (q.multipleChoice.options || []).every((o) => o.trim()) && q.multipleChoice.correctAnswer !== null;
+    }
+    if (q.type === 'essay') return q.essay?.questionText?.trim();
+    return q.fileUpload?.questionText?.trim();
+  });
+
+  const examSummary = {
+    title: title || '-',
+    subject: teacherSubjects.find((s) => s._id === subjectId)?.subjectName || '-',
+    classCode: classCode || '-',
+    duration: duration ? `${duration} menit` : 'Tanpa batas waktu',
+    deadline: deadline ? new Date(deadline).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : 'Tidak ada batas akhir',
   };
 
-  // ====== Question Block Helpers ======
+  function updateQuestion(index, updater) {
+    setQuestions((prev) => prev.map((q, i) => (i === index ? updater(q) : q)));
+  }
 
-  const updateQuestion = useCallback((index, updater) => {
-    setQuestions(prev => prev.map((q, i) => (i === index ? updater(q) : q)));
-  }, []);
-
-  const addQuestion = () => {
-    setQuestions(prev => [...prev, createEmptyQuestion()]);
-  };
-
-  const removeQuestion = (index) => {
-    setQuestions(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const moveQuestion = (index, direction) => {
-    setQuestions(prev => {
-      const arr = [...prev];
-      const targetIdx = index + direction;
-      if (targetIdx < 0 || targetIdx >= arr.length) return arr;
-      [arr[index], arr[targetIdx]] = [arr[targetIdx], arr[index]];
-      return arr;
-    });
-  };
-
-  // ====== Image Upload Helpers ======
-
-  const handleImageUpload = async (qIdx, file) => {
+  async function handleImageUpload(index, file) {
     if (!file) return;
-
     if (!file.type.startsWith('image/')) {
-      alert('Harap pilih file gambar (JPG, PNG, dll).');
+      alert('File harus berupa gambar.');
       return;
     }
-
-    updateQuestion(qIdx, q => ({ ...q, _uploadingImage: true }));
-
-    const formData = new FormData();
-    formData.append('image', file);
-
+    setUploadingImageIndex(index);
     try {
-      const res = await fetch('/api/teacher/exams/upload-image', {
-        method: 'POST',
-        body: formData,
-      });
-
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await fetch('/api/teacher/exams/upload-image', { method: 'POST', body: fd });
       const data = await res.json();
-      if (res.ok) {
-        updateQuestion(qIdx, q => ({
-          ...q,
-          imageUrl: data.imageUrl,
-          _previewUrl: data.previewUrl,
-          _uploadingImage: false,
-        }));
-      } else {
+      if (!res.ok) {
         alert(data.error || 'Gagal mengunggah gambar.');
-        updateQuestion(qIdx, q => ({ ...q, _uploadingImage: false }));
-      }
-    } catch (err) {
-      alert('Koneksi server terputus saat mengunggah gambar.');
-      updateQuestion(qIdx, q => ({ ...q, _uploadingImage: false }));
-    }
-  };
-
-  const removeImage = (qIdx) => {
-    updateQuestion(qIdx, q => ({
-      ...q,
-      imageUrl: null,
-      _previewUrl: null,
-    }));
-  };
-
-  // ====== MC Helpers ======
-
-  const addMCOption = (qIdx) => {
-    updateQuestion(qIdx, q => ({
-      ...q,
-      multipleChoice: {
-        ...q.multipleChoice,
-        options: [...(q.multipleChoice?.options || []), ''],
-      },
-    }));
-  };
-
-  const removeMCOption = (qIdx, optIdx) => {
-    updateQuestion(qIdx, q => {
-      const newOptions = (q.multipleChoice?.options || []).filter((_, i) => i !== optIdx);
-      let correctAnswer = q.multipleChoice?.correctAnswer;
-      if (correctAnswer === optIdx) correctAnswer = null;
-      else if (correctAnswer !== null && correctAnswer !== undefined && correctAnswer > optIdx) correctAnswer--;
-      return {
-        ...q,
-        multipleChoice: { ...q.multipleChoice, options: newOptions, correctAnswer },
-      };
-    });
-  };
-
-  const updateMCOption = (qIdx, optIdx, value) => {
-    updateQuestion(qIdx, q => {
-      const newOptions = [...(q.multipleChoice?.options || [])];
-      newOptions[optIdx] = value;
-      return {
-        ...q,
-        multipleChoice: { ...q.multipleChoice, options: newOptions },
-      };
-    });
-  };
-
-  const setMCCorrect = (qIdx, optIdx) => {
-    updateQuestion(qIdx, q => ({
-      ...q,
-      multipleChoice: { ...q.multipleChoice, correctAnswer: optIdx },
-    }));
-  };
-
-  // ====== Toggle type on/off ======
-
-  const toggleMC = (qIdx, enabled) => {
-    updateQuestion(qIdx, q => ({
-      ...q,
-      _mcEnabled: enabled,
-      _essayEnabled: false,
-      _fileEnabled: false,
-      multipleChoice: enabled
-        ? (q.multipleChoice || { questionText: '', options: ['', ''], correctAnswer: null })
-        : null,
-      essay: null,
-      fileUpload: null,
-    }));
-  };
-
-  const toggleEssay = (qIdx, enabled) => {
-    updateQuestion(qIdx, q => ({
-      ...q,
-      _essayEnabled: enabled,
-      _mcEnabled: false,
-      _fileEnabled: false,
-      essay: enabled
-        ? (q.essay || { questionText: '' })
-        : null,
-      multipleChoice: null,
-      fileUpload: null,
-    }));
-  };
-
-  const toggleFile = (qIdx, enabled) => {
-    updateQuestion(qIdx, q => ({
-      ...q,
-      _fileEnabled: enabled,
-      _mcEnabled: false,
-      _essayEnabled: false,
-      fileUpload: enabled
-        ? (q.fileUpload || { questionText: '' })
-        : null,
-      multipleChoice: null,
-      essay: null,
-    }));
-  };
-
-  // ====== Submit ======
-
-  const handleSave = async () => {
-    setError('');
-
-    if (!title.trim()) {
-      setError('Judul ujian wajib diisi.');
-      return;
-    }
-    if (!subjectId) {
-      setError('Mata pelajaran wajib dipilih.');
-      return;
-    }
-    if (questions.length === 0) {
-      setError('Ujian harus memiliki minimal 1 soal.');
-      return;
-    }
-
-    // Validate each question has at least one type
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      if (!q.multipleChoice && !q.essay && !q.fileUpload) {
-        setError(`Soal #${i + 1} harus memiliki minimal 1 tipe soal aktif.`);
         return;
       }
+      updateQuestion(index, (q) => ({ ...q, imageUrl: data.imageUrl }));
+    } catch {
+      alert('Koneksi server gagal saat upload gambar.');
+    } finally {
+      setUploadingImageIndex(null);
     }
+  }
 
-    // Validation for questions is done
+  function removeImage(index) {
+    updateQuestion(index, (q) => ({ ...q, imageUrl: null }));
+  }
 
-    setSaving(true);
+  function handleToggleType(typeId, checked) {
+    const enabledCount = typeSettings.filter((t) => t.enabled).length;
+    if (!checked && enabledCount <= 1) {
+      alert('Minimal satu jenis soal harus aktif.');
+      return;
+    }
+    setTypeSettings((prev) => prev.map((t) => (t.id === typeId ? { ...t, enabled: checked } : t)));
+  }
 
-    // Strip local toggle state before sending
-    const cleanQuestions = questions.map(q => ({
+  function goToNextStep() {
+    if (currentStep === 1) {
+      if (!title.trim()) {
+        const msg = 'Judul ujian wajib diisi.';
+        setError(msg);
+        alert(msg);
+        return;
+      }
+      if (!subjectId) {
+        const msg = 'Mata pelajaran wajib dipilih.';
+        setError(msg);
+        alert(msg);
+        return;
+      }
+      setError('');
+      setCurrentStep(2);
+      return;
+    }
+    if (currentStep === 2) {
+      if (!canGoStep3) {
+        const msg = 'Masih ada soal yang belum lengkap.';
+        setError(msg);
+        alert(msg);
+        return;
+      }
+      setError('');
+      setCurrentStep(3);
+    }
+  }
+
+  function addQuestionByType(type) {
+    setQuestions((prev) => [...prev, createEmptyQuestion(type)]);
+    setSelectedQuestionIndex(questions.length);
+    setCurrentStep(2);
+  }
+
+  function getNextQuestionType() {
+    const enabled = typeSettings.filter((t) => t.enabled).map((t) => t.id);
+    if (enabled.includes('multipleChoice')) return 'multipleChoice';
+    if (enabled.includes('essay')) return 'essay';
+    return 'fileUpload';
+  }
+
+  function removeQuestion(index) {
+    if (questions.length <= 1) return;
+    setQuestions((prev) => prev.filter((_, i) => i !== index));
+    setSelectedQuestionIndex((prev) => Math.max(0, Math.min(prev, questions.length - 2)));
+  }
+
+  function moveQuestion(index, dir) {
+    const target = index + dir;
+    if (target < 0 || target >= questions.length) return;
+    setQuestions((prev) => {
+      const arr = [...prev];
+      [arr[index], arr[target]] = [arr[target], arr[index]];
+      return arr;
+    });
+    setSelectedQuestionIndex(target);
+  }
+
+  function duplicateQuestion(index) {
+    const copy = JSON.parse(JSON.stringify(questions[index]));
+    setQuestions((prev) => {
+      const arr = [...prev];
+      arr.splice(index + 1, 0, copy);
+      return arr;
+    });
+    setSelectedQuestionIndex(index + 1);
+  }
+
+  function mapToPayload() {
+    const cleanQuestions = questions.map((q, idx) => ({
+      order: idx + 1,
       imageUrl: q.imageUrl || null,
-      multipleChoice: q.multipleChoice || null,
-      essay: q.essay || null,
-      fileUpload: q.fileUpload || null,
+      multipleChoice: q.type === 'multipleChoice' ? {
+        questionText: q.multipleChoice?.questionText || '',
+        options: q.multipleChoice?.options || [],
+        correctAnswer: q.multipleChoice?.correctAnswer ?? null,
+        explanation: q.multipleChoice?.explanation || '',
+      } : null,
+      essay: q.type === 'essay' ? {
+        questionText: q.essay?.questionText || '',
+        explanation: q.essay?.explanation || '',
+      } : null,
+      fileUpload: q.type === 'fileUpload' ? {
+        questionText: q.fileUpload?.questionText || '',
+        explanation: q.fileUpload?.explanation || '',
+      } : null,
     }));
 
-    const payload = {
+    return {
       title: title.trim(),
       subjectId,
       questions: cleanQuestions,
+      typeSettings: {
+        multipleChoice: !!typeSettings.find((t) => t.id === 'multipleChoice')?.enabled,
+        essay: !!typeSettings.find((t) => t.id === 'essay')?.enabled,
+        fileUpload: !!typeSettings.find((t) => t.id === 'fileUpload')?.enabled,
+      },
       isRandomized,
       duration: duration ? parseInt(duration, 10) : null,
       deadline: deadline ? new Date(deadline).toISOString() : null,
     };
+  }
 
+  async function saveExam() {
+    setError('');
+    if (!title.trim()) {
+      setError('Judul ujian wajib diisi.');
+      return { ok: false };
+    }
+    if (!subjectId) {
+      setError('Mata pelajaran wajib dipilih.');
+      return { ok: false };
+    }
+    if (!questions.length) {
+      setError('Minimal harus ada satu soal.');
+      alert('Minimal harus ada satu soal.');
+      return { ok: false };
+    }
+
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      if (q.type === 'multipleChoice') {
+        const text = q.multipleChoice?.questionText?.trim();
+        const opts = q.multipleChoice?.options || [];
+        if (!text) {
+          const msg = `Soal #${i + 1}: Teks soal pilihan ganda wajib diisi.`;
+          setError(msg);
+          alert(msg);
+          return { ok: false };
+        }
+        if (opts.length < 2) {
+          const msg = `Soal #${i + 1}: Minimal harus ada 2 opsi jawaban.`;
+          setError(msg);
+          alert(msg);
+          return { ok: false };
+        }
+        if (opts.some((o) => !o.trim())) {
+          const msg = `Soal #${i + 1}: Semua opsi jawaban wajib diisi.`;
+          setError(msg);
+          alert(msg);
+          return { ok: false };
+        }
+        if (q.multipleChoice?.correctAnswer === null || q.multipleChoice?.correctAnswer === undefined) {
+          const msg = `Soal #${i + 1}: Pilih satu jawaban benar.`;
+          setError(msg);
+          alert(msg);
+          return { ok: false };
+        }
+      }
+      if (q.type === 'essay' && !q.essay?.questionText?.trim()) {
+        const msg = `Soal #${i + 1}: Teks soal esai wajib diisi.`;
+        setError(msg);
+        alert(msg);
+        return { ok: false };
+      }
+      if (q.type === 'fileUpload' && !q.fileUpload?.questionText?.trim()) {
+        const msg = `Soal #${i + 1}: Teks instruksi file upload wajib diisi.`;
+        setError(msg);
+        alert(msg);
+        return { ok: false };
+      }
+    }
+
+    const payload = mapToPayload();
     try {
       const url = editId ? `/api/teacher/exams/${editId}` : '/api/teacher/exams';
       const method = editId ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
-
       if (!res.ok) {
         setError(data.error || 'Gagal menyimpan ujian.');
-      } else {
-        router.push('/dashboard/teacher/exams');
+        return { ok: false };
       }
+      return { ok: true, id: data.id || editId };
     } catch {
       setError('Koneksi ke server gagal.');
-    } finally {
-      setSaving(false);
+      return { ok: false };
     }
-  };
+  }
 
-  // ====== Render ======
+  async function handleSaveDraft() {
+    setStatusMessage('');
+    setSavingState('saving');
+    const result = await saveExam();
+    setSavingState(result.ok ? 'saved' : 'idle');
+    if (result.ok && !editId && result.id) {
+      router.replace(`/dashboard/teacher/exams/builder?id=${result.id}`);
+    }
+    if (result.ok) {
+      setStatusMessage('Draft ujian berhasil disimpan.');
+    }
+  }
+
+  async function handlePublishExam() {
+    setStatusMessage('');
+    setSavingState('saving');
+    const result = await saveExam();
+    if (!result.ok || !result.id) {
+      setSavingState('idle');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/teacher/exams/${result.id}/publish`, { method: 'PUT' });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Gagal mempublikasikan ujian.');
+        setSavingState('idle');
+        return;
+      }
+      setSavingState('published');
+      router.push('/dashboard/teacher/exams');
+    } catch {
+      setError('Koneksi ke server gagal saat publikasi.');
+      setSavingState('idle');
+    }
+  }
 
   if (initialLoading) {
-    return (
-      <div className={styles.builderContainer}>
-        <div className={styles.builderHeader}>
-          <div className={styles.loadingCenter}>
-            Memuat data ujian...
-          </div>
-        </div>
-      </div>
-    );
+    return <div className={styles.loadingState}>Memuat data ujian...</div>;
   }
 
   return (
-    <div className={styles.builderContainer}>
-      {/* Header / Meta */}
-      <div className={styles.builderHeader}>
-        <button className={styles.backLink} onClick={() => router.push('/dashboard/teacher/exams')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-          Kembali ke Daftar Ujian
+    <div className={styles.page}>
+      <div className={styles.topbar}>
+        <div className={styles.topbarLeft}>
+        <div className={styles.breadcrumb}>Ujian &gt; Buat Ujian Baru</div>
+        <div className={styles.pageTitleRow}>
+          <div className={styles.pageIcon}>▦</div>
+          <div>
+            <h1 className={styles.pageTitle}>Buat Ujian Baru</h1>
+            <p className={styles.pageSubtitle}>Buat dan atur ujian untuk siswa Anda</p>
+          </div>
+        </div>
+        <button className={styles.btnBack} onClick={() => router.push('/dashboard/teacher/exams')}>
+          ← Kembali ke Bank Ujian
         </button>
-
-        <h1 className={styles.builderTitle}>
-          {editId ? 'Edit Ujian' : 'Buat Ujian Baru'}
-        </h1>
-
-        {error && <div className={styles.errorBanner}>{error}</div>}
-
-        <div className={`${styles.fieldGroup} ${styles.fieldGroupSpaced}`}>
-          <label className={styles.fieldLabel}>Judul Ujian *</label>
-          <input
-            type="text"
-            className={styles.input}
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="Contoh: Ujian Tengah Semester - Matematika"
-          />
-        </div>
-
-        <div className={styles.metaGrid}>
-          <div className={styles.fieldGroup}>
-            <label className={styles.fieldLabel}>Integrasi Mata Pelajaran *</label>
-            <select
-              value={subjectId}
-              onChange={handleSubjectChange}
-              disabled={!!editId}
-              className={`${styles.input} ${editId ? styles.inputDisabled : styles.selectInput}`}
-            >
-              <option value="" disabled>Pilih Mata Pelajaran...</option>
-              {teacherSubjects.map(sub => (
-                <option key={sub._id} value={sub._id}>{sub.subjectName}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.fieldGroup}>
-            <label className={styles.fieldLabel}>Kode Kelas (Otomatis)</label>
-            <input
-              type="text"
-              value={classCode ? `Terkunci: ${classCode}` : 'Pilih mata pelajaran'}
-              disabled
-              className={`${styles.input} ${styles.inputLocked}`}
-            />
-          </div>
-        </div>
-
-        <div className={styles.metaGrid}>
-          <div className={styles.fieldGroup}>
-            <label className={`${styles.fieldLabel} ${styles.fieldLabelRow}`}>
-              <span>Acak Urutan Soal Ujian</span>
-              <label className={styles.toggleSwitch}>
-                <input
-                  type="checkbox"
-                  checked={isRandomized}
-                  onChange={e => setIsRandomized(e.target.checked)}
-                />
-                <span className={styles.toggleSlider}/>
-              </label>
-            </label>
-            <span className={styles.fieldHintText}>
-              {isRandomized ? 'Ya, acak untuk setiap siswa.' : 'Tidak diacak otomatis.'}
-            </span>
-          </div>
-
-          <div className={styles.fieldGroup} style={{ gridColumn: 'span 1' }}>
-            <label className={styles.fieldLabel}>Durasi Pengerjaan (Menit)</label>
-            <input
-              type="number"
-              min="1"
-              max="600"
-              className={styles.input}
-              value={duration}
-              onChange={e => setDuration(e.target.value)}
-              placeholder="Contoh: 90 (Kosong = Tanpa batas waktu)"
-            />
-          </div>
-
-          <div className={styles.fieldGroup} style={{ gridColumn: 'span 1' }}>
-            <label className={styles.fieldLabel}>Batas Akhir Pengerjaan (Deadline)</label>
-            <input
-              type="datetime-local"
-              value={deadline}
-              onChange={e => setDeadline(e.target.value)}
-              className={`${styles.input} ${!deadline ? styles.inputPlaceholder : ''}`}
-            />
-            <span className={styles.fieldHintText}>
-              Kosongkan jika tidak ada batas akhir hari/waktu.
-            </span>
-          </div>
+      </div>
+        <div className={styles.topActions}>
+          <button className={styles.btnGhost} onClick={handleSaveDraft} disabled={savingState === 'saving'}>Simpan Draft</button>
+          <button className={styles.btnPrimary} onClick={handlePublishExam} disabled={savingState === 'saving'}>
+            Publikasikan Ujian
+          </button>
         </div>
       </div>
 
-      {/* Question Blocks */}
-      {questions.map((q, qIdx) => (
-        <div className={styles.questionBlock} key={qIdx}>
-          <div className={styles.questionBlockHeader}>
-            <span className={styles.questionNumber}>Soal #{qIdx + 1}</span>
-            <div className={styles.questionActions}>
-              <button
-                className={styles.qActionBtn}
-                title="Pindah ke atas"
-                onClick={() => moveQuestion(qIdx, -1)}
-                disabled={qIdx === 0}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.qActionIcon}>
-                  <polyline points="18 15 12 9 6 15"/>
-                </svg>
+      <div className={styles.stepper}>
+        {STEP_META.map((step, idx) => {
+          const isDone = currentStep > step.key;
+          const isActive = currentStep === step.key;
+          const canNavigate = step.key < currentStep;
+          return (
+            <div key={step.key} className={styles.stepItem}>
+              <button className={`${styles.stepCircle} ${isDone ? styles.stepDone : ''} ${isActive ? styles.stepActive : ''}`} onClick={() => canNavigate && setCurrentStep(step.key)}>
+                {isDone ? '✓' : step.key}
               </button>
-              <button
-                className={styles.qActionBtn}
-                title="Pindah ke bawah"
-                onClick={() => moveQuestion(qIdx, 1)}
-                disabled={qIdx === questions.length - 1}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-              </button>
-              <button
-                className={`${styles.qActionBtn} ${styles.qActionBtnDanger}`}
-                title="Hapus soal"
-                onClick={() => removeQuestion(qIdx)}
-                disabled={questions.length <= 1}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.qActionIcon}>
-                  <line x1="18" y1="6" x2="6" y2="18"/>
-                  <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {/* 0. Image Upload Section */}
-          <div className={styles.imageUploadSection}>
-            <div className={styles.fieldLabel}>Ilustrasi Gambar (Opsional)</div>
-            
-            {!q.imageUrl && !q._uploadingImage && (
-              <>
-                <input
-                  type="file"
-                  id={`image-upload-${qIdx}`}
-                  className={styles.imageInputHidden}
-                  accept="image/*"
-                  onChange={(e) => handleImageUpload(qIdx, e.target.files[0])}
-                />
-                <label htmlFor={`image-upload-${qIdx}`} className={styles.imageUploadBtn}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={styles.imageUploadIcon}>
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <polyline points="21 15 16 10 5 21"/>
-                  </svg>
-                  Sisipkan Gambar Soal
-                </label>
-              </>
-            )}
-
-            {q._uploadingImage && (
-              <div className={styles.uploadingIndicator}>
-                <svg className={`${styles.imageUploadIcon} ${styles.spinning}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
-                </svg>
-                Sedang mengunggah...
+              <div className={styles.stepLabel}>
+                <div className={styles.stepTitle}>{step.title}</div>
+                <div className={styles.stepSub}>{step.subtitle}</div>
               </div>
-            )}
-
-            {q.imageUrl && !q._uploadingImage && (
-              <div className={styles.imagePreviewWrapper}>
-                <img src={q._previewUrl} alt="Preview Soal" className={styles.imagePreview} />
-                <button 
-                  className={styles.imageRemoveBtn} 
-                  title="Hapus Gambar"
-                  onClick={() => removeImage(qIdx)}
-                >
-                  ×
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* 1. Multiple Choice */}
-          <div className={styles.typeSection}>
-            <div className={styles.typeHeader}>
-              <span className={`${styles.typeLabel} ${styles.typeLabelMC}`}>Pilihan Ganda</span>
-              <label className={styles.toggleSwitch}>
-                <input
-                  type="checkbox"
-                  checked={q._mcEnabled}
-                  onChange={e => toggleMC(qIdx, e.target.checked)}
-                />
-                <span className={styles.toggleSlider}/>
-              </label>
+              {idx < STEP_META.length - 1 && <div className={styles.stepLine} />}
             </div>
-            {q._mcEnabled ? (
-              <div className={styles.typeContent}>
-                <textarea
-                  className={styles.questionTextarea}
-                  placeholder="Tuliskan pertanyaan pilihan ganda..."
-                  value={q.multipleChoice?.questionText || ''}
-                  onChange={e => updateQuestion(qIdx, qq => ({
-                    ...qq,
-                    multipleChoice: { ...qq.multipleChoice, questionText: e.target.value },
-                  }))}
-                />
-                <div className={styles.optionsContainer}>
-                  {(q.multipleChoice?.options || []).map((opt, optIdx) => (
-                    <div className={styles.optionRow} key={optIdx}>
-                      <input
-                        type="radio"
-                        name={`mc-correct-${qIdx}`}
-                        className={styles.optionRadio}
-                        checked={q.multipleChoice?.correctAnswer === optIdx}
-                        onChange={() => setMCCorrect(qIdx, optIdx)}
-                        title="Tandai sebagai jawaban benar"
-                      />
-                      <input
-                        type="text"
-                        className={styles.optionInput}
-                        placeholder={`Opsi ${String.fromCharCode(65 + optIdx)}`}
-                        value={opt}
-                        onChange={e => updateMCOption(qIdx, optIdx, e.target.value)}
-                      />
-                      {q.multipleChoice?.correctAnswer === optIdx && (
-                        <span className={styles.correctLabel}>Benar</span>
-                      )}
-                      {(q.multipleChoice?.options || []).length > 2 && (
-                        <button
-                          type="button"
-                          className={styles.optionRemoveBtn}
-                          onClick={() => removeMCOption(qIdx, optIdx)}
-                          title="Hapus opsi"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button type="button" className={styles.addOptionBtn} onClick={() => addMCOption(qIdx)}>
-                    + Tambah Opsi
-                  </button>
+          );
+        })}
+      </div>
+
+      {error && <div className={styles.errorBanner}>{error}</div>}
+      {statusMessage && <div className={styles.successBanner}>{statusMessage}</div>}
+
+      {currentStep === 1 && (
+        <div className={styles.grid2}>
+          <div className={styles.colLeft}>
+            <section className={styles.card}>
+              <h3 className={styles.cardTitle}>Informasi Ujian</h3>
+              <div className={styles.formGroup}>
+                <label>Judul Ujian *</label>
+                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Contoh: Ujian Tengah Semester - Matematika" />
+              </div>
+              <div className={styles.formGrid2}>
+                <div className={styles.formGroup}>
+                  <label>Integrasi Mata Pelajaran *</label>
+                  <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} disabled={!!editId}>
+                    <option value="">Pilih mata pelajaran</option>
+                    {teacherSubjects.map((s) => <option key={s._id} value={s._id}>{s.subjectName}</option>)}
+                  </select>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Kelas (Otomatis)</label>
+                  <input value={classCode || ''} disabled placeholder="Pilih kelas" />
                 </div>
               </div>
-            ) : (
-              <div className={styles.typeContentDisabled}>Nonaktif — aktifkan toggle untuk menambahkan soal pilihan ganda.</div>
-            )}
+              <div className={styles.formGrid2}>
+                <div className={styles.switchField}>
+                  <div>
+                    <div className={styles.switchTitle}>Acak Urutan Soal</div>
+                    <div className={styles.switchSub}>Soal akan ditampilkan secara acak</div>
+                  </div>
+                  <label className={styles.switch}>
+                    <input type="checkbox" checked={isRandomized} onChange={(e) => setIsRandomized(e.target.checked)} />
+                    <span />
+                  </label>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Durasi Pengerjaan (Menit)</label>
+                  <input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="Contoh: 90" />
+                </div>
+              </div>
+              <div className={styles.formGroup}>
+                <label>Batas Akhir Pengerjaan (Deadline)</label>
+                <input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+                <small>Kosongkan jika tidak ada batas akhir</small>
+              </div>
+            </section>
+
+            <section className={styles.card}>
+              <h3 className={styles.cardTitle}>Opsi Tambahan</h3>
+              {[
+                { label: 'Tampilkan Nilai ke Siswa', sub: 'Siswa dapat melihat nilai setelah mengerjakan ujian', val: showScoreToStudent, set: setShowScoreToStudent },
+                { label: 'Tampilkan Pembahasan', sub: 'Siswa dapat melihat pembahasan setelah ujian selesai', val: showExplanationToStudent, set: setShowExplanationToStudent },
+                { label: 'Batasi Akses Ujian', sub: 'Hanya dapat diakses sesuai jadwal atau kode akses', val: restrictAccess, set: setRestrictAccess },
+              ].map((row) => (
+                <div key={row.label} className={styles.switchField}>
+                  <div>
+                    <div className={styles.switchTitle}>{row.label}</div>
+                    <div className={styles.switchSub}>{row.sub}</div>
+                  </div>
+                  <label className={styles.switch}>
+                    <input type="checkbox" checked={row.val} onChange={(e) => row.set(e.target.checked)} />
+                    <span />
+                  </label>
+                </div>
+              ))}
+            </section>
           </div>
 
-          {/* 2. Essay */}
-          <div className={styles.typeSection}>
-            <div className={styles.typeHeader}>
-              <span className={`${styles.typeLabel} ${styles.typeLabelEssay}`}>Esai</span>
-              <label className={styles.toggleSwitch}>
-                <input
-                  type="checkbox"
-                  checked={q._essayEnabled}
-                  onChange={e => toggleEssay(qIdx, e.target.checked)}
-                />
-                <span className={styles.toggleSlider}/>
-              </label>
-            </div>
-            {q._essayEnabled ? (
-              <div className={styles.typeContent}>
-                <textarea
-                  className={styles.questionTextarea}
-                  placeholder="Tuliskan pertanyaan esai..."
-                  value={q.essay?.questionText || ''}
-                  onChange={e => updateQuestion(qIdx, qq => ({
-                    ...qq,
-                    essay: { ...qq.essay, questionText: e.target.value },
-                  }))}
-                />
+          <div className={styles.colRight}>
+            <section className={styles.card}>
+              <h3 className={styles.cardTitle}>Pengaturan Soal</h3>
+              <p className={styles.cardDesc}>Atur preferensi untuk soal dalam ujian</p>
+              <div className={styles.typeList}>
+                {typeSettings.map((t) => (
+                  <div key={t.id} className={styles.typeRow}>
+                    <div className={`${styles.typeIcon} ${styles[`type${t.color}`]}`}>✓</div>
+                    <div className={styles.typeInfo}>
+                      <div>{t.label}</div>
+                      <small>{t.desc}</small>
+                    </div>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={t.enabled}
+                        onChange={(e) => handleToggleType(t.id, e.target.checked)}
+                      />
+                      <span />
+                    </label>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <div className={styles.typeContentDisabled}>Nonaktif — aktifkan toggle untuk menambahkan soal esai.</div>
-            )}
-          </div>
+              <button className={styles.btnDashed}>+ Tambah Jenis Soal Lain</button>
+            </section>
 
-          {/* 3. File Upload */}
-          <div className={styles.typeSection}>
-            <div className={styles.typeHeader}>
-              <span className={`${styles.typeLabel} ${styles.typeLabelFile}`}>File Upload</span>
-              <label className={styles.toggleSwitch}>
-                <input
-                  type="checkbox"
-                  checked={q._fileEnabled}
-                  onChange={e => toggleFile(qIdx, e.target.checked)}
-                />
-                <span className={styles.toggleSlider}/>
-              </label>
-            </div>
-            {q._fileEnabled ? (
-              <div className={styles.typeContent}>
-                <textarea
-                  className={styles.questionTextarea}
-                  placeholder="Tuliskan instruksi untuk file yang harus diupload siswa..."
-                  value={q.fileUpload?.questionText || ''}
-                  onChange={e => updateQuestion(qIdx, qq => ({
-                    ...qq,
-                    fileUpload: { ...qq.fileUpload, questionText: e.target.value },
-                  }))}
-                />
+            <section className={styles.card}>
+              <h3 className={styles.cardTitle}>Ringkasan Ujian</h3>
+              <div className={styles.summaryList}>
+                <div><span>Judul</span><strong>{examSummary.title}</strong></div>
+                <div><span>Mata Pelajaran</span><strong>{examSummary.subject}</strong></div>
+                <div><span>Kelas</span><strong>{examSummary.classCode}</strong></div>
+                <div><span>Durasi</span><strong>{examSummary.duration}</strong></div>
+                <div><span>Deadline</span><strong>{examSummary.deadline}</strong></div>
               </div>
-            ) : (
-              <div className={styles.typeContentDisabled}>Nonaktif — aktifkan toggle untuk menambahkan soal file upload.</div>
-            )}
+            </section>
           </div>
         </div>
-      ))}
+      )}
 
-      {/* Add Question */}
-      <button type="button" className={styles.addQuestionBtn} onClick={addQuestion}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="16"/>
-          <line x1="8" y1="12" x2="16" y2="12"/>
-        </svg>
-        Tambah Soal Baru
-      </button>
+      {currentStep === 2 && (
+        <div className={styles.grid3}>
+          <section className={styles.card}>
+            <h3 className={styles.cardTitle}>Daftar Soal</h3>
+            <div className={styles.questionList}>
+              {questions.map((q, idx) => (
+                <button key={`${q.type}-${idx}`} className={`${styles.questionItem} ${idx === selectedQuestionIndex ? styles.questionItemActive : ''}`} onClick={() => setSelectedQuestionIndex(idx)}>
+                  <div className={styles.questionItemMain}>
+                    <strong>{q.type === 'multipleChoice' ? `Soal ${idx + 1}` : q.type === 'essay' ? `Esai ${idx + 1}` : `File Upload ${idx + 1}`}</strong>
+                    <small>{q.type === 'multipleChoice' ? 'Pilihan Ganda' : q.type === 'essay' ? 'Esai' : 'File Upload'}</small>
+                  </div>
+                  <span>{q.points} poin</span>
+                </button>
+              ))}
+            </div>
+            <div className={styles.inlineButtons}>
+              <button
+                className={styles.btnDashed}
+                onClick={() => addQuestionByType(getNextQuestionType())}
+              >
+                + Tambah Soal
+              </button>
+            </div>
+            <div className={styles.totalText}>Total: {questions.length} soal • {totalPoints} poin</div>
 
-      {/* Footer */}
-      <div className={styles.builderFooter}>
-        <button
-          className={styles.btnCancel}
-          onClick={() => router.push('/dashboard/teacher/exams')}
-          disabled={saving}
-        >
-          Batal
-        </button>
-        <button
-          className={styles.btnSave}
-          onClick={handleSave}
-          disabled={saving || !dependenciesLoaded}
-        >
-          {saving ? 'Menyimpan...' : (editId ? 'Perbarui Draft' : 'Simpan Draft')}
-        </button>
+            <div className={styles.cardSubBlock}>
+              <h4>Pengaturan Ujian</h4>
+              {[
+                { label: 'Acak Urutan Soal', val: isRandomized, set: setIsRandomized },
+                { label: 'Kunci Ujian', val: lockExamPro, set: setLockExamPro },
+              ].map((row) => (
+                <div key={row.label} className={styles.switchField}>
+                  <div className={styles.switchTitle}>{row.label}</div>
+                  <label className={styles.switch}>
+                    <input type="checkbox" checked={row.val} onChange={(e) => row.set(e.target.checked)} />
+                    <span />
+                  </label>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className={styles.card}>
+            {selectedQuestion && (
+              <>
+                <div className={styles.editorTop}>
+                  <h3>Soal {selectedQuestionIndex + 1}</h3>
+                  <div className={styles.editorActions}>
+                    <button className={styles.btnGhost} onClick={() => duplicateQuestion(selectedQuestionIndex)}>Duplikat</button>
+                    <button className={styles.btnGhost} onClick={() => moveQuestion(selectedQuestionIndex, -1)}>↑</button>
+                    <button className={styles.btnGhost} onClick={() => moveQuestion(selectedQuestionIndex, 1)}>↓</button>
+                    <button className={styles.btnDanger} onClick={() => removeQuestion(selectedQuestionIndex)}>Hapus</button>
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>Teks Soal *</label>
+                  <div className={styles.imageTools}>
+                    <label className={styles.imageUploadBtn}>
+                      {uploadingImageIndex === selectedQuestionIndex ? 'Mengunggah...' : 'Upload Gambar Soal'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        onChange={(e) => handleImageUpload(selectedQuestionIndex, e.target.files?.[0])}
+                      />
+                    </label>
+                    {selectedQuestion.imageUrl && (
+                      <button type="button" className={styles.btnDanger} onClick={() => removeImage(selectedQuestionIndex)}>
+                        Hapus Gambar
+                      </button>
+                    )}
+                  </div>
+                  {selectedQuestion.imageUrl && (
+                    <div className={styles.imageInfo}>Gambar terpasang untuk soal ini.</div>
+                  )}
+                  {selectedQuestion.type === 'multipleChoice' && (
+                    <textarea
+                      value={selectedQuestion.multipleChoice?.questionText || ''}
+                      onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, multipleChoice: { ...q.multipleChoice, questionText: e.target.value } }))}
+                      rows={5}
+                    />
+                  )}
+                  {selectedQuestion.type === 'essay' && (
+                    <textarea
+                      value={selectedQuestion.essay?.questionText || ''}
+                      onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, essay: { ...q.essay, questionText: e.target.value } }))}
+                      rows={5}
+                    />
+                  )}
+                  {selectedQuestion.type === 'fileUpload' && (
+                    <textarea
+                      value={selectedQuestion.fileUpload?.questionText || ''}
+                      onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, fileUpload: { ...q.fileUpload, questionText: e.target.value } }))}
+                      rows={5}
+                    />
+                  )}
+                </div>
+
+                {selectedQuestion.type === 'multipleChoice' && (
+                  <div className={styles.formGroup}>
+                    <label>Opsi Jawaban *</label>
+                    {(selectedQuestion.multipleChoice?.options || []).map((opt, optIdx) => (
+                      <div key={optIdx} className={styles.optionRow}>
+                        <input
+                          type="radio"
+                          checked={selectedQuestion.multipleChoice?.correctAnswer === optIdx}
+                          onChange={() => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, multipleChoice: { ...q.multipleChoice, correctAnswer: optIdx } }))}
+                        />
+                        <input
+                          value={opt}
+                          onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => {
+                            const options = [...(q.multipleChoice?.options || [])];
+                            options[optIdx] = e.target.value;
+                            return { ...q, multipleChoice: { ...q.multipleChoice, options } };
+                          })}
+                          placeholder={`Opsi ${optIdx + 1}`}
+                        />
+                        {(selectedQuestion.multipleChoice?.options || []).length > 2 && (
+                          <button
+                            type="button"
+                            className={styles.optionDeleteBtn}
+                            onClick={() => updateQuestion(selectedQuestionIndex, (q) => {
+                              const options = [...(q.multipleChoice?.options || [])];
+                              options.splice(optIdx, 1);
+                              let correctAnswer = q.multipleChoice?.correctAnswer;
+                              if (correctAnswer === optIdx) correctAnswer = null;
+                              else if (correctAnswer > optIdx) correctAnswer = correctAnswer - 1;
+                              return { ...q, multipleChoice: { ...q.multipleChoice, options, correctAnswer } };
+                            })}
+                          >
+                            Hapus
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className={styles.btnGhost}
+                      onClick={() => updateQuestion(selectedQuestionIndex, (q) => ({
+                        ...q,
+                        multipleChoice: {
+                          ...q.multipleChoice,
+                          options: [...(q.multipleChoice?.options || []), ''],
+                        },
+                      }))}
+                    >
+                      + Tambah Opsi
+                    </button>
+                  </div>
+                )}
+
+                <div className={styles.formGroup}>
+                  <label>Pembahasan (Opsional)</label>
+                  <textarea
+                    value={
+                      selectedQuestion.type === 'multipleChoice'
+                        ? (selectedQuestion.multipleChoice?.explanation || '')
+                        : selectedQuestion.type === 'essay'
+                          ? (selectedQuestion.essay?.explanation || '')
+                          : (selectedQuestion.fileUpload?.explanation || '')
+                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (selectedQuestion.type === 'multipleChoice') {
+                        updateQuestion(selectedQuestionIndex, (q) => ({ ...q, multipleChoice: { ...q.multipleChoice, explanation: val } }));
+                      } else if (selectedQuestion.type === 'essay') {
+                        updateQuestion(selectedQuestionIndex, (q) => ({ ...q, essay: { ...q.essay, explanation: val } }));
+                      } else {
+                        updateQuestion(selectedQuestionIndex, (q) => ({ ...q, fileUpload: { ...q.fileUpload, explanation: val } }));
+                      }
+                    }}
+                    rows={4}
+                  />
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className={styles.card}>
+            <h3 className={styles.cardTitle}>Pengaturan Soal</h3>
+            {selectedQuestion && (
+              <>
+                <div className={styles.formGroup}>
+                  <label>Poin *</label>
+                  <input type="number" min="1" value={selectedQuestion.points} onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, points: Number(e.target.value || 0) }))} />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Jenis Soal</label>
+                  {enabledQuestionTypeIds.length <= 1 ? (
+                    <input
+                      value={enabledQuestionTypes[0]?.label || '-'}
+                      readOnly
+                      disabled
+                    />
+                  ) : (
+                    <select
+                      value={selectedQuestion.type}
+                      onChange={(e) => updateQuestion(selectedQuestionIndex, () => createEmptyQuestion(e.target.value))}
+                    >
+                      {enabledQuestionTypes.map((type) => (
+                        <option key={type.id} value={type.id}>{type.label}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div className={styles.switchField}>
+                  <div className={styles.switchTitle}>Wajibkan semua soal diisi</div>
+                  <label className={styles.switch}>
+                    <input type="checkbox" checked={selectedQuestion.required} onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, required: e.target.checked }))} />
+                    <span />
+                  </label>
+                </div>
+                <div className={styles.switchField}>
+                  <div className={styles.switchTitle}>Tampilkan diacak untuk setiap siswa</div>
+                  <label className={styles.switch}>
+                    <input type="checkbox" checked={selectedQuestion.shuffleOptions} onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, shuffleOptions: e.target.checked }))} />
+                    <span />
+                  </label>
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Batasi waktu (menit)</label>
+                  <input type="number" min="0" value={selectedQuestion.timeLimitMinutes} onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, timeLimitMinutes: e.target.value }))} />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Tingkat Kesulitan</label>
+                  <select value={selectedQuestion.difficulty} onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, difficulty: e.target.value }))}>
+                    <option>Mudah</option>
+                    <option>Sedang</option>
+                    <option>Sulit</option>
+                  </select>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      )}
+
+      {currentStep === 3 && (
+        <div className={styles.gridReview}>
+          <div className={styles.colLeft}>
+            <section className={styles.card}>
+              <h3 className={styles.cardTitle}>Ringkasan Ujian</h3>
+              <div className={styles.summaryList}>
+                <div><span>Judul Ujian</span><strong>{examSummary.title}</strong></div>
+                <div><span>Mata Pelajaran</span><strong>{examSummary.subject}</strong></div>
+                <div><span>Kelas</span><strong>{examSummary.classCode}</strong></div>
+                <div><span>Durasi</span><strong>{examSummary.duration}</strong></div>
+                <div><span>Deadline</span><strong>{examSummary.deadline}</strong></div>
+              </div>
+            </section>
+
+            <section className={styles.card}>
+              <h3 className={styles.cardTitle}>Ringkasan Soal</h3>
+              <div className={styles.summaryList}>
+                <div><span>Total Soal</span><strong>{questions.length} soal</strong></div>
+                <div><span>Pilihan Ganda</span><strong>{typeCounts.multipleChoice} soal</strong></div>
+                <div><span>Esai</span><strong>{typeCounts.essay} soal</strong></div>
+                <div><span>File Upload</span><strong>{typeCounts.fileUpload} soal</strong></div>
+                <div><span>Total Poin</span><strong>{totalPoints} poin</strong></div>
+              </div>
+            </section>
+          </div>
+
+          <div className={styles.colRight}>
+            <section className={styles.card}>
+              <h3 className={styles.cardTitle}>Siap Dipublikasikan</h3>
+              <p className={styles.cardDesc}>Periksa kembali semua informasi. Jika sudah benar, publikasikan ujian sekarang.</p>
+              <div className={styles.publishHint}>
+                Ujian akan aktif sesuai pengaturan deadline yang Anda tentukan.
+              </div>
+            </section>
+          </div>
+        </div>
+      )}
+
+      <div className={styles.footerBar}>
+        <div className={styles.footerLeft}>
+          {currentStep > 1 && (
+            <button className={styles.btnGhost} onClick={() => setCurrentStep((s) => s - 1)}>
+              ← Kembali
+            </button>
+          )}
+        </div>
+        <div className={styles.footerRight}>
+          {currentStep < 3 && (
+            <button
+              className={styles.btnPrimary}
+              onClick={goToNextStep}
+            >
+              Lanjut →
+            </button>
+          )}
+          {currentStep === 3 && (
+            <>
+              <button className={styles.btnGhost} onClick={handleSaveDraft} disabled={savingState === 'saving'}>Simpan Perubahan</button>
+              <button className={styles.btnPrimary} onClick={handlePublishExam} disabled={savingState === 'saving'}>Publikasikan Ujian</button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

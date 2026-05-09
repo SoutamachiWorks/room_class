@@ -65,7 +65,10 @@ export async function PUT(request, { params }) {
       }
     }
 
-    const assignment = await db.collection('assignments').findOne({ _id: new ObjectId(existing.assignmentId) });
+    let assignment = null;
+    if (ObjectId.isValid(existing.assignmentId)) {
+      assignment = await db.collection('assignments').findOne({ _id: new ObjectId(existing.assignmentId) });
+    }
     let isLate = false;
     const now = new Date();
     if (assignment && assignment.deadline) {

@@ -45,3 +45,5 @@ Data_Testing_100_Siswa.xlsx
 dummy_classes.xlsx
 
 /scratch/*
+/.vscode/*
+/instruction/*

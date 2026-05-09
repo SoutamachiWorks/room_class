@@ -442,7 +442,7 @@ export default function DashboardLayout({ children }) {
         <header className={styles.topBar}>
           {/* Hamburger — hidden on mobile (replaced by bottom nav) */}
           <button
-            className={`${styles.hamburgerBtn} ${styles.hideOnMobile}`}
+            className={styles.hamburgerBtn}
             onClick={() => setIsMobileMenuOpen(true)}
             title="Buka menu"
           >

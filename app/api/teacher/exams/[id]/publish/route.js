@@ -43,7 +43,7 @@ export async function PUT(request, { params }) {
       if (subject && subject.classCode) {
         await createNotificationsForClass(db, subject.classCode, {
           title: 'Ujian Baru',
-          message: `Ujian "${existing.title}" telah dipublikasikan pada mata pelajaran ${subject.name}.`,
+          message: `Ujian "${existing.title}" telah dipublikasikan pada mata pelajaran ${subject.subjectName}.`,
           type: 'info',
           actionUrl: `/dashboard/student/exams`
         });

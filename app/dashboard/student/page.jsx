@@ -78,7 +78,12 @@ function AttendanceWidget() {
     finally { setLoadingSession(false); }
   }, []);
 
-  useEffect(() => { fetchSession(); }, [fetchSession]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchSession();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchSession]);
 
   // Countdown timer
   useEffect(() => {
@@ -166,21 +171,24 @@ export default function StudentDashboardPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    setLoading(true);
-    const url = selectedYearId ? `/api/student/dashboard?yearId=${selectedYearId}` : '/api/student/dashboard';
-    fetch(url)
-      .then(r => r.json())
-      .then(d => {
-        if (d.error) throw new Error(d.error);
-        setData(d);
-        // If no year in URL but data has years, sync URL with last year (current)
-        if (!selectedYearId && d.enrolledYears?.length > 0) {
-          const currentYearId = d.enrolledYears[d.enrolledYears.length - 1].yearId;
-          router.replace(`/dashboard/student?yearId=${currentYearId}`);
-        }
-      })
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false));
+    const timer = setTimeout(() => {
+      setLoading(true);
+      const url = selectedYearId ? `/api/student/dashboard?yearId=${selectedYearId}` : '/api/student/dashboard';
+      fetch(url)
+        .then(r => r.json())
+        .then(d => {
+          if (d.error) throw new Error(d.error);
+          setData(d);
+          // If no year in URL but data has years, sync URL with last year (current)
+          if (!selectedYearId && d.enrolledYears?.length > 0) {
+            const currentYearId = d.enrolledYears[d.enrolledYears.length - 1].yearId;
+            router.replace(`/dashboard/student?yearId=${currentYearId}`);
+          }
+        })
+        .catch(e => setError(e.message))
+        .finally(() => setLoading(false));
+    }, 0);
+    return () => clearTimeout(timer);
   }, [selectedYearId, router]);
 
   const years = data?.enrolledYears || [];

@@ -1,35 +1,67 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import PageHeader from '@/components/PageHeader';
-import ContentCard from '@/components/ContentCard';
-import StatusBadge from '@/components/StatusBadge';
 import EmptyState from '@/components/EmptyState';
-import styles from '../../admin/admin.module.css';
+import styles from './page.module.css';
+
+const PAGE_SIZE = 10;
+
+function getQuestionTypeLabel(exam) {
+  const questions = exam?.questions || [];
+  const hasMc = questions.some((q) => !!q.multipleChoice);
+  const hasEssay = questions.some((q) => !!q.essay);
+  const hasUpload = questions.some((q) => !!q.fileUpload);
+
+  const totalActive = [hasMc, hasEssay, hasUpload].filter(Boolean).length;
+  if (totalActive > 1) return 'Campuran';
+  if (hasEssay) return 'Esai';
+  if (hasUpload) return 'File Upload';
+  return 'Pilihan Ganda';
+}
+
+function getMapelColor(subjectName) {
+  const key = (subjectName || '').toLowerCase();
+  if (key.includes('mat')) return 'mapelBlue';
+  if (key.includes('bio')) return 'mapelGreen';
+  if (key.includes('kim')) return 'mapelPurple';
+  if (key.includes('fis')) return 'mapelCyan';
+  if (key.includes('indo')) return 'mapelIndigo';
+  return 'mapelSlate';
+}
 
 export default function ExamsPage() {
   const router = useRouter();
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
 
-  // Delete state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [classFilter, setClassFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const [publishLoading, setPublishLoading] = useState(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  // Publish loading tracker (per exam ID)
-  const [publishLoading, setPublishLoading] = useState(null);
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/teacher/exams');
       const data = await res.json();
-      if (res.ok) setExams(data.exams);
-    } catch (err) {
-      console.error('Error fetching exams:', err);
+      if (res.ok) {
+        setExams(data.exams || []);
+      } else {
+        alert(data.error || 'Gagal memuat data bank soal.');
+      }
+    } catch {
+      alert('Koneksi ke server gagal.');
     } finally {
       setLoading(false);
     }
@@ -39,16 +71,75 @@ export default function ExamsPage() {
     fetchExams();
   }, [fetchExams]);
 
-  // Publish / Unpublish toggle
+  const normalizedRows = useMemo(
+    () =>
+      exams.map((exam) => ({
+        ...exam,
+        subjectName: exam.subjectDetails?.subjectName || '-',
+        classCode: exam.subjectDetails?.classCode || '-',
+        typeLabel: getQuestionTypeLabel(exam),
+      })),
+    [exams]
+  );
+
+  const summary = useMemo(() => {
+    const totalSoal = normalizedRows.length;
+    const publikasi = normalizedRows.filter((row) => row.status === 'published').length;
+    const draft = normalizedRows.filter((row) => row.status === 'draft').length;
+    const uniqueMapel = new Set(normalizedRows.map((row) => row.subjectName).filter((v) => v && v !== '-')).size;
+    return { totalSoal, publikasi, draft, uniqueMapel };
+  }, [normalizedRows]);
+
+  const subjectOptions = useMemo(
+    () => Array.from(new Set(normalizedRows.map((row) => row.subjectName))).filter((v) => v && v !== '-'),
+    [normalizedRows]
+  );
+  const classOptions = useMemo(
+    () => Array.from(new Set(normalizedRows.map((row) => row.classCode))).filter((v) => v && v !== '-'),
+    [normalizedRows]
+  );
+
+  const filteredRows = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return normalizedRows.filter((row) => {
+      const matchedSearch =
+        !q ||
+        row.title?.toLowerCase().includes(q) ||
+        row.subjectName?.toLowerCase().includes(q) ||
+        row.classCode?.toLowerCase().includes(q);
+      const matchedSubject = !subjectFilter || row.subjectName === subjectFilter;
+      const matchedClass = !classFilter || row.classCode === classFilter;
+      const matchedType = !typeFilter || row.typeLabel === typeFilter;
+      const matchedStatus = !statusFilter || row.status === statusFilter;
+      return matchedSearch && matchedSubject && matchedClass && matchedType && matchedStatus;
+    });
+  }, [normalizedRows, searchTerm, subjectFilter, classFilter, typeFilter, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, subjectFilter, classFilter, typeFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const currentRows = filteredRows.slice(startIndex, startIndex + PAGE_SIZE);
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setSubjectFilter('');
+    setClassFilter('');
+    setTypeFilter('');
+    setStatusFilter('');
+  };
+
   const handleTogglePublish = async (exam) => {
     setPublishLoading(exam._id);
     try {
       const res = await fetch(`/api/teacher/exams/${exam._id}/publish`, { method: 'PUT' });
       const data = await res.json();
-      if (res.ok) {
-        fetchExams();
+      if (!res.ok) {
+        alert(data.error || 'Gagal mengubah status publikasi.');
       } else {
-        alert(data.error || 'Gagal mengubah status ujian.');
+        await fetchExams();
       }
     } catch {
       alert('Koneksi ke server gagal.');
@@ -57,199 +148,198 @@ export default function ExamsPage() {
     }
   };
 
-  // Visibility toggle
-  const [visibilityLoading, setVisibilityLoading] = useState(null);
-
-  const handleToggleVisibility = async (exam) => {
-    setVisibilityLoading(exam._id);
-    try {
-      const res = await fetch(`/api/teacher/exams/${exam._id}/results-visibility`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ showResults: !exam.showResults })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        fetchExams();
-      } else {
-        alert(data.error || 'Gagal mengubah visibilitas nilai.');
-      }
-    } catch {
-      alert('Koneksi ke server gagal.');
-    } finally {
-      setVisibilityLoading(null);
-    }
-  };
-
-  // Delete
   const handleDelete = async () => {
     if (!selectedExam) return;
     setDeleteLoading(true);
     try {
       const res = await fetch(`/api/teacher/exams/${selectedExam._id}`, { method: 'DELETE' });
       const data = await res.json();
-      if (res.ok) {
-        fetchExams();
-        setIsDeleteOpen(false);
+      if (!res.ok) {
+        alert(data.error || 'Gagal menghapus bank soal.');
       } else {
-        alert(data.error || 'Gagal menghapus ujian.');
-        setIsDeleteOpen(false);
+        await fetchExams();
       }
     } catch {
       alert('Koneksi ke server gagal.');
-      setIsDeleteOpen(false);
     } finally {
       setDeleteLoading(false);
+      setIsDeleteOpen(false);
+      setSelectedExam(null);
     }
   };
 
   return (
     <>
-      <PageHeader title="Bank Ujian" subtitle="Kelola ujian untuk siswa Anda. Ujian berstatus Draft hanya tersimpan dan tidak terlihat oleh siswa. Klik Publikasi agar ujian dapat diakses siswa.">
-        <button
-          className={styles.btnPrimary}
-          onClick={() => router.push('/dashboard/teacher/exams/builder')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-            <line x1="12" y1="8" x2="12" y2="16"/>
-            <line x1="8" y1="12" x2="16" y2="12"/>
-          </svg>
-          Buat Ujian Baru
+      <PageHeader
+        title="Bank Soal"
+        subtitle="Kelola dan kelompokkan soal untuk digunakan dalam ujian. Soal yang ditandai Publikasi akan tersedia untuk pembuatan ujian."
+      >
+        <button className={styles.primaryBtn} onClick={() => router.push('/dashboard/teacher/exams/builder')}>
+          + Buat Soal Baru
         </button>
       </PageHeader>
 
-      <ContentCard>
-        <div className={styles.tableContainer}>
+      <section className={styles.summaryGrid}>
+        <article className={styles.summaryCard}>
+          <div className={`${styles.summaryIcon} ${styles.summaryBlue}`}>Q</div>
+          <div>
+            <p>Total Soal</p>
+            <strong>{summary.totalSoal}</strong>
+          </div>
+        </article>
+        <article className={styles.summaryCard}>
+          <div className={`${styles.summaryIcon} ${styles.summaryGreen}`}>P</div>
+          <div>
+            <p>Soal Publikasi</p>
+            <strong>{summary.publikasi}</strong>
+          </div>
+        </article>
+        <article className={styles.summaryCard}>
+          <div className={`${styles.summaryIcon} ${styles.summaryAmber}`}>D</div>
+          <div>
+            <p>Soal Draft</p>
+            <strong>{summary.draft}</strong>
+          </div>
+        </article>
+        <article className={styles.summaryCard}>
+          <div className={`${styles.summaryIcon} ${styles.summaryPurple}`}>M</div>
+          <div>
+            <p>Jumlah Mapel</p>
+            <strong>{summary.uniqueMapel}</strong>
+          </div>
+        </article>
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.searchRow}>
+          <div className={styles.searchWrap}>
+            <span className={styles.searchIcon}>S</span>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Cari judul soal, topik, atau kata kunci..."
+            />
+          </div>
+          <button className={styles.filterBtn} onClick={() => setIsFilterOpen((prev) => !prev)}>
+            Filter
+          </button>
+        </div>
+
+        {isFilterOpen && (
+          <div className={styles.filterRow}>
+            <select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)}>
+              <option value="">Semua Mapel</option>
+              {subjectOptions.map((subject) => (
+                <option key={subject} value={subject}>
+                  {subject}
+                </option>
+              ))}
+            </select>
+            <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
+              <option value="">Semua Kelas</option>
+              {classOptions.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+              <option value="">Semua Jenis</option>
+              <option value="Pilihan Ganda">Pilihan Ganda</option>
+              <option value="Esai">Esai</option>
+              <option value="File Upload">File Upload</option>
+              <option value="Campuran">Campuran</option>
+            </select>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">Semua Status</option>
+              <option value="published">Publikasi</option>
+              <option value="draft">Draft</option>
+            </select>
+            <button className={styles.resetBtn} onClick={resetFilters}>
+              Reset
+            </button>
+          </div>
+        )}
+
+        <div className={styles.tableWrap}>
           {loading ? (
             <div className={styles.loadingBox}>
               <div className="spinner"></div>
-              Memuat daftar ujian...
+              Memuat daftar bank soal...
             </div>
-          ) : exams.length === 0 ? (
-            <EmptyState
-              title="Belum Ada Ujian"
-              description="Belum ada ujian. Klik 'Buat Ujian Baru' untuk memulai."
-            />
+          ) : currentRows.length === 0 ? (
+            <EmptyState title="Belum Ada Data Soal" description="Coba ubah filter atau buat soal baru untuk mulai mengisi bank soal." />
           ) : (
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Judul Ujian</th>
+                  <th>Judul Soal</th>
                   <th>Mata Pelajaran</th>
-                  <th className={styles.thCenter}>Soal</th>
-                  <th className={styles.thCenter}>Acak</th>
-                  <th className={styles.thCenter}>Status</th>
-                  <th className={styles.thCenter}>Akses Nilai</th>
-                  <th>Tanggal</th>
-                  <th className={styles.thCenter}>Aksi</th>
+                  <th>Kelas</th>
+                  <th>Jenis Soal</th>
+                  <th>Status</th>
+                  <th>Dibuat</th>
+                  <th>Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {exams.map((exam) => (
-                  <tr key={exam._id}>
-                    <td data-label="Judul">
-                      <div className={styles.userName}>{exam.title}</div>
-                    </td>
-                    <td data-label="Mapel">
-                      <div className={styles.cellAccent}>
-                        {exam.subjectDetails?.subjectName || '-'}
-                      </div>
-                      <div className={styles.cellChipWrap}>
-                        <StatusBadge variant="student">
-                          {exam.subjectDetails?.classCode || '-'}
-                        </StatusBadge>
+                {currentRows.map((row) => (
+                  <tr key={row._id}>
+                    <td data-label="Judul Soal">
+                      <div className={styles.titleCell}>
+                        <strong>{row.title}</strong>
                       </div>
                     </td>
-                    <td data-label="Soal" className={`${styles.tdCenter} ${styles.cellBold}`}>
-                      {exam.questions?.length || 0}
+                    <td data-label="Mata Pelajaran">
+                      <span className={`${styles.mapelBadge} ${styles[getMapelColor(row.subjectName)]}`}>{row.subjectName}</span>
                     </td>
-                    <td data-label="Acak" className={`${styles.tdCenter} ${styles.cellBold}`}>
-                      {exam.randomCount || exam.questions?.length || 0}
+                    <td data-label="Kelas">
+                      <span className={styles.classBadge}>{row.classCode}</span>
                     </td>
-                    <td data-label="Status" className={styles.tdCenter}>
-                      {exam.status === 'published' ? (
-                        <StatusBadge variant="success">Published</StatusBadge>
-                      ) : (
-                        <StatusBadge variant="neutral">Draft</StatusBadge>
-                      )}
+                    <td data-label="Jenis Soal">
+                      <span className={styles.typeBadge}>{row.typeLabel}</span>
                     </td>
-                    <td data-label="Akses Nilai" className={styles.tdCenter}>
-                      <button
-                        onClick={() => handleToggleVisibility(exam)}
-                        disabled={visibilityLoading === exam._id}
-                        className={`${styles.toggleBtn} ${exam.showResults ? styles.toggleBtnOn : styles.toggleBtnOff}`}
-                      >
-                        {visibilityLoading === exam._id ? '...' : exam.showResults ? 'Terlihat' : 'Tersembunyi'}
-                      </button>
+                    <td data-label="Status">
+                      <span className={`${styles.statusBadge} ${row.status === 'published' ? styles.statusPublished : styles.statusDraft}`}>
+                        {row.status === 'published' ? 'Publikasi' : 'Draft'}
+                      </span>
                     </td>
-                    <td data-label="Tanggal">
-                      <div className={styles.cellBold}>
-                        {new Date(exam.createdAt).toLocaleDateString('id-ID')}
-                      </div>
-                    </td>
-                    <td data-label="Aksi" className={styles.tdCenter}>
-                      <div className={`${styles.actionBtns} ${styles.actionBtnsCenter}`}>
-                        {/* Monitor Results */}
+                    <td data-label="Dibuat">{new Date(row.createdAt).toLocaleDateString('id-ID')}</td>
+                    <td data-label="Aksi">
+                      <div className={styles.actionRow}>
                         <button
-                          className={`${styles.iconBtn} ${styles.iconBtnView}`}
-                          title="Pantau & Nilai Ujian"
-                          onClick={() => router.push(`/dashboard/teacher/exams/${exam._id}/results`)}
+                          className={styles.iconBtn}
+                          title="Lihat hasil ujian"
+                          onClick={() => router.push(`/dashboard/teacher/exams/${row._id}/results`)}
                         >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                            <circle cx="12" cy="12" r="3"></circle>
-                          </svg>
+                          V
                         </button>
-
-                        {/* Edit — only draft */}
-                        {exam.status === 'draft' && (
-                          <button
-                            className={styles.iconBtn}
-                            title="Edit Ujian"
-                            onClick={() => router.push(`/dashboard/teacher/exams/builder?id=${exam._id}`)}
-                          >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                            </svg>
-                          </button>
-                        )}
-
-                        {/* Publish / Unpublish */}
                         <button
-                          className={`${styles.iconBtn} ${exam.status === 'published' ? styles.iconBtnWarn : styles.iconBtnSuccess}`}
-                          title={exam.status === 'published' ? 'Tarik ke Draft' : 'Publikasi'}
-                          onClick={() => handleTogglePublish(exam)}
-                          disabled={publishLoading === exam._id}
+                          className={styles.iconBtn}
+                          title="Edit soal"
+                          disabled={row.status !== 'draft'}
+                          onClick={() => row.status === 'draft' && router.push(`/dashboard/teacher/exams/builder?id=${row._id}`)}
                         >
-                          {exam.status === 'published' ? (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                              <line x1="1" y1="1" x2="23" y2="23"/>
-                            </svg>
-                          ) : (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                              <circle cx="12" cy="12" r="3"/>
-                            </svg>
-                          )}
+                          E
                         </button>
-
-                        {/* Delete */}
-                        <button
-                          className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
-                          title="Hapus Ujian"
-                          onClick={() => { setSelectedExam(exam); setIsDeleteOpen(true); }}
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6"/>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                            <line x1="10" y1="11" x2="10" y2="17"/>
-                            <line x1="14" y1="11" x2="14" y2="17"/>
-                          </svg>
-                        </button>
+                        <details className={styles.moreMenu}>
+                          <summary className={styles.iconBtn}>...</summary>
+                          <div className={styles.moreMenuContent}>
+                            <button onClick={() => handleTogglePublish(row)} disabled={publishLoading === row._id}>
+                              {publishLoading === row._id ? 'Memproses...' : row.status === 'published' ? 'Tarik ke Draft' : 'Publikasikan'}
+                            </button>
+                            <button
+                              className={styles.dangerMenu}
+                              onClick={() => {
+                                setSelectedExam(row);
+                                setIsDeleteOpen(true);
+                              }}
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        </details>
                       </div>
                     </td>
                   </tr>
@@ -258,15 +348,30 @@ export default function ExamsPage() {
             </table>
           )}
         </div>
-      </ContentCard>
 
-      {/* Delete Confirmation */}
+        <div className={styles.pagination}>
+          <p>
+            Menampilkan {filteredRows.length === 0 ? 0 : startIndex + 1} - {Math.min(startIndex + PAGE_SIZE, filteredRows.length)} dari {filteredRows.length}{' '}
+            soal
+          </p>
+          <div className={styles.paginationControls}>
+            <button disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
+              {'<'}
+            </button>
+            <button className={styles.activePage}>{currentPage}</button>
+            <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
+              {'>'}
+            </button>
+          </div>
+        </div>
+      </section>
+
       <ConfirmDialog
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDelete}
-        title="Hapus Ujian"
-        message={`Anda yakin ingin menghapus ujian "${selectedExam?.title || ''}"? Tindakan ini akan menghapus ujian beserta seluruh sesi ujian siswa yang terkait dan tidak dapat dibatalkan.`}
+        title="Hapus Soal"
+        message={`Anda yakin ingin menghapus "${selectedExam?.title || ''}"? Data sesi ujian terkait juga akan terhapus.`}
         loading={deleteLoading}
       />
     </>

@@ -229,7 +229,7 @@ export default function ClassCodeManagementPage() {
   return (
     <>
       <PageHeader title="Konfigurasi Kode Kelas">
-        <button className={`${styles.btnPrimary} ${styles.btnOutline}`} onClick={() => { setIsImportOpen(true); setImportResult(null); setImportError(''); }}>
+        <button className={`${styles.btnPrimary} ${styles.btnOutline} ${styles.headerActionBtn}`} onClick={() => { setIsImportOpen(true); setImportResult(null); setImportError(''); }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="17 8 12 3 7 8" />
@@ -237,7 +237,7 @@ export default function ClassCodeManagementPage() {
           </svg>
           Impor Excel
         </button>
-        <button className={styles.btnPrimary} onClick={() => handleOpenForm()}>
+        <button className={`${styles.btnPrimary} ${styles.headerActionBtn}`} onClick={() => handleOpenForm()}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
@@ -247,7 +247,7 @@ export default function ClassCodeManagementPage() {
       </PageHeader>
 
       <ContentCard header={filterBar} footer={paginationFooter}>
-        <div className={styles.tableContainer}>
+        <div className={`${styles.tableContainer} ${styles.desktopOnlyBlock}`}>
           {loading ? (
              <div className={styles.loadingBox}>
                <div className="spinner"></div>
@@ -296,6 +296,38 @@ export default function ClassCodeManagementPage() {
             </table>
           )}
         </div>
+
+        {!loading && classCodes.length > 0 && (
+          <div className={styles.mobileUserList}>
+            {classCodes.map((cc) => (
+              <article key={`mobile-${cc._id}`} className={styles.mobileUserCard}>
+                <div className={styles.mobileUserHead}>
+                  <div className={styles.userCell}>
+                    <div className={styles.avatarIcon}>ID</div>
+                    <div>
+                      <div className={styles.mobileMetaLabel}>Kode</div>
+                      <div className={styles.userName}>{cc.code}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.mobileUserMeta}>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div className={styles.mobileMetaLabel}>Label</div>
+                    <div className={styles.cellPrimary}>{cc.label}</div>
+                  </div>
+                </div>
+
+                <div className={styles.mobileUserActions}>
+                  <button className={styles.mobileActionBtn} onClick={() => handleOpenForm(cc)}>Edit</button>
+                  <button className={`${styles.mobileActionBtn} ${styles.mobileActionBtnDanger}`} onClick={() => { setSelectedCode(cc); setIsDeleteOpen(true); }}>
+                    Hapus
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </ContentCard>
 
       {/* Creation/Adjustment Modals */}

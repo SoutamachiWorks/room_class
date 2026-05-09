@@ -12,18 +12,13 @@ function StudentExamsContent() {
   const [exams, setExams] = useState([]);
   const [enrolledYears, setEnrolledYears] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [notifBlocked, setNotifBlocked] = useState(false);
   const [startingId, setStartingId] = useState(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const yearId = searchParams.get('yearId');
   const isSubmitted = searchParams.get('submitted') === '1';
-
-  useEffect(() => {
-    setCurrentTime(Date.now());
-  }, []);
-
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
@@ -43,7 +38,10 @@ function StudentExamsContent() {
   }, [yearId]);
 
   useEffect(() => {
-    fetchExams();
+    const timer = setTimeout(() => {
+      fetchExams();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchExams]);
 
   const getSessionStatus = (exam) => {
