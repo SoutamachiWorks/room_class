@@ -2388,18 +2388,20 @@
 }
 
 .mobileActionCardPrimary {
-  background: linear-gradient(135deg, #4f6dff, #4053d9);
+  background: var(--color-primary);
   color: #fff;
+  border-color: var(--color-primary);
 }
 
 .mobileActionCard {
-  background: linear-gradient(135deg, rgba(51, 76, 141, 0.24), rgba(32, 49, 95, 0.2));
+  background: var(--bg-surface);
   color: var(--color-heading);
 }
 
 .mobileActionCardTeal {
-  background: linear-gradient(135deg, rgba(25, 145, 172, 0.18), rgba(7, 52, 68, 0.2));
-  color: #9defff;
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--color-success-text);
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .mobileActionTitle {
@@ -2419,7 +2421,7 @@
   border: 1px solid var(--color-border);
   border-radius: 16px;
   padding: 10px;
-  background: linear-gradient(180deg, rgba(20, 36, 78, 0.28), rgba(8, 18, 40, 0.2));
+  background: var(--bg-surface);
   margin-bottom: 14px;
 }
 
@@ -2442,7 +2444,7 @@
   border: 1px solid var(--color-border);
   border-radius: 14px;
   padding: 8px 10px 10px;
-  background: linear-gradient(180deg, rgba(18, 31, 62, 0.28), rgba(7, 14, 31, 0.2));
+  background: var(--bg-card);
   margin-bottom: 10px;
 }
 
@@ -2488,16 +2490,16 @@
   min-height: 40px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: rgba(33, 56, 110, 0.25);
-  color: var(--color-heading);
+  background: var(--bg-surface);
+  color: var(--color-text);
   font-size: 0.82rem;
   font-weight: 600;
 }
 
 .mobileActionBtnDanger {
-  color: #ff6868;
-  border-color: rgba(255, 104, 104, 0.35);
-  background: rgba(83, 16, 16, 0.25);
+  color: var(--color-failed-text);
+  border-color: rgba(220, 53, 69, 0.25);
+  background: var(--color-failed-bg);
 }
 
 .mobileUserActions .mobileActionBtnDanger:last-child:nth-child(odd) {
@@ -2515,7 +2517,7 @@
   border: 1px solid var(--color-border);
   border-radius: 14px;
   padding: 12px;
-  background: linear-gradient(180deg, rgba(22, 41, 85, 0.25), rgba(9, 18, 40, 0.18));
+  background: var(--bg-card);
 }
 
 .mobileStatValue {
@@ -2552,7 +2554,7 @@
   margin: 6px 0 0;
   padding: 10px;
   border-radius: 10px;
-  background: rgba(148, 163, 184, 0.1);
+  background: var(--bg-surface);
   color: var(--color-subtext);
   font-size: 0.75rem;
   line-height: 1.45;

@@ -246,6 +246,19 @@ export default function ClassCodeManagementPage() {
         </button>
       </PageHeader>
 
+      <section className={styles.mobileOnlyBlock}>
+        <div className={styles.mobileQuickActions} style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <button className={styles.mobileActionCardPrimary} onClick={() => handleOpenForm()}>
+            <span className={styles.mobileActionTitle}>Buat Kode Kelas</span>
+            <span className={styles.mobileActionDesc}>Tambah kode kelas baru</span>
+          </button>
+          <button className={styles.mobileActionCard} onClick={() => { setIsImportOpen(true); setImportResult(null); setImportError(''); }}>
+            <span className={styles.mobileActionTitle}>Impor Excel</span>
+            <span className={styles.mobileActionDesc}>Import dari file Excel</span>
+          </button>
+        </div>
+      </section>
+
       <ContentCard header={filterBar} footer={paginationFooter}>
         <div className={`${styles.tableContainer} ${styles.desktopOnlyBlock}`}>
           {loading ? (

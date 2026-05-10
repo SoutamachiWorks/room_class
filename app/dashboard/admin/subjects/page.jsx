@@ -245,6 +245,15 @@ export default function SubjectManagementPage() {
         </button>
       </PageHeader>
 
+      <section className={styles.mobileOnlyBlock}>
+        <div className={styles.mobileQuickActions} style={{ gridTemplateColumns: '1fr' }}>
+          <button className={styles.mobileActionCardPrimary} onClick={() => handleOpenForm()} disabled={!dependenciesLoaded}>
+            <span className={styles.mobileActionTitle}>Rekam Subjek Belajar</span>
+            <span className={styles.mobileActionDesc}>Tambah mata pelajaran baru</span>
+          </button>
+        </div>
+      </section>
+
       <ContentCard header={filterBar} footer={paginationFooter}>
         <div className={`${styles.tableContainer} ${styles.desktopOnlyBlock}`}>
           {loading ? (
