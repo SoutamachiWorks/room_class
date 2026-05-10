@@ -645,7 +645,6 @@ function DashboardLayoutInner({ children }) {
                 title="Menu Akun"
               >
                 <span className={styles.topBarAvatar}>{user?.fullName?.charAt(0)?.toUpperCase() || '?'}</span>
-                <span className={styles.avatarChevron}>⌄</span>
               </button>
 
               {isDropdownOpen && (
