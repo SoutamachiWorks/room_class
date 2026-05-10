@@ -46,6 +46,7 @@ export async function POST(request) {
     return NextResponse.json({ 
       success: true, 
       imageUrl: r2Data.fileKey, // Storing the key is better practice for R2
+      imageSize: r2Data.size,
       previewUrl, // For immediate display in the teacher UI
       fileName: r2Data.originalName 
     });

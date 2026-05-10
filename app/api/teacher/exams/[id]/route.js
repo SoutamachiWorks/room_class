@@ -74,7 +74,7 @@ export async function PUT(request, { params }) {
     }
 
     const body = await request.json();
-    const { title, questions, typeSettings, isRandomized, duration, deadline } = body;
+    const { title, questions, typeSettings, isRandomized, isOptionRandomized, duration, deadline } = body;
 
     if (!title) {
       return NextResponse.json({ error: 'Judul ujian wajib diisi.' }, { status: 400 });
@@ -122,6 +122,7 @@ export async function PUT(request, { params }) {
     const normalizedQuestions = questions.map((q, idx) => ({
       order: idx + 1,
       imageUrl: q.imageUrl || null,
+      imageSize: Number(q.imageSize || 0),
       multipleChoice: q.multipleChoice || null,
       essay: q.essay || null,
       fileUpload: q.fileUpload || null,
@@ -135,6 +136,7 @@ export async function PUT(request, { params }) {
           questions: normalizedQuestions,
           typeSettings: normalizedTypeSettings,
           isRandomized: !!isRandomized,
+          isOptionRandomized: !!isOptionRandomized,
           duration: duration ? parseInt(duration, 10) : null,
           deadline: deadline ? new Date(deadline) : null,
           updatedAt: new Date(),

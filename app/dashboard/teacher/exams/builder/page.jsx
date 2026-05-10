@@ -7,12 +7,9 @@ import styles from './exam-builder.module.css';
 function createEmptyQuestion(type = 'multipleChoice') {
   return {
     type,
-    points: type === 'essay' ? 20 : 10,
-    difficulty: 'Sedang',
     required: true,
-    shuffleOptions: false,
-    timeLimitMinutes: '',
     imageUrl: null,
+    imageSize: 0,
     multipleChoice: type === 'multipleChoice' ? { questionText: '', options: ['', ''], correctAnswer: null, explanation: '' } : null,
     essay: type === 'essay' ? { questionText: '', explanation: '' } : null,
     fileUpload: type === 'fileUpload' ? { questionText: '', explanation: '' } : null,
@@ -50,6 +47,7 @@ export default function ExamBuilderPage() {
   const [duration, setDuration] = useState('');
   const [deadline, setDeadline] = useState('');
   const [isRandomized, setIsRandomized] = useState(false);
+  const [isOptionRandomized, setIsOptionRandomized] = useState(false);
   const [showScoreToStudent, setShowScoreToStudent] = useState(false);
   const [showExplanationToStudent, setShowExplanationToStudent] = useState(false);
   const [restrictAccess, setRestrictAccess] = useState(false);
@@ -86,6 +84,7 @@ export default function ExamBuilderPage() {
         setTitle(exam.title || '');
         setSubjectId(exam.subjectId || '');
         setIsRandomized(!!exam.isRandomized);
+        setIsOptionRandomized(!!exam.isOptionRandomized);
         setDuration(exam.duration ? exam.duration.toString() : '');
         if (exam.deadline) {
           const d = new Date(exam.deadline);
@@ -98,6 +97,7 @@ export default function ExamBuilderPage() {
               ...createEmptyQuestion('multipleChoice'),
               type: 'multipleChoice',
               imageUrl: q.imageUrl || null,
+              imageSize: q.imageSize || 0,
               multipleChoice: {
                 questionText: q.multipleChoice.questionText || '',
                 options: q.multipleChoice.options?.length ? q.multipleChoice.options : ['', ''],
@@ -111,6 +111,7 @@ export default function ExamBuilderPage() {
               ...createEmptyQuestion('essay'),
               type: 'essay',
               imageUrl: q.imageUrl || null,
+              imageSize: q.imageSize || 0,
               essay: {
                 questionText: q.essay.questionText || '',
                 explanation: q.essay.explanation || '',
@@ -121,6 +122,7 @@ export default function ExamBuilderPage() {
             ...createEmptyQuestion('fileUpload'),
             type: 'fileUpload',
             imageUrl: q.imageUrl || null,
+            imageSize: q.imageSize || 0,
             fileUpload: {
               questionText: q.fileUpload?.questionText || '',
               explanation: q.fileUpload?.explanation || '',
@@ -174,7 +176,6 @@ export default function ExamBuilderPage() {
   }, [subjectId, teacherSubjects]);
 
   const selectedQuestion = questions[selectedQuestionIndex] || null;
-  const totalPoints = questions.reduce((acc, q) => acc + (Number(q.points) || 0), 0);
   const enabledQuestionTypes = typeSettings.filter((t) => t.enabled);
   const enabledQuestionTypeIds = enabledQuestionTypes.map((t) => t.id);
   const typeCounts = useMemo(() => ({
@@ -220,7 +221,7 @@ export default function ExamBuilderPage() {
         alert(data.error || 'Gagal mengunggah gambar.');
         return;
       }
-      updateQuestion(index, (q) => ({ ...q, imageUrl: data.imageUrl }));
+      updateQuestion(index, (q) => ({ ...q, imageUrl: data.imageUrl, imageSize: data.imageSize || 0 }));
     } catch {
       alert('Koneksi server gagal saat upload gambar.');
     } finally {
@@ -229,7 +230,7 @@ export default function ExamBuilderPage() {
   }
 
   function removeImage(index) {
-    updateQuestion(index, (q) => ({ ...q, imageUrl: null }));
+    updateQuestion(index, (q) => ({ ...q, imageUrl: null, imageSize: 0 }));
   }
 
   function handleToggleType(typeId, checked) {
@@ -315,6 +316,7 @@ export default function ExamBuilderPage() {
     const cleanQuestions = questions.map((q, idx) => ({
       order: idx + 1,
       imageUrl: q.imageUrl || null,
+      imageSize: q.imageSize || 0,
       multipleChoice: q.type === 'multipleChoice' ? {
         questionText: q.multipleChoice?.questionText || '',
         options: q.multipleChoice?.options || [],
@@ -341,6 +343,7 @@ export default function ExamBuilderPage() {
         fileUpload: !!typeSettings.find((t) => t.id === 'fileUpload')?.enabled,
       },
       isRandomized,
+      isOptionRandomized,
       duration: duration ? parseInt(duration, 10) : null,
       deadline: deadline ? new Date(deadline).toISOString() : null,
     };
@@ -549,6 +552,16 @@ export default function ExamBuilderPage() {
                   <input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="Contoh: 90" />
                 </div>
               </div>
+              <div className={styles.switchField}>
+                <div>
+                  <div className={styles.switchTitle}>Acak Opsi Pilihan Ganda</div>
+                  <div className={styles.switchSub}>Urutan opsi A/B/C/D diacak berbeda untuk tiap siswa</div>
+                </div>
+                <label className={styles.switch}>
+                  <input type="checkbox" checked={isOptionRandomized} onChange={(e) => setIsOptionRandomized(e.target.checked)} />
+                  <span />
+                </label>
+              </div>
               <div className={styles.formGroup}>
                 <label>Batas Akhir Pengerjaan (Deadline)</label>
                 <input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
@@ -628,7 +641,6 @@ export default function ExamBuilderPage() {
                     <strong>{q.type === 'multipleChoice' ? `Soal ${idx + 1}` : q.type === 'essay' ? `Esai ${idx + 1}` : `File Upload ${idx + 1}`}</strong>
                     <small>{q.type === 'multipleChoice' ? 'Pilihan Ganda' : q.type === 'essay' ? 'Esai' : 'File Upload'}</small>
                   </div>
-                  <span>{q.points} poin</span>
                 </button>
               ))}
             </div>
@@ -640,12 +652,13 @@ export default function ExamBuilderPage() {
                 + Tambah Soal
               </button>
             </div>
-            <div className={styles.totalText}>Total: {questions.length} soal • {totalPoints} poin</div>
+            <div className={styles.totalText}>Total: {questions.length} soal</div>
 
             <div className={styles.cardSubBlock}>
               <h4>Pengaturan Ujian</h4>
               {[
                 { label: 'Acak Urutan Soal', val: isRandomized, set: setIsRandomized },
+                { label: 'Acak Opsi Pilihan Ganda', val: isOptionRandomized, set: setIsOptionRandomized },
                 { label: 'Kunci Ujian', val: lockExamPro, set: setLockExamPro },
               ].map((row) => (
                 <div key={row.label} className={styles.switchField}>
@@ -801,10 +814,6 @@ export default function ExamBuilderPage() {
             {selectedQuestion && (
               <>
                 <div className={styles.formGroup}>
-                  <label>Poin *</label>
-                  <input type="number" min="1" value={selectedQuestion.points} onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, points: Number(e.target.value || 0) }))} />
-                </div>
-                <div className={styles.formGroup}>
                   <label>Jenis Soal</label>
                   {enabledQuestionTypeIds.length <= 1 ? (
                     <input
@@ -829,25 +838,6 @@ export default function ExamBuilderPage() {
                     <input type="checkbox" checked={selectedQuestion.required} onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, required: e.target.checked }))} />
                     <span />
                   </label>
-                </div>
-                <div className={styles.switchField}>
-                  <div className={styles.switchTitle}>Tampilkan diacak untuk setiap siswa</div>
-                  <label className={styles.switch}>
-                    <input type="checkbox" checked={selectedQuestion.shuffleOptions} onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, shuffleOptions: e.target.checked }))} />
-                    <span />
-                  </label>
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Batasi waktu (menit)</label>
-                  <input type="number" min="0" value={selectedQuestion.timeLimitMinutes} onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, timeLimitMinutes: e.target.value }))} />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Tingkat Kesulitan</label>
-                  <select value={selectedQuestion.difficulty} onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, difficulty: e.target.value }))}>
-                    <option>Mudah</option>
-                    <option>Sedang</option>
-                    <option>Sulit</option>
-                  </select>
                 </div>
               </>
             )}
@@ -876,7 +866,6 @@ export default function ExamBuilderPage() {
                 <div><span>Pilihan Ganda</span><strong>{typeCounts.multipleChoice} soal</strong></div>
                 <div><span>Esai</span><strong>{typeCounts.essay} soal</strong></div>
                 <div><span>File Upload</span><strong>{typeCounts.fileUpload} soal</strong></div>
-                <div><span>Total Poin</span><strong>{totalPoints} poin</strong></div>
               </div>
             </section>
           </div>
@@ -921,3 +910,4 @@ export default function ExamBuilderPage() {
     </div>
   );
 }
+

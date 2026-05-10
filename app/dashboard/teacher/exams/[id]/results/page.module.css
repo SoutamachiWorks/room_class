@@ -301,17 +301,22 @@
 
 .actionPrimary,
 .actionSecondary,
-.actionWarning {
+.actionWarning,
+.actionDanger {
   min-height: 36px;
   border-radius: 8px;
   padding: 0 12px;
   border: 1px solid transparent;
   font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
-.actionPrimary { background: #2563eb; color: #fff; }
+.actionPrimary  { background: #2563eb; color: #fff; }
 .actionSecondary { background: transparent; border-color: #3f4f7b; color: #e6edff; }
-.actionWarning { background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.5); color: #ffd37d; }
+.actionWarning  { background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.5); color: #ffd37d; }
+.actionDanger   { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #ff9f9f; }
 
 .noAction { color: #7f91bb; }
 
@@ -606,6 +611,15 @@
     flex-wrap: wrap;
     gap: 7px;
     padding-top: 2px;
+  }
+
+  /* On mobile, stack action buttons vertically full-width */
+  .actionRow button {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    justify-content: center;
+    text-align: center;
+    min-height: 40px;
   }
 
   .pagination {

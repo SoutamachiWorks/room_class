@@ -17,6 +17,29 @@ function fisherYatesShuffle(array) {
   return arr;
 }
 
+function shuffleMcOptions(question) {
+  if (!question?.multipleChoice?.options || question.multipleChoice.options.length < 2) {
+    return question;
+  }
+
+  const originalOptions = question.multipleChoice.options;
+  const indices = originalOptions.map((_, idx) => idx);
+  const shuffledIndices = fisherYatesShuffle(indices);
+  const shuffledOptions = shuffledIndices.map((idx) => originalOptions[idx]);
+
+  const originalCorrect = question.multipleChoice.correctAnswer;
+  const shuffledCorrect = shuffledIndices.indexOf(originalCorrect);
+
+  return {
+    ...question,
+    multipleChoice: {
+      ...question.multipleChoice,
+      options: shuffledOptions,
+      correctAnswer: shuffledCorrect,
+    },
+  };
+}
+
 /**
  * Strip correct answers from questions and resolve image URLs before sending to client.
  */
@@ -90,6 +113,10 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Ujian ini telah melewati batas waktu (deadline) dan tidak dapat lagi diakses. Silakan hubungi guru Anda.' }, { status: 403 });
     }
 
+    if (exam.isExamOpen === false) {
+      return NextResponse.json({ error: 'Ujian sedang ditutup oleh guru. Tunggu sampai ujian dibuka kembali.' }, { status: 403 });
+    }
+
     // Check for existing session
     const existingSession = await db.collection('examSessions').findOne({
       examId: examId.toString(),
@@ -125,6 +152,10 @@ export async function POST(request, { params }) {
       selected = fisherYatesShuffle(allQuestions);
     } else {
       selected = [...allQuestions];
+    }
+
+    if (exam.isOptionRandomized) {
+      selected = selected.map((q) => shuffleMcOptions(q));
     }
 
     const newSession = {

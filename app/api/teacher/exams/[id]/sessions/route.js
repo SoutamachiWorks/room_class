@@ -76,10 +76,20 @@ export async function GET(request, { params }) {
         if (Array.isArray(ans.uploadedFiles) && ans.uploadedFiles.length > 0) return true;
         return false;
       }).length : 0;
+      let calculatedScore = null;
+      if (
+        Array.isArray(sess.answers) &&
+        sess.answers.length > 0 &&
+        (sess.gradingStatus === 'fully-graded' || sess.gradingStatus === 'auto-graded')
+      ) {
+        const totalPoints = sess.answers.reduce((acc, curr) => acc + (Number(curr.score) || 0), 0);
+        calculatedScore = Number((totalPoints / sess.answers.length).toFixed(1));
+      }
       return {
         ...sess,
         questionCount,
         answeredCount,
+        calculatedScore,
       };
     });
 
@@ -112,6 +122,7 @@ export async function GET(request, { params }) {
         questions: exam.questions || [],
         questionCount: exam.questions?.length || 0,
         answeredCount: 0,
+        calculatedScore: null,
         studentInfo: {
           fullName: student.fullName,
           studentId: student.studentId,
@@ -130,6 +141,8 @@ export async function GET(request, { params }) {
         classCode: subject?.classCode || '-',
         duration: exam.duration || null,
         deadline: exam.deadline || null,
+        showResults: !!exam.showResults,
+        isExamOpen: exam.isExamOpen !== false,
         status: exam.status || 'draft',
         createdAt: exam.createdAt || null,
       },

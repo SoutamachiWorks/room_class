@@ -455,20 +455,23 @@ export default function DashboardLayout({ children }) {
 
           <div className={styles.greeting}>
             <span className={styles.greetingText}>Selamat datang kembali,</span>
-            <span className={styles.greetingName}>{user?.fullName}</span>
+            <div className={styles.greetingRow}>
+              <span className={styles.greetingName}>{user?.fullName}</span>
+              <span className={styles.roleBadge}>{nav.label}</span>
+            </div>
           </div>
           <div className={styles.topBarRight}>
             <NotificationBell />
             <ThemeToggle />
-            <span className={styles.roleBadge}>{nav.label}</span>
             <div className={styles.accountMenu} ref={dropdownRef}>
               <button
                 type="button"
-                className={styles.topBarAvatar}
+                className={styles.avatarButton}
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 title="Menu Akun"
               >
-                {user?.fullName?.charAt(0)?.toUpperCase() || '?'}
+                <span className={styles.topBarAvatar}>{user?.fullName?.charAt(0)?.toUpperCase() || '?'}</span>
+                <span className={styles.avatarChevron}>⌄</span>
               </button>
 
               {isDropdownOpen && (

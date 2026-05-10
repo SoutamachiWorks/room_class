@@ -26,6 +26,11 @@ export default function TeacherSubmissionPage({ params }) {
   const [gradeInput, setGradeInput] = useState('');
   const [feedbackInput, setFeedbackInput] = useState('');
   const [gradeLoading, setGradeLoading] = useState(false);
+  // Grading state inside the detail modal
+  const [isGradingInModal, setIsGradingInModal] = useState(false);
+  const [modalGradeInput, setModalGradeInput] = useState('');
+  const [modalFeedbackInput, setModalFeedbackInput] = useState('');
+  const [modalGradeLoading, setModalGradeLoading] = useState(false);
   
   // Search and Pagination states
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,6 +90,37 @@ export default function TeacherSubmissionPage({ params }) {
       alert('Koneksi terputus saat meramban database.');
     } finally {
       setGradeLoading(false);
+    }
+  };
+
+  const submitGradeInModal = async () => {
+    if (modalGradeInput === '' || isNaN(modalGradeInput)) {
+      alert('Nilai harus berupa angka.');
+      return;
+    }
+    setModalGradeLoading(true);
+    try {
+      const res = await fetch(`/api/teacher/assignments/${assignmentId}/submissions/${selectedStudentDetail.studentId}/grade`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score: Number(modalGradeInput), feedback: modalFeedbackInput })
+      });
+      if (res.ok) {
+        // Update local state so modal reflects new values immediately
+        setSelectedStudentDetail(prev => ({
+          ...prev,
+          submission: { ...prev.submission, score: Number(modalGradeInput), feedback: modalFeedbackInput }
+        }));
+        setIsGradingInModal(false);
+        fetchData();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Gagal menyimpan nilai.');
+      }
+    } catch {
+      alert('Koneksi gagal.');
+    } finally {
+      setModalGradeLoading(false);
     }
   };
 
@@ -412,7 +448,8 @@ export default function TeacherSubmissionPage({ params }) {
 
       {/* Data Table */}
       <ContentCard>
-        <div className={styles.tableContainer}>
+        {/* Desktop table */}
+        <div className={`${styles.tableContainer} ${styles.desktopOnlyBlock}`}>
           {loading ? (
             <div className={styles.loadingBox}>
               <div className="spinner"></div> 
@@ -537,190 +574,82 @@ export default function TeacherSubmissionPage({ params }) {
                         )}
                       </td>
                       <td data-label="NILAI" style={{ textAlign: 'center' }}>
-                        {isGrading ? (
-                          <input 
-                            type="number" 
-                            value={gradeInput}
-                            onChange={e => setGradeInput(e.target.value)}
+                        {sub?.score !== undefined && sub?.score !== null ? (
+                          <button
+                            onClick={() => setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode })}
+                            title="Klik untuk lihat detail & edit nilai"
                             style={{
-                              width: '50px',
-                              padding: '4px',
-                              border: '1px solid #3B82F6',
-                              borderRadius: '4px',
-                              textAlign: 'center',
-                              fontSize: '12px',
-                              fontWeight: 700
+                              display: 'inline-flex', minWidth: '36px', height: '36px',
+                              padding: '0 10px',
+                              background: sub.score >= 80 ? 'rgba(16,185,129,0.15)' : sub.score >= 60 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                              color: sub.score >= 80 ? '#10B981' : sub.score >= 60 ? '#F59E0B' : '#EF4444',
+                              borderRadius: '8px', fontSize: '13px', fontWeight: 800,
+                              alignItems: 'center', justifyContent: 'center',
+                              border: 'none', cursor: 'pointer',
+                              transition: 'opacity 0.15s'
                             }}
-                            autoFocus
-                          />
+                          >
+                            {sub.score}
+                          </button>
                         ) : (
-                          sub?.score !== undefined && sub?.score !== null ? (
-                            <div style={{
-                              display: 'inline-flex',
-                              width: '32px',
-                              height: '32px',
-                              background: sub.score >= 80 ? 'rgba(16, 185, 129, 0.15)' : 
-                                         sub.score >= 60 ? 'rgba(245, 158, 11, 0.15)' : 
-                                         'rgba(239, 68, 68, 0.15)',
-                              color: sub.score >= 80 ? '#10B981' : 
-                                    sub.score >= 60 ? '#F59E0B' : 
-                                    '#EF4444',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                              fontWeight: 800,
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}>
-                              {sub.score}
-                            </div>
-                          ) : (
-                            <span style={{ color: 'var(--color-subtext)' }}>-</span>
-                          )
+                          <span style={{ color: 'var(--color-subtext)' }}>-</span>
                         )}
                       </td>
                       <td data-label="FEEDBACK" style={{ textAlign: 'center' }}>
-                        {isGrading ? (
-                          <input 
-                            type="text" 
-                            placeholder="Feedback..."
-                            value={feedbackInput}
-                            onChange={(e) => setFeedbackInput(e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '8px 10px',
-                              borderRadius: '8px',
-                              border: '1.5px solid #3B82F6',
-                              fontSize: '13px',
-                              background: 'var(--bg-card)',
-                              color: 'var(--color-text)',
-                              outline: 'none'
-                            }}
-                          />
-                        ) : (
-                          <button 
-                            onClick={() => setSelectedStudentDetail({
-                              ...student,
-                              classCode: assignmentMeta?.subjectDetails?.classCode
-                            })}
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '8px',
-                              background: sub?.feedback ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-app)',
-                              border: '1px solid var(--color-border)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: sub?.feedback ? '#3B82F6' : 'var(--color-subtext)',
-                              cursor: 'pointer',
-                              margin: '0 auto',
-                              transition: 'all 0.2s'
-                            }}
-                            title={sub?.feedback || 'Belum ada feedback'}
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-                            </svg>
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode })}
+                          style={{
+                            width: '32px', height: '32px', borderRadius: '8px',
+                            background: sub?.feedback ? 'rgba(59,130,246,0.1)' : 'var(--bg-app)',
+                            border: '1px solid var(--color-border)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: sub?.feedback ? '#3B82F6' : 'var(--color-subtext)',
+                            cursor: 'pointer', margin: '0 auto'
+                          }}
+                          title={sub?.feedback || 'Belum ada feedback'}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                          </svg>
+                        </button>
                       </td>
                       <td data-label="AKSI">
-                        {isGrading ? (
-                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                            <button 
-                              onClick={() => submitGrade(student.studentId)} 
-                              disabled={gradeLoading}
-                              style={{
-                                width: '36px',
-                                height: '36px',
-                                background: '#10B981',
-                                border: 'none',
-                                borderRadius: '8px',
-                                color: 'white',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                          <button
+                            onClick={() => setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode })}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '6px',
+                              padding: '8px 14px',
+                              background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)',
+                              borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+                              color: '#3B82F6', cursor: 'pointer'
+                            }}
+                          >
+                            Detail
+                          </button>
+                          {sub && (
+                            <button
+                              onClick={() => {
+                                setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode });
+                                // Pre-open grading form inside modal after state settles
+                                setTimeout(() => {
+                                  setModalGradeInput(sub.score ?? '');
+                                  setModalFeedbackInput(sub.feedback || '');
+                                  setIsGradingInModal(true);
+                                }, 0);
                               }}
-                              title="Simpan Nilai"
-                            >
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <polyline points="20 6 9 17 4 12"/>
-                              </svg>
-                            </button>
-                            <button 
-                              onClick={() => setGradingStudentId(null)} 
-                              disabled={gradeLoading}
                               style={{
-                                width: '36px',
-                                height: '36px',
-                                background: 'rgba(239, 68, 68, 0.1)',
-                                border: '1px solid rgba(239, 68, 68, 0.2)',
-                                borderRadius: '8px',
-                                color: '#EF4444',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                              title="Batal"
-                            >
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                              </svg>
-                            </button>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                            <button 
-                              onClick={() => setSelectedStudentDetail({
-                                ...student,
-                                classCode: assignmentMeta?.subjectDetails?.classCode
-                              })}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
+                                display: 'flex', alignItems: 'center', gap: '6px',
                                 padding: '8px 14px',
-                                background: 'rgba(59, 130, 246, 0.1)',
-                                border: '1px solid rgba(59, 130, 246, 0.2)',
-                                borderRadius: '8px',
-                                fontSize: '13px',
-                                fontWeight: 600,
-                                color: '#3B82F6',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
+                                background: 'var(--bg-app)', border: '1px solid var(--color-border)',
+                                borderRadius: '8px', fontSize: '13px', fontWeight: 600,
+                                color: 'var(--color-heading)', cursor: 'pointer'
                               }}
                             >
-                              Detail
+                              Nilai
                             </button>
-                            {sub && (
-                              <button 
-                                onClick={() => { 
-                                  setGradingStudentId(student.studentId); 
-                                  setGradeInput(sub.score || ''); 
-                                  setFeedbackInput(sub.feedback || '');
-                                }}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  padding: '8px 14px',
-                                  background: 'var(--bg-app)',
-                                  border: '1px solid var(--color-border)',
-                                  borderRadius: '8px',
-                                  fontSize: '13px',
-                                  fontWeight: 600,
-                                  color: 'var(--color-heading)',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s'
-                                }}
-                              >
-                                Nilai
-                              </button>
-                            )}
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -729,6 +658,158 @@ export default function TeacherSubmissionPage({ params }) {
             </table>
           )}
         </div>
+
+        {/* Mobile card list */}
+        {!loading && (
+          <div className={styles.mobileOnlyBlock}>
+            {paginatedStudents.length === 0 ? (
+              <EmptyState
+                title="Tidak Ada Data"
+                description="Tidak ada siswa yang sesuai dengan kriteria pencarian atau filter."
+              />
+            ) : (
+              <div className={styles.mobileSubmissionList}>
+                {paginatedStudents.map((student, index) => {
+                  const sub = student.submission;
+                  const isGrading = gradingStudentId === student.studentId;
+                  const avatarColor = getAvatarColor(student.name || '');
+
+                  return (
+                    <div key={student._id} className={styles.mobileSubmissionCard}>
+                      {/* Top: avatar + name + status */}
+                      <div className={styles.mobileSubmissionHead}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            width: '40px', height: '40px', borderRadius: '10px',
+                            backgroundColor: avatarColor, display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', fontSize: '14px', fontWeight: 700,
+                            color: 'white', flexShrink: 0
+                          }}>
+                            {getInitials(student.name)}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, color: 'var(--color-heading)', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {student.name || 'Siswa'}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--color-subtext)' }}>{student.studentId}</div>
+                          </div>
+                        </div>
+                        {/* Status badge */}
+                        <div style={{
+                          padding: '5px 10px',
+                          background: sub ? (sub.isLate ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)') : 'rgba(245,158,11,0.1)',
+                          color: sub ? (sub.isLate ? '#EF4444' : '#10B981') : '#F59E0B',
+                          borderRadius: '6px', fontSize: '0.68rem', fontWeight: 700,
+                          whiteSpace: 'nowrap', flexShrink: 0
+                        }}>
+                          {sub ? (sub.isLate ? 'Terlambat' : 'Dikumpulkan') : 'Belum Kumpul'}
+                        </div>
+                      </div>
+
+                      {/* Meta: waktu + nilai */}
+                      {sub && (
+                        <div className={styles.mobileSubmissionMeta}>
+                          <div>
+                            <div className={styles.mobileMetaLabel}>Waktu</div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--color-text)', fontWeight: 500 }}>
+                              {new Date(sub.submittedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              {' · '}
+                              {new Date(sub.submittedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                          <div>
+                            <div className={styles.mobileMetaLabel}>Nilai</div>
+                            {isGrading ? (
+                              <input
+                                type="number"
+                                value={gradeInput}
+                                onChange={e => setGradeInput(e.target.value)}
+                                style={{ width: '60px', padding: '4px 8px', border: '1px solid #3B82F6', borderRadius: '6px', fontSize: '0.875rem', fontWeight: 700, textAlign: 'center' }}
+                                autoFocus
+                              />
+                            ) : (
+                              /* Nilai badge — clickable, opens detail modal */
+                              <button
+                                onClick={() => setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode })}
+                                title="Klik untuk lihat detail & edit nilai"
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                  minWidth: '36px', height: '28px', padding: '0 10px',
+                                  background: sub.score !== undefined && sub.score !== null
+                                    ? (sub.score >= 80 ? 'rgba(16,185,129,0.15)' : sub.score >= 60 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)')
+                                    : 'var(--bg-surface)',
+                                  color: sub.score !== undefined && sub.score !== null
+                                    ? (sub.score >= 80 ? '#10B981' : sub.score >= 60 ? '#F59E0B' : '#EF4444')
+                                    : 'var(--color-subtext)',
+                                  borderRadius: '6px', fontSize: '0.82rem', fontWeight: 800,
+                                  border: 'none', cursor: 'pointer'
+                                }}
+                              >
+                                {sub.score !== undefined && sub.score !== null ? sub.score : '—'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Files */}
+                      {sub?.files && sub.files.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {sub.files.map((fl, x) => (
+                            <a key={x} href={fl.url} target="_blank" rel="noopener noreferrer"
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                padding: '4px 8px', background: 'var(--color-primary-light)',
+                                borderRadius: '6px', fontSize: '0.7rem', color: 'var(--color-primary)',
+                                textDecoration: 'none', maxWidth: '160px', overflow: 'hidden',
+                                textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                              }}
+                            >
+                              📎 {fl.originalName}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Actions — both open detail modal */}
+                      <div className={styles.mobileSubmissionActions}>
+                        <button
+                          onClick={() => setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode })}
+                          style={{
+                            flex: 1, padding: '10px', background: 'rgba(59,130,246,0.1)',
+                            border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px',
+                            color: '#3B82F6', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer'
+                          }}
+                        >
+                          Detail
+                        </button>
+                        {sub && (
+                          <button
+                            onClick={() => {
+                              setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode });
+                              setTimeout(() => {
+                                setModalGradeInput(sub.score ?? '');
+                                setModalFeedbackInput(sub.feedback || '');
+                                setIsGradingInModal(true);
+                              }, 0);
+                            }}
+                            style={{
+                              flex: 1, padding: '10px', background: 'var(--bg-surface)',
+                              border: '1px solid var(--color-border)', borderRadius: '8px',
+                              color: 'var(--color-heading)', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer'
+                            }}
+                          >
+                            Nilai
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </ContentCard>
 
       {/* Pagination */}
@@ -817,10 +898,9 @@ export default function TeacherSubmissionPage({ params }) {
           </div>
         </div>
       )}
-      {/* Submission Detail Modal */}
       <Modal
         isOpen={!!selectedStudentDetail}
-        onClose={() => setSelectedStudentDetail(null)}
+        onClose={() => { setSelectedStudentDetail(null); setIsGradingInModal(false); }}
         title="Detail Pengumpulan Siswa"
         maxWidth="800px"
       >
@@ -829,16 +909,10 @@ export default function TeacherSubmissionPage({ params }) {
             {/* Student Info Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--color-border)' }}>
               <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '50%',
+                width: '48px', height: '48px', borderRadius: '50%',
                 backgroundColor: getAvatarColor(selectedStudentDetail.name || ''),
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '18px',
-                fontWeight: 700,
-                color: 'white'
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '18px', fontWeight: 700, color: 'white'
               }}>
                 {getInitials(selectedStudentDetail.name)}
               </div>
@@ -859,17 +933,7 @@ export default function TeacherSubmissionPage({ params }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '24px' }}>
                   <div>
                     <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '10px' }}>Pesan / Jawaban:</h4>
-                    <div style={{ 
-                      padding: '16px', 
-                      background: 'var(--bg-app)', 
-                      borderRadius: '8px', 
-                      fontSize: '14px', 
-                      lineHeight: '1.6', 
-                      color: 'var(--color-text)',
-                      minHeight: '100px',
-                      whiteSpace: 'pre-wrap',
-                      border: '1px solid var(--color-border)'
-                    }}>
+                    <div style={{ padding: '16px', background: 'var(--bg-app)', borderRadius: '8px', fontSize: '14px', lineHeight: '1.6', color: 'var(--color-text)', minHeight: '100px', whiteSpace: 'pre-wrap', border: '1px solid var(--color-border)' }}>
                       {selectedStudentDetail.submission.text || <span style={{ fontStyle: 'italic', color: 'var(--color-subtext)' }}>Tidak ada pesan tambahan.</span>}
                     </div>
                   </div>
@@ -884,8 +948,8 @@ export default function TeacherSubmissionPage({ params }) {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed var(--color-border)' }}>
                         <span style={{ fontSize: '13px', color: 'var(--color-subtext)' }}>Status Nilai</span>
-                        <span style={{ fontSize: '13px', fontWeight: 600, color: selectedStudentDetail.submission.score !== null ? '#10B981' : '#F59E0B' }}>
-                          {selectedStudentDetail.submission.score !== null ? 'Sudah Dinilai' : 'Belum Dinilai'}
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: selectedStudentDetail.submission.score !== null && selectedStudentDetail.submission.score !== undefined ? '#10B981' : '#F59E0B' }}>
+                          {selectedStudentDetail.submission.score !== null && selectedStudentDetail.submission.score !== undefined ? 'Sudah Dinilai' : 'Belum Dinilai'}
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px dashed var(--color-border)' }}>
@@ -899,62 +963,98 @@ export default function TeacherSubmissionPage({ params }) {
                 </div>
 
                 {/* Files Section */}
-                <div>
-                  <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    File Terlampir
-                    {selectedStudentDetail.submission.files?.length > 1 && (
-                      <button 
-                        onClick={() => handleDownloadAllSelected(selectedStudentDetail.submission.files)}
-                        style={{ fontSize: '12px', color: '#3B82F6', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                      >
-                        Download Semua
-                      </button>
-                    )}
-                  </h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
-                    {selectedStudentDetail.submission.files?.map((file, idx) => (
-                      <a
-                        key={idx}
-                        href={file.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          padding: '12px',
-                          background: 'var(--bg-card)',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: '8px',
-                          textDecoration: 'none',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <div style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '6px' }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                          </svg>
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {file.originalName}
+                {selectedStudentDetail.submission.files?.length > 0 && (
+                  <div>
+                    <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-heading)', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      File Terlampir
+                      {selectedStudentDetail.submission.files.length > 1 && (
+                        <button onClick={() => handleDownloadAllSelected(selectedStudentDetail.submission.files)} style={{ fontSize: '12px', color: '#3B82F6', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                          Download Semua
+                        </button>
+                      )}
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+                      {selectedStudentDetail.submission.files.map((file, idx) => (
+                        <a key={idx} href={file.url} target="_blank" rel="noopener noreferrer"
+                          style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'var(--bg-card)', border: '1px solid var(--color-border)', borderRadius: '8px', textDecoration: 'none' }}
+                        >
+                          <div style={{ padding: '8px', background: 'rgba(239,68,68,0.1)', borderRadius: '6px' }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--color-subtext)' }}>{formatFileSize(file.size)}</div>
-                        </div>
-                      </a>
-                    ))}
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.originalName}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--color-subtext)' }}>{formatFileSize(file.size)}</div>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* Grading Summary */}
-                {selectedStudentDetail.submission.score !== null && (
-                  <div style={{ padding: '16px', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#3B82F6', margin: 0 }}>Hasil Penilaian</h4>
-                      <div style={{ padding: '4px 12px', background: '#3B82F6', color: 'white', borderRadius: '20px', fontSize: '16px', fontWeight: 800 }}>
-                        {selectedStudentDetail.submission.score}
+                {/* ── Grading Section ── */}
+                {isGradingInModal ? (
+                  /* Form input nilai + feedback */
+                  <div style={{ padding: '20px', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#3B82F6' }}>
+                      {selectedStudentDetail.submission.score !== null && selectedStudentDetail.submission.score !== undefined ? 'Edit Nilai & Feedback' : 'Beri Nilai & Feedback'}
+                    </h4>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '120px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-subtext)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nilai (0–100)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={modalGradeInput}
+                          onChange={e => setModalGradeInput(e.target.value)}
+                          placeholder="0"
+                          autoFocus
+                          style={{ width: '100px', padding: '10px 12px', border: '2px solid #3B82F6', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 700, textAlign: 'center', background: 'var(--bg-card)', color: 'var(--color-heading)', outline: 'none' }}
+                        />
                       </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minWidth: '200px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-subtext)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Feedback untuk Siswa
+                          <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--color-primary)', fontWeight: 500, textTransform: 'none' }}>(akan terlihat oleh siswa)</span>
+                        </label>
+                        <textarea
+                          value={modalFeedbackInput}
+                          onChange={e => setModalFeedbackInput(e.target.value)}
+                          placeholder="Tuliskan feedback untuk siswa... (opsional)"
+                          rows={3}
+                          style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '13px', background: 'var(--bg-card)', color: 'var(--color-text)', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        onClick={submitGradeInModal}
+                        disabled={modalGradeLoading}
+                        style={{ flex: 1, padding: '11px', background: '#10B981', border: 'none', borderRadius: '8px', color: 'white', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        {modalGradeLoading ? 'Menyimpan...' : 'Simpan Nilai & Feedback'}
+                      </button>
+                      <button
+                        onClick={() => setIsGradingInModal(false)}
+                        style={{ padding: '11px 20px', background: 'var(--bg-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-text)', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Display nilai + feedback (read mode) */
+                  <div style={{ padding: '16px', background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: selectedStudentDetail.submission.feedback ? '12px' : 0 }}>
+                      <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#3B82F6', margin: 0 }}>Hasil Penilaian</h4>
+                      {selectedStudentDetail.submission.score !== null && selectedStudentDetail.submission.score !== undefined ? (
+                        <div style={{ padding: '4px 14px', background: '#3B82F6', color: 'white', borderRadius: '20px', fontSize: '16px', fontWeight: 800 }}>
+                          {selectedStudentDetail.submission.score}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '13px', color: 'var(--color-subtext)', fontStyle: 'italic' }}>Belum dinilai</span>
+                      )}
                     </div>
                     {selectedStudentDetail.submission.feedback && (
                       <div>
@@ -967,57 +1067,32 @@ export default function TeacherSubmissionPage({ params }) {
               </>
             ) : (
               <div style={{ padding: '40px', textAlign: 'center', background: 'var(--bg-app)', borderRadius: '12px', border: '1px dashed var(--color-border)' }}>
-                <div style={{ width: '64px', height: '64px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>
+                <div style={{ width: '64px', height: '64px', background: 'rgba(245,158,11,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 </div>
                 <h4 style={{ margin: '0 0 8px 0', color: 'var(--color-heading)' }}>Siswa Belum Mengumpulkan</h4>
-                <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-subtext)' }}>Belum ada data pengumpulan yang tersedia untuk ditampilkan.</p>
+                <p style={{ margin: 0, fontSize: '14px', color: 'var(--color-subtext)' }}>Belum ada data pengumpulan yang tersedia.</p>
               </div>
             )}
 
-            {/* Modal Footer Actions */}
-            <div style={{ display: 'flex', gap: '12px', marginTop: '10px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
-              <button 
-                onClick={() => setSelectedStudentDetail(null)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: 'var(--bg-app)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  color: 'var(--color-text)',
-                  cursor: 'pointer'
-                }}
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', gap: '12px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
+              <button
+                onClick={() => { setSelectedStudentDetail(null); setIsGradingInModal(false); }}
+                style={{ flex: 1, padding: '12px', background: 'var(--bg-app)', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '14px', fontWeight: 600, color: 'var(--color-text)', cursor: 'pointer' }}
               >
                 Tutup
               </button>
-              {selectedStudentDetail.submission && (
-                <button 
+              {selectedStudentDetail.submission && !isGradingInModal && (
+                <button
                   onClick={() => {
-                    setGradingStudentId(selectedStudentDetail.studentId);
-                    setGradeInput(selectedStudentDetail.submission.score || '');
-                    setFeedbackInput(selectedStudentDetail.submission.feedback || '');
-                    setSelectedStudentDetail(null);
+                    setModalGradeInput(selectedStudentDetail.submission.score ?? '');
+                    setModalFeedbackInput(selectedStudentDetail.submission.feedback || '');
+                    setIsGradingInModal(true);
                   }}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    background: '#3B82F6',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    color: 'white',
-                    cursor: 'pointer'
-                  }}
+                  style={{ flex: 1, padding: '12px', background: '#3B82F6', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, color: 'white', cursor: 'pointer' }}
                 >
-                  Beri Nilai / Edit Nilai
+                  {selectedStudentDetail.submission.score !== null && selectedStudentDetail.submission.score !== undefined ? 'Edit Nilai / Feedback' : 'Beri Nilai & Feedback'}
                 </button>
               )}
             </div>

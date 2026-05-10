@@ -344,6 +344,12 @@
   text-overflow: ellipsis;
 }
 
+.greetingRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .topBarRight {
   display: flex;
   align-items: center;
@@ -353,6 +359,12 @@
 
 .accountMenu {
   position: relative;
+}
+
+.avatarButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .topBarAvatar {
@@ -373,6 +385,12 @@
   box-shadow: 0 4px 12px rgba(120, 163, 255, 0.25);
   transition: all var(--transition-fast);
   flex-shrink: 0;
+}
+
+.avatarChevron {
+  font-size: 0.95rem;
+  color: var(--color-subtext);
+  line-height: 1;
 }
 
 .topBarAvatar:hover {
@@ -441,9 +459,9 @@
 
 .roleBadge {
   padding: 5px 14px;
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-  border-radius: var(--radius-button);
+  background: #3b82f6;
+  color: #eff6ff;
+  border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: capitalize;

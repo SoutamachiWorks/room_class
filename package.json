@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "node scripts/seed.mjs"
+    "seed": "node scripts/seed.mjs",
+    "backfill:exam-image-sizes": "node scripts/backfill-exam-image-sizes.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1032.0",

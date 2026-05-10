@@ -1452,6 +1452,31 @@
   gap: 24px;
 }
 
+/* On mobile, lift footer above the bottom nav bar (~64px) */
+@media (max-width: 768px) {
+  .gradingFooter {
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding: 14px 16px;
+    gap: 12px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .gradingFooterScore {
+    text-align: left;
+  }
+
+  .gradingFinalScore {
+    font-size: 1.25rem;
+  }
+
+  /* Ensure page content doesn't hide behind footer + bottom nav */
+  .gradingPage {
+    padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
 .gradingFooterScore {
   text-align: right;
 }
@@ -2706,4 +2731,357 @@
     align-items: stretch !important;
     gap: 10px !important;
   }
+}
+
+/* ── Mobile card list (admin pages) ─────────────────────────────────────── */
+.mobileUserList {
+  display: none;
+  flex-direction: column;
+}
+
+.mobileUserCard {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobileUserCard:last-child { border-bottom: none; }
+
+.mobileUserHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobileStatusWrap {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.mobileUserMeta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+}
+
+.mobileMetaLabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-subtext);
+  margin-bottom: 2px;
+}
+
+.mobileUserActions {
+  display: flex;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.mobileActionBtn {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  background: var(--bg-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s ease;
+}
+
+.mobileActionBtn:hover { background: var(--bg-surface-hover); }
+
+.mobileActionBtnDanger {
+  color: var(--color-failed-text);
+  border-color: rgba(220, 53, 69, 0.25);
+  background: var(--color-failed-bg);
+}
+
+.mobileActionBtnDanger:hover { background: rgba(220, 53, 69, 0.15); }
+
+/* Log-specific mobile */
+.mobileLogHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobileLogBadge { flex-shrink: 0; }
+
+.mobileLogDetailBox {
+  background: var(--bg-surface);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.mobileLogPre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.72rem;
+  color: var(--color-subtext);
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+/* Mobile quick actions (admin users page) */
+.mobileQuickActions {
+  display: none;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mobileActionCard,
+.mobileActionCardPrimary,
+.mobileActionCardTeal {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--bg-card);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.mobileActionCardPrimary { background: var(--color-primary-light); border-color: var(--color-primary); }
+.mobileActionCardTeal { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3); }
+
+.mobileActionTitle { font-size: 0.82rem; font-weight: 700; color: var(--color-heading); }
+.mobileActionDesc { font-size: 0.72rem; color: var(--color-subtext); }
+
+.mobileFilterPanel {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mobileStats {
+  display: none;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.mobileStatCard {
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+
+.mobileStatValue { font-size: 1.25rem; font-weight: 700; color: var(--color-heading); }
+.mobileStatLabel { font-size: 0.7rem; color: var(--color-subtext); margin-top: 2px; }
+
+/* Mobile material card list */
+.mobileMaterialList {
+  display: none;
+  flex-direction: column;
+}
+
+.mobileMaterialCard {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobileMaterialCard:last-child { border-bottom: none; }
+
+.mobileMaterialTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mobileMaterialTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  line-height: 1.4;
+}
+
+.mobileMaterialSubject {
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.mobileMaterialActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Larger touch targets for mobile action icons */
+.mobileMaterialActions .iconBtn,
+.mobileAssignmentActions .iconBtn {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 12px !important;
+}
+
+.mobileMaterialActions .iconBtn svg,
+.mobileAssignmentActions .iconBtn svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.mobileMaterialMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mobileMaterialDate {
+  font-size: 0.78rem;
+  color: var(--color-subtext);
+}
+
+.mobileMaterialDesc {
+  font-size: 0.8rem;
+  color: var(--color-subtext);
+  line-height: 1.5;
+}
+
+/* Mobile assignment card list (teacher) */
+.mobileAssignmentList {
+  display: none;
+  flex-direction: column;
+}
+
+.mobileAssignmentCard {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobileAssignmentCard:last-child { border-bottom: none; }
+
+.mobileAssignmentTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mobileAssignmentTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  line-height: 1.4;
+}
+
+.mobileAssignmentSubject {
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.mobileAssignmentActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mobileAssignmentMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mobileAssignmentDate {
+  font-size: 0.78rem;
+  color: var(--color-subtext);
+}
+
+.mobileAssignmentDeadline {
+  font-size: 0.78rem;
+  color: var(--color-failed-text);
+  font-weight: 600;
+}
+
+.mobileAssignmentDesc {
+  font-size: 0.8rem;
+  color: var(--color-subtext);
+  line-height: 1.5;
+}
+
+/* Show/hide based on breakpoint */
+.desktopOnlyBlock { display: block; }
+.mobileOnlyBlock { display: none; }
+
+@media (max-width: 640px) {
+  .desktopOnlyBlock { display: none !important; }
+  .mobileOnlyBlock { display: block !important; }
+  .mobileUserList { display: flex !important; }
+  .mobileQuickActions { display: grid !important; }
+  .mobileFilterPanel { display: flex !important; }
+  .mobileStats { display: grid !important; }
+  .mobileMaterialList { display: flex !important; }
+  .mobileAssignmentList { display: flex !important; }
+  .tableContainer .table { display: none !important; }
+}
+
+/* ── Mobile submission list (teacher assignment monitoring) ── */
+.mobileSubmissionList {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobileSubmissionCard {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobileSubmissionCard:last-child { border-bottom: none; }
+
+.mobileSubmissionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mobileSubmissionMeta {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 16px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border-radius: 8px;
+}
+
+.mobileSubmissionActions {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
 }

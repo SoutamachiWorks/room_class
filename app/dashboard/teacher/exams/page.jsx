@@ -9,6 +9,18 @@ import styles from './page.module.css';
 
 const PAGE_SIZE = 10;
 
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    setIsMobile(mq.matches);
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 function getQuestionTypeLabel(exam) {
   const questions = exam?.questions || [];
   const hasMc = questions.some((q) => !!q.multipleChoice);
@@ -33,6 +45,7 @@ function getMapelColor(subjectName) {
 }
 
 export default function ExamsPage() {
+  const isMobile = useIsMobile(640);
   const router = useRouter();
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -271,7 +284,8 @@ export default function ExamsPage() {
           ) : currentRows.length === 0 ? (
             <EmptyState title="Belum Ada Data Soal" description="Coba ubah filter atau buat soal baru untuk mulai mengisi bank soal." />
           ) : (
-            <table className={styles.table}>
+            <>
+              <table className={styles.table}>
               <thead>
                 <tr>
                   <th>Judul Soal</th>
@@ -346,6 +360,63 @@ export default function ExamsPage() {
                 ))}
               </tbody>
             </table>
+
+            {/* Mobile exam card list */}
+            <div className={styles.mobileExamList}>
+              {currentRows.map((row) => (
+                <article key={`m-${row._id}`} className={styles.mobileExamCard}>
+                  <div className={styles.mobileExamTop}>
+                    <div className={styles.mobileExamBadges}>
+                      <span className={`${styles.statusBadge} ${row.status === 'published' ? styles.statusPublished : styles.statusDraft}`}>
+                        {row.status === 'published' ? 'Publikasi' : 'Draft'}
+                      </span>
+                      <span className={`${styles.mapelBadge} ${styles[getMapelColor(row.subjectName)]}`}>{row.subjectName}</span>
+                    </div>
+                    <div className={styles.actionRow}>
+                      <button
+                        className={styles.iconBtn}
+                        title="Lihat hasil ujian"
+                        onClick={() => router.push(`/dashboard/teacher/exams/${row._id}/results`)}
+                      >
+                        V
+                      </button>
+                      <button
+                        className={styles.iconBtn}
+                        title="Edit soal"
+                        disabled={row.status !== 'draft'}
+                        onClick={() => row.status === 'draft' && router.push(`/dashboard/teacher/exams/builder?id=${row._id}`)}
+                      >
+                        E
+                      </button>
+                      <details className={styles.moreMenu}>
+                        <summary className={styles.iconBtn}>...</summary>
+                        <div className={styles.moreMenuContent}>
+                          <button onClick={() => handleTogglePublish(row)} disabled={publishLoading === row._id}>
+                            {publishLoading === row._id ? 'Memproses...' : row.status === 'published' ? 'Tarik ke Draft' : 'Publikasikan'}
+                          </button>
+                          <button
+                            className={styles.dangerMenu}
+                            onClick={() => {
+                              setSelectedExam(row);
+                              setIsDeleteOpen(true);
+                            }}
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
+                  <div className={styles.mobileExamTitle}>{row.title}</div>
+                  <div className={styles.mobileExamMeta}>
+                    <span className={styles.classBadge}>{row.classCode}</span>
+                    <span className={styles.typeBadge}>{row.typeLabel}</span>
+                    <span style={{fontSize:'0.78rem',color:'var(--color-subtext)'}}>{new Date(row.createdAt).toLocaleDateString('id-ID')}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+            </>
           )}
         </div>
 

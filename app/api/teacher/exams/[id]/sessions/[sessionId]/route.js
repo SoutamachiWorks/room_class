@@ -42,7 +42,11 @@ export async function GET(request, { params }) {
 
     // Merging questions with answers & singing files
     const reviewData = await Promise.all(session.answers.map(async (ans) => {
-      const originalQuestion = exam.questions.find(q => q.order === ans.originalOrder);
+      const sessionQuestion = Array.isArray(session.questions)
+        ? session.questions[(ans.questionOrder || 0) - 1]
+        : null;
+      const originalQuestion = exam.questions.find((q) => q.order === ans.originalOrder);
+      const resolvedQuestion = sessionQuestion || originalQuestion || null;
       
       if (ans.uploadedFiles && ans.uploadedFiles.length > 0) {
          ans.uploadedFiles = await Promise.all(ans.uploadedFiles.map(async (f) => ({
@@ -53,7 +57,7 @@ export async function GET(request, { params }) {
 
       return {
         ...ans,
-        questionDetails: originalQuestion || null
+        questionDetails: resolvedQuestion
       };
     }));
 

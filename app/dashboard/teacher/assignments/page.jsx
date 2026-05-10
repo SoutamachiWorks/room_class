@@ -11,7 +11,20 @@ import { uploadWithProgress } from '@/lib/xhrUpload';
 import { ACCEPT_STR, validateFiles } from '@/lib/fileValidation';
 import styles from '../../admin/admin.module.css';
 
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    setIsMobile(mq.matches);
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 export default function AssignmentPage() {
+  const isMobile = useIsMobile(640);
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -300,6 +313,57 @@ export default function AssignmentPage() {
             </table>
           )}
         </div>
+
+        {/* Mobile card list */}
+        {!loading && assignments.length > 0 && (
+          <div className={styles.mobileAssignmentList}>
+            {assignments.map((asm) => (
+              <article key={`m-${asm._id}`} className={styles.mobileAssignmentCard}>
+                <div className={styles.mobileAssignmentTop}>
+                  <div>
+                    <div className={styles.mobileAssignmentTitle}>{asm.subjectDetails?.subjectName || 'Subjek FailSync'}</div>
+                    <div className={styles.mobileAssignmentSubject}>{asm.subjectDetails?.classCode || 'NO-REF'}</div>
+                  </div>
+                  <div className={styles.mobileAssignmentActions}>
+                    <button
+                      className={`${styles.iconBtn} ${styles.iconBtnView}`}
+                      onClick={() => window.location.href = `/dashboard/teacher/assignments/${asm._id}/submissions`}
+                      title="Pantau & Nilai Tugas"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                    </button>
+                    <button className={styles.iconBtn} onClick={() => handleOpenForm(asm)} title="Edit Tugas">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                    </button>
+                    <button className={`${styles.iconBtn} ${styles.iconBtnDanger}`} onClick={() => { setSelectedAssignment(asm); setIsDeleteOpen(true); }} title="Hapus">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+                    </button>
+                  </div>
+                </div>
+                <div className={styles.mobileAssignmentMeta}>
+                  <StatusBadge variant="student">{asm.subjectDetails?.classCode || 'NO-REF'}</StatusBadge>
+                  <span className={styles.mobileAssignmentDate}>{new Date(asm.createdAt).toLocaleDateString('id-ID')}</span>
+                  {asm.deadline && (
+                    <span className={styles.mobileAssignmentDeadline}>
+                      Deadline: {new Date(asm.deadline).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                  )}
+                </div>
+                <div className={styles.mobileAssignmentDesc}>{(asm.text || '').substring(0, 80)}{(asm.text || '').length > 80 ? '...' : ''}</div>
+                {(asm.files || []).length > 0 && (
+                  <div className={styles.fileChipList}>
+                    {asm.files.slice(0, 2).map((f, i) => (
+                      <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" className={styles.fileChipWarm} title={f.originalName}>
+                        <span>📑</span>
+                        <span className={styles.fileChipLabel}>{f.originalName}</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
       </ContentCard>
 
       {/* Creation/Adjustment Modals */}
@@ -313,7 +377,7 @@ export default function AssignmentPage() {
 
           <div className={styles.formRow}>
             <div className={styles.fieldGroup}>
-              <label className={styles.fieldLabel}>Integrasi Mata Pelajaran*</label>
+              <label className={styles.fieldLabel}>Mata Pelajaran*</label>
               <select
                 name="subjectId"
                 value={formSubjectId}
@@ -330,7 +394,7 @@ export default function AssignmentPage() {
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.fieldLabel}>Logikal Routing Target Code</label>
+              <label className={styles.fieldLabel}>Target Kelas</label>
               <input
                 type="text"
                 value={formClassCode ? `Terkunci: Kelas [${formClassCode}]` : 'Harap Setel Subjek'}

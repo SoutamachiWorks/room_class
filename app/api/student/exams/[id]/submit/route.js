@@ -54,7 +54,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Sesi ujian telah dikunci.', locked: true }, { status: 403 });
     }
 
-    // We need the exam document to auto-grade MCQs
+    // We still need exam metadata for notification/logging.
     const exam = await db.collection('exams').findOne({ _id: new ObjectId(examId) });
     if (!exam) return NextResponse.json({ error: 'Ujian tidak ditemukan.' }, { status: 404 });
 
@@ -72,17 +72,19 @@ export async function POST(request, { params }) {
     for (let i = 0; i < answers.length; i++) {
       const ans = answers[i];
       
-      // Auto Grade Logic
-      const originalQuestion = exam.questions.find(q => q.order === ans.originalOrder);
-      if (originalQuestion) {
-        if (originalQuestion.multipleChoice) {
-          if (ans.mcAnswer === originalQuestion.multipleChoice.correctAnswer) {
+      // Auto-grade against the student's session question (supports per-student option shuffle).
+      const sessionQuestion = Array.isArray(session.questions)
+        ? session.questions[(ans.questionOrder || 0) - 1]
+        : null;
+      if (sessionQuestion) {
+        if (sessionQuestion.multipleChoice) {
+          if (ans.mcAnswer === sessionQuestion.multipleChoice.correctAnswer) {
             ans.score = 100;
           } else {
             ans.score = 0;
           }
         }
-        if (originalQuestion.essay || originalQuestion.fileUpload) {
+        if (sessionQuestion.essay || sessionQuestion.fileUpload) {
           ans.score = null; // Pending review
           hasManualGradingNeeds = true;
         }

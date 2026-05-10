@@ -475,3 +475,22 @@
     font-size: 0.84rem;
   }
 }
+
+/* ── Mobile exam card list ─────────────────────────────── */
+.mobileExamList { display: none; flex-direction: column; gap: 0; }
+.mobileExamCard { padding: 16px; border-bottom: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 8px; }
+.mobileExamCard:last-child { border-bottom: none; }
+.mobileExamTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.mobileExamBadges { display: flex; gap: 6px; flex-wrap: wrap; }
+.mobileExamTitle { font-size: 0.95rem; font-weight: 700; color: var(--color-heading); line-height: 1.4; }
+.mobileExamMeta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.mobileExamActions { display: flex; gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--color-border); }
+.mobileExamActionFull { flex: 1; justify-content: center; }
+
+@media (max-width: 640px) {
+  .tableWrap .table { display: none !important; }
+  .mobileExamList { display: flex !important; }
+  .summaryGrid { grid-template-columns: repeat(2, 1fr); }
+  .filterRow { grid-template-columns: 1fr; }
+  .searchRow { grid-template-columns: 1fr; }
+}

@@ -64,7 +64,6 @@ export default function ExamResultsPage() {
   const [examMeta, setExamMeta] = useState(null);
   const [totalStudents, setTotalStudents] = useState(0);
   const [searchInput, setSearchInput] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -73,11 +72,9 @@ export default function ExamResultsPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [isEndExamOpen, setIsEndExamOpen] = useState(false);
   const [endExamLoading, setEndExamLoading] = useState(false);
+  const [visibilityLoading, setVisibilityLoading] = useState(false);
 
-  useEffect(() => {
-    const t = setTimeout(() => setSearchTerm(searchInput.trim().toLowerCase()), 300);
-    return () => clearTimeout(t);
-  }, [searchInput]);
+  const searchTerm = searchInput.trim().toLowerCase();
 
   const fetchResults = useCallback(async () => {
     setLoading(true);
@@ -102,7 +99,8 @@ export default function ExamResultsPage() {
   }, [examId]);
 
   useEffect(() => {
-    fetchResults();
+    const t = setTimeout(() => fetchResults(), 0);
+    return () => clearTimeout(t);
   }, [fetchResults]);
 
   useEffect(() => {
@@ -144,10 +142,6 @@ export default function ExamResultsPage() {
     });
   }, [sessions, searchTerm, statusFilter]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
-
   const totalPages = Math.max(1, Math.ceil(filteredSessions.length / PAGE_SIZE));
   const pageItems = buildPagination(currentPage, totalPages);
   const start = (currentPage - 1) * PAGE_SIZE;
@@ -180,12 +174,19 @@ export default function ExamResultsPage() {
   };
 
   const handleEndExam = async () => {
+    if (!examMeta) return;
     setEndExamLoading(true);
     try {
-      const res = await fetch(`/api/teacher/exams/${examId}/publish`, { method: 'PUT' });
+      const res = await fetch(`/api/teacher/exams/${examId}/access`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isExamOpen: !(examMeta.isExamOpen !== false) }),
+      });
       const data = await res.json();
-      if (!res.ok) alert(data.error || 'Gagal mengakhiri ujian.');
-      else await fetchResults();
+      if (!res.ok) alert(data.error || 'Gagal mengubah akses ujian.');
+      else {
+        setExamMeta((prev) => ({ ...(prev || {}), isExamOpen: data.isExamOpen }));
+      }
     } catch {
       alert('Koneksi ke server gagal.');
     } finally {
@@ -194,8 +195,31 @@ export default function ExamResultsPage() {
     }
   };
 
+  const handleToggleResultsVisibility = async () => {
+    if (!examMeta) return;
+    setVisibilityLoading(true);
+    try {
+      const next = !examMeta.showResults;
+      const res = await fetch(`/api/teacher/exams/${examId}/results-visibility`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ showResults: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'Gagal mengubah visibilitas nilai.');
+      } else {
+        setExamMeta((prev) => ({ ...(prev || {}), showResults: next }));
+      }
+    } catch {
+      alert('Koneksi ke server gagal.');
+    } finally {
+      setVisibilityLoading(false);
+    }
+  };
+
   const exportCsv = () => {
-    const header = ['Nama Siswa', 'NIS', 'Waktu Mulai', 'Status Ujian', 'Progres', 'Pelanggaran', 'Status Koreksi'];
+    const header = ['Nama Siswa', 'NIS', 'Waktu Mulai', 'Status Ujian', 'Progres', 'Pelanggaran', 'Status Koreksi', 'Nilai'];
     const rows = filteredSessions.map((sess) => {
       const total = sess.questionCount || 0;
       const answered = sess.answeredCount || 0;
@@ -208,6 +232,7 @@ export default function ExamResultsPage() {
         `${answered} / ${total} (${progress}%)`,
         `${sess.exitCount || 0} kali`,
         getGradingLabel(sess),
+        sess.calculatedScore ?? '-',
       ];
     });
     const csv = [header, ...rows]
@@ -282,7 +307,7 @@ export default function ExamResultsPage() {
           <div>
             <div className={styles.examTitleRow}>
               <strong>{examMeta?.title || '-'}</strong>
-              <span className={styles.activeBadge}>AKTIF</span>
+              <span className={styles.activeBadge}>{examMeta?.isExamOpen !== false ? 'AKTIF' : 'DITUTUP'}</span>
             </div>
             <p>
               Kelas: {examMeta?.classCode || '-'} • Durasi: {examMeta?.duration || '-'} Menit • Mulai: {formatTime(examStart)} • Selesai:{' '}
@@ -300,7 +325,14 @@ export default function ExamResultsPage() {
             <strong>{formatDateTime(examMeta?.deadline || examEnd)}</strong>
           </div>
           <button className={styles.endBtn} onClick={() => setIsEndExamOpen(true)}>
-            Akhiri Ujian
+            {examMeta?.isExamOpen !== false ? 'Akhiri Ujian' : 'Buka Ujian Lagi'}
+          </button>
+          <button className={styles.exportBtn} onClick={handleToggleResultsVisibility} disabled={visibilityLoading}>
+            {visibilityLoading
+              ? 'Memproses...'
+              : examMeta?.showResults
+                ? 'Sembunyikan Nilai dari Siswa'
+                : 'Tampilkan Nilai ke Siswa'}
           </button>
         </div>
       </section>
@@ -310,12 +342,15 @@ export default function ExamResultsPage() {
           <span>⌕</span>
           <input
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            onChange={(e) => {
+              setSearchInput(e.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Cari nama siswa..."
           />
         </div>
         <div className={styles.toolbarRight}>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}>
             <option value="">Semua Status</option>
             <option value="in-progress">Sedang Mengerjakan</option>
             <option value="submitted">Selesai</option>
@@ -348,6 +383,7 @@ export default function ExamResultsPage() {
                 <th>PROGRES</th>
                 <th>PELANGGARAN</th>
                 <th>STATUS KOREKSI</th>
+                <th>NILAI</th>
                 <th>AKSI</th>
               </tr>
             </thead>
@@ -399,35 +435,52 @@ export default function ExamResultsPage() {
                     <td data-label="Status Koreksi">
                       <span className={gradingLabel === 'Sudah Dikoreksi' ? styles.gradedDone : styles.gradedPending}>{gradingLabel}</span>
                     </td>
+                    <td data-label="Nilai">
+                      {(sess.calculatedScore !== null && sess.calculatedScore !== undefined)
+                        ? `${sess.calculatedScore} / 100`
+                        : '-'}
+                    </td>
                     <td data-label="Aksi">
                       <div className={styles.actionRow}>
-                        {sess.status === 'in-progress' && (
-                          <button className={styles.actionPrimary} onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}>
-                            Koreksi Layar
-                          </button>
-                        )}
+                        {/* Lihat Hasil / Koreksi */}
                         {sess.status === 'submitted' && (
-                          <button className={styles.actionSecondary} onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}>
+                          <button
+                            className={styles.actionSecondary}
+                            onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}
+                          >
                             Lihat Hasil
                           </button>
                         )}
-                        {sess.status === 'locked' && (
-                          <button className={styles.actionWarning} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'unlock')}>
-                            Buka Akses
+                        {sess.status === 'in-progress' && (
+                          <button
+                            className={styles.actionPrimary}
+                            onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}
+                          >
+                            Koreksi
                           </button>
                         )}
+
+                        {/* Buka Kunci — tampil jika terkunci ATAU in-progress dengan pelanggaran */}
+                        {(sess.status === 'locked' || (sess.status === 'in-progress' && (sess.exitCount || 0) > 0)) && (
+                          <button
+                            className={styles.actionWarning}
+                            onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'unlock')}
+                          >
+                            Buka Kunci
+                          </button>
+                        )}
+
+                        {/* Reset Total */}
+                        {sess.status !== 'not-started' && (
+                          <button
+                            className={styles.actionDanger}
+                            onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'reset')}
+                          >
+                            Reset
+                          </button>
+                        )}
+
                         {!['in-progress', 'submitted', 'locked'].includes(sess.status) && <span className={styles.noAction}>-</span>}
-                        <details className={styles.moreMenu}>
-                          <summary>⋮</summary>
-                          <div className={styles.moreMenuContent}>
-                            {(sess.status === 'locked' || (sess.status === 'in-progress' && (sess.exitCount || 0) > 0)) && (
-                              <button onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'unlock')}>Buka Akses</button>
-                            )}
-                            <button className={styles.dangerAction} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'reset')}>
-                              Reset Total
-                            </button>
-                          </div>
-                        </details>
                       </div>
                     </td>
                   </tr>
@@ -479,8 +532,13 @@ export default function ExamResultsPage() {
         isOpen={isEndExamOpen}
         onClose={() => setIsEndExamOpen(false)}
         onConfirm={handleEndExam}
-        title="Akhiri Ujian"
-        message="Ujian akan diakhiri (ditarik dari publikasi) dan siswa tidak dapat memulai sesi baru. Lanjutkan?"
+        title={examMeta?.isExamOpen !== false ? 'Akhiri Ujian' : 'Buka Ujian Lagi'}
+        message={
+          examMeta?.isExamOpen !== false
+            ? 'Ujian tetap terpublikasi, tetapi siswa tidak dapat memulai atau melanjutkan ujian sampai Anda membukanya kembali. Lanjutkan?'
+            : 'Ujian akan dibuka kembali sehingga siswa dapat masuk lagi. Lanjutkan?'
+        }
+        confirmLabel={examMeta?.isExamOpen !== false ? 'Akhiri' : 'Buka'}
         loading={endExamLoading}
       />
     </>

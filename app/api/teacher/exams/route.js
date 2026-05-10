@@ -89,7 +89,7 @@ export async function POST(request) {
     if (!teacherId) return NextResponse.json({ error: 'Identifikasi guru gagal' }, { status: 403 });
 
     const body = await request.json();
-    const { title, subjectId, questions, typeSettings, isRandomized, duration, deadline } = body;
+    const { title, subjectId, questions, typeSettings, isRandomized, isOptionRandomized, duration, deadline } = body;
 
     // Validation
     if (!title || typeof title !== 'string') {
@@ -145,6 +145,7 @@ export async function POST(request) {
     const normalizedQuestions = questions.map((q, idx) => ({
       order: idx + 1,
       imageUrl: q.imageUrl || null,
+      imageSize: Number(q.imageSize || 0),
       multipleChoice: q.multipleChoice || null,
       essay: q.essay || null,
       fileUpload: q.fileUpload || null,
@@ -157,6 +158,7 @@ export async function POST(request) {
       questions: normalizedQuestions,
       typeSettings: normalizedTypeSettings,
       isRandomized: !!isRandomized,
+      isOptionRandomized: !!isOptionRandomized,
       duration: duration ? parseInt(duration, 10) : null,
       deadline: deadline ? new Date(deadline) : null,
       status: 'draft',

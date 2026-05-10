@@ -32,6 +32,7 @@ export async function PUT(request, { params }) {
       {
         $set: {
           status: newStatus,
+          ...(newStatus === 'published' ? { isExamOpen: true } : {}),
           updatedAt: new Date(),
         },
       }
