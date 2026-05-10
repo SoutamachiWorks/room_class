@@ -74,6 +74,7 @@ export default function StudentAssignmentsPage() {
   const yearId = searchParams.get('yearId');
   const [assignments, setAssignments] = useState([]);
   const [enrolledYears, setEnrolledYears] = useState([]);
+  const [currentYear, setCurrentYear] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
   const [search, setSearch] = useState('');
@@ -101,7 +102,11 @@ export default function StudentAssignmentsPage() {
       const url = yearId ? '/api/student/assignments?yearId='+yearId : '/api/student/assignments';
       const res = await fetch(url);
       const data = await res.json();
-      if (res.ok) { setAssignments(data.assignments||[]); setEnrolledYears(data.enrolledYears||[]); }
+      if (res.ok) {
+        setAssignments(data.assignments || []);
+        setEnrolledYears(data.enrolledYears || []);
+        setCurrentYear(data.currentYear || null);
+      }
     } catch(e){ console.error(e); } finally { setLoading(false); }
   }, [yearId]);
 
@@ -145,7 +150,8 @@ export default function StudentAssignmentsPage() {
     } catch { setDeleteErr('Koneksi gagal.'); } finally { setDeleteLoading(false); }
   };
 
-  const isArchive = yearId && enrolledYears.length>0 && yearId!==enrolledYears[enrolledYears.length-1]?.yearId;
+  const currentYearId = currentYear?.yearId || null;
+  const isArchive = Boolean(yearId && currentYearId && yearId !== currentYearId);
 
   const filtered = assignments.filter(a => {
     const q = search.toLowerCase();
@@ -174,7 +180,12 @@ export default function StudentAssignmentsPage() {
           <h1 className={s.pageTitle}>Tugas Saya</h1>
           <p className={s.pageSubtitle}>Kelola dan pantau tugas yang diberikan oleh guru.</p>
         </div>
-        <button className={s.btnPrimary} onClick={()=>assignments[0]&&openForm(assignments[0])}>
+        <button
+          className={s.btnPrimary}
+          onClick={()=>assignments[0]&&openForm(assignments[0])}
+          disabled={isArchive}
+          title={isArchive ? 'Mode arsip: pengumpulan tugas dinonaktifkan' : 'Kumpulkan tugas'}
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Kumpulkan Tugas
         </button>
@@ -303,9 +314,6 @@ export default function StudentAssignmentsPage() {
                               </button>
                             </>
                           )}
-                          <button className={s.btnMoreOpts} title="Opsi lain">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-                          </button>
                         </div>
                       </td>
                     </tr>

@@ -532,6 +532,178 @@
   gap: 0;
 }
 
+/* ===== MODAL DETAIL UJIAN ===== */
+.detailModal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.detailHeader {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detailTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.detailTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-heading);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.detailSubject {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--color-subtext);
+  font-weight: 500;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 20px;
+  background: var(--bg-surface);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.detailItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.detailItemLabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-subtext);
+}
+
+.detailItemValue {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+/* Score box */
+.detailScoreBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 12px;
+}
+
+.detailScoreLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-subtext);
+}
+
+.detailScoreValue {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  line-height: 1;
+}
+
+.detailScoreSuffix {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-subtext);
+}
+
+/* Info box (warning/info) */
+.detailInfoBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: var(--color-warning-text, #d97706);
+  font-weight: 500;
+}
+
+/* Action buttons */
+.detailActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.detailScoreInline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-surface);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: var(--color-subtext);
+}
+
+.detailScoreInline strong {
+  font-size: 1.1rem;
+  color: var(--color-primary);
+  font-weight: 800;
+}
+
+.detailBtnSecondary {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-heading);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: center;
+}
+
+.detailBtnSecondary:hover {
+  background: var(--bg-surface-hover);
+}
+
+.detailBtnClose {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-subtext);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.detailBtnClose:hover {
+  background: var(--bg-surface);
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1100px) {
   .statsGrid { grid-template-columns: repeat(2, 1fr); }

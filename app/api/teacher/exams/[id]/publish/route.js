@@ -25,14 +25,27 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'Ujian tidak ditemukan.' }, { status: 404 });
     }
 
+    if (existing.requiresCurriculumApproval && existing.validationStatus !== 'Approved') {
+      return NextResponse.json(
+        { error: 'Ujian semester wajib disetujui Kepala Kurikulum sebelum dipublikasikan.' },
+        { status: 400 }
+      );
+    }
+
     const newStatus = existing.status === 'published' ? 'draft' : 'published';
+
+    const subject = await db.collection('subjects').findOne({ _id: new ObjectId(existing.subjectId) });
+    const activeAcademicYear = await db.collection('academicYears').findOne({ isActive: true });
 
     await db.collection('exams').updateOne(
       { _id: new ObjectId(id) },
       {
         $set: {
           status: newStatus,
-          ...(newStatus === 'published' ? { isExamOpen: true } : {}),
+          academicYearId: activeAcademicYear?.label || existing.academicYearId || null,
+          classCodeSnapshot: subject?.classCode || existing.classCodeSnapshot || null,
+          subjectNameSnapshot: subject?.subjectName || existing.subjectNameSnapshot || null,
+          ...(newStatus === 'published' ? { isExamOpen: false } : {}),
           updatedAt: new Date(),
         },
       }
@@ -40,7 +53,6 @@ export async function PUT(request, { params }) {
 
     // Kirim notifikasi jika statusnya adalah 'published'
     if (newStatus === 'published') {
-      const subject = await db.collection('subjects').findOne({ _id: new ObjectId(existing.subjectId) });
       if (subject && subject.classCode) {
         await createNotificationsForClass(db, subject.classCode, {
           title: 'Ujian Baru',
@@ -54,7 +66,9 @@ export async function PUT(request, { params }) {
     return NextResponse.json({
       success: true,
       status: newStatus,
-      message: newStatus === 'published' ? 'Ujian berhasil dipublikasi.' : 'Ujian ditarik ke mode draft.',
+      message: newStatus === 'published'
+        ? 'Ujian berhasil dipublikasi dan masih ditutup. Buka ujian dari panel guru/pengawas saat siap dimulai.'
+        : 'Ujian ditarik ke mode draft.',
     });
   } catch (err) {
     console.error('Exam publish toggle error:', err);

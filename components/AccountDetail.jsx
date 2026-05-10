@@ -7,12 +7,18 @@ const ROLE_LABEL = {
   admin: 'Admin',
   teacher: 'Guru',
   student: 'Siswa',
+  principal: 'Kepala Sekolah',
+  curriculum: 'Kepala Kurikulum',
+  proctor: 'Pengawas Ujian',
 };
 
 const ROLE_COLOR = {
   admin: { bg: '#E1E8FF', text: '#4A7AFA' },
   teacher: { bg: '#FDE68A', text: '#B45309' },
   student: { bg: '#D1F0D9', text: '#198754' },
+  principal: { bg: '#FCE7F3', text: '#9D174D' },
+  curriculum: { bg: '#E0F2FE', text: '#0369A1' },
+  proctor: { bg: '#FEF3C7', text: '#92400E' },
 };
 
 export default function AccountDetail() {

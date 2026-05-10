@@ -9,6 +9,18 @@ import styles from './page.module.css';
 
 const PAGE_SIZE = 5;
 
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    setIsMobile(mq.matches);
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 function getInitials(name = '') {
   return name
     .split(' ')
@@ -58,6 +70,7 @@ function buildPagination(currentPage, totalPages) {
 export default function ExamResultsPage() {
   const { id: examId } = useParams();
   const router = useRouter();
+  const isMobile = useIsMobile(640);
 
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -149,6 +162,12 @@ export default function ExamResultsPage() {
 
   const examStart = sessions.length ? sessions.reduce((min, s) => (!min || new Date(s.startedAt) < new Date(min) ? s.startedAt : min), null) : null;
   const examEnd = sessions.length ? sessions.reduce((max, s) => (!max || new Date(s.submittedAt || 0) > new Date(max || 0) ? s.submittedAt : max), null) : null;
+  const isExamOpen = examMeta?.isExamOpen === true;
+  const hasExamEverStarted = useMemo(
+    () => sessions.some((sess) => sess.startedAt || sess.submittedAt || sess.status === 'in-progress' || sess.status === 'submitted' || sess.status === 'locked'),
+    [sessions]
+  );
+  const openCloseBtnLabel = isExamOpen ? 'Akhiri Ujian' : hasExamEverStarted ? 'Buka Ujian Lagi' : 'Buka Ujian';
 
   const requestSessionAction = (sessionId, studentName, type) => {
     setConfirmConfig({ sessionId, studentName, type });
@@ -324,8 +343,8 @@ export default function ExamResultsPage() {
             <span>Waktu Selesai</span>
             <strong>{formatDateTime(examMeta?.deadline || examEnd)}</strong>
           </div>
-          <button className={styles.endBtn} onClick={() => setIsEndExamOpen(true)}>
-            {examMeta?.isExamOpen !== false ? 'Akhiri Ujian' : 'Buka Ujian Lagi'}
+          <button className={`${styles.endBtn} ${isExamOpen ? styles.endBtnDanger : styles.endBtnSuccess}`} onClick={() => setIsEndExamOpen(true)}>
+            {openCloseBtnLabel}
           </button>
           <button className={styles.exportBtn} onClick={handleToggleResultsVisibility} disabled={visibilityLoading}>
             {visibilityLoading
@@ -373,7 +392,101 @@ export default function ExamResultsPage() {
           <div className={styles.emptyWrap}>
             <EmptyState title="Belum Ada Peserta" description="Belum ada siswa yang memulai ujian ini." />
           </div>
+        ) : isMobile ? (
+          /* ── Mobile card list ── */
+          <div className={styles.mobileParticipantList}>
+            {currentRows.map((sess) => {
+              const total = sess.questionCount || 0;
+              const answered = sess.answeredCount || 0;
+              const progress = total > 0 ? Math.round((answered / total) * 100) : 0;
+              const gradingLabel = getGradingLabel(sess);
+              const statusLabel = getStatusLabel(sess.status);
+              const statusClass =
+                sess.status === 'in-progress' ? styles.statusInProgress
+                : sess.status === 'submitted'  ? styles.statusDone
+                : sess.status === 'locked'     ? styles.statusLocked
+                : styles.statusNotStarted;
+
+              return (
+                <div key={sess._id} className={styles.mobileParticipantCard}>
+                  {/* Top: avatar + name + status badge */}
+                  <div className={styles.mobileParticipantHead}>
+                    <div className={styles.studentCell}>
+                      <div className={`${styles.avatar} ${getAvatarClass(sess.studentInfo?.fullName || sess._id)}`}>
+                        {getInitials(sess.studentInfo?.fullName)}
+                      </div>
+                      <div>
+                        <div className={styles.studentName}>{sess.studentInfo?.fullName || 'Siswa Dihapus'}</div>
+                        <div className={styles.studentId}>{sess.studentInfo?.studentId || '-'}</div>
+                      </div>
+                    </div>
+                    <span className={`${styles.statusBadge} ${statusClass}`}>{statusLabel}</span>
+                  </div>
+
+                  {/* Meta grid */}
+                  <div className={styles.mobileParticipantMeta}>
+                    <div>
+                      <div className={styles.mobileMetaLabel}>Waktu Mulai</div>
+                      <div className={styles.mobileMetaValue}>{formatTime(sess.startedAt)}</div>
+                    </div>
+                    <div>
+                      <div className={styles.mobileMetaLabel}>Progres</div>
+                      <div className={styles.mobileMetaValue}>{answered}/{total} ({progress}%)</div>
+                      <div className={styles.progressBar} style={{ marginTop: '4px' }}>
+                        <div style={{ width: `${progress}%` }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className={styles.mobileMetaLabel}>Pelanggaran</div>
+                      <div className={`${styles.mobileMetaValue} ${sess.exitCount > 1 ? styles.violationHigh : sess.exitCount === 1 ? styles.violationMed : ''}`}>
+                        {sess.exitCount || 0} kali
+                      </div>
+                    </div>
+                    <div>
+                      <div className={styles.mobileMetaLabel}>Koreksi</div>
+                      <div className={gradingLabel === 'Sudah Dikoreksi' ? styles.gradedDone : styles.gradedPending}>
+                        {gradingLabel}
+                      </div>
+                    </div>
+                    {(sess.calculatedScore !== null && sess.calculatedScore !== undefined) && (
+                      <div>
+                        <div className={styles.mobileMetaLabel}>Nilai</div>
+                        <div className={styles.mobileMetaValue} style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
+                          {sess.calculatedScore} / 100
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className={styles.mobileParticipantActions}>
+                    {sess.status === 'submitted' && (
+                      <button className={styles.actionSecondary} onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}>
+                        Lihat Hasil
+                      </button>
+                    )}
+                    {sess.status === 'in-progress' && (
+                      <button className={styles.actionPrimary} onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}>
+                        Koreksi
+                      </button>
+                    )}
+                    {(sess.status === 'locked' || (sess.status === 'in-progress' && (sess.exitCount || 0) > 0)) && (
+                      <button className={styles.actionWarning} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'unlock')}>
+                        Buka Kunci
+                      </button>
+                    )}
+                    {sess.status !== 'not-started' && (
+                      <button className={styles.actionDanger} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'reset')}>
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
+          /* ── Desktop table ── */
           <table className={styles.table}>
             <thead>
               <tr>
@@ -442,44 +555,26 @@ export default function ExamResultsPage() {
                     </td>
                     <td data-label="Aksi">
                       <div className={styles.actionRow}>
-                        {/* Lihat Hasil / Koreksi */}
                         {sess.status === 'submitted' && (
-                          <button
-                            className={styles.actionSecondary}
-                            onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}
-                          >
+                          <button className={styles.actionSecondary} onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}>
                             Lihat Hasil
                           </button>
                         )}
                         {sess.status === 'in-progress' && (
-                          <button
-                            className={styles.actionPrimary}
-                            onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}
-                          >
+                          <button className={styles.actionPrimary} onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}>
                             Koreksi
                           </button>
                         )}
-
-                        {/* Buka Kunci — tampil jika terkunci ATAU in-progress dengan pelanggaran */}
                         {(sess.status === 'locked' || (sess.status === 'in-progress' && (sess.exitCount || 0) > 0)) && (
-                          <button
-                            className={styles.actionWarning}
-                            onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'unlock')}
-                          >
+                          <button className={styles.actionWarning} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'unlock')}>
                             Buka Kunci
                           </button>
                         )}
-
-                        {/* Reset Total */}
                         {sess.status !== 'not-started' && (
-                          <button
-                            className={styles.actionDanger}
-                            onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'reset')}
-                          >
+                          <button className={styles.actionDanger} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'reset')}>
                             Reset
                           </button>
                         )}
-
                         {!['in-progress', 'submitted', 'locked'].includes(sess.status) && <span className={styles.noAction}>-</span>}
                       </div>
                     </td>
@@ -532,13 +627,15 @@ export default function ExamResultsPage() {
         isOpen={isEndExamOpen}
         onClose={() => setIsEndExamOpen(false)}
         onConfirm={handleEndExam}
-        title={examMeta?.isExamOpen !== false ? 'Akhiri Ujian' : 'Buka Ujian Lagi'}
+        title={isExamOpen ? 'Akhiri Ujian' : openCloseBtnLabel}
         message={
-          examMeta?.isExamOpen !== false
+          isExamOpen
             ? 'Ujian tetap terpublikasi, tetapi siswa tidak dapat memulai atau melanjutkan ujian sampai Anda membukanya kembali. Lanjutkan?'
-            : 'Ujian akan dibuka kembali sehingga siswa dapat masuk lagi. Lanjutkan?'
+            : hasExamEverStarted
+              ? 'Ujian akan dibuka kembali sehingga siswa dapat masuk lagi. Lanjutkan?'
+              : 'Ujian akan dibuka untuk pertama kali sehingga siswa dapat mulai mengerjakan. Lanjutkan?'
         }
-        confirmLabel={examMeta?.isExamOpen !== false ? 'Akhiri' : 'Buka'}
+        confirmLabel={isExamOpen ? 'Akhiri' : 'Buka'}
         loading={endExamLoading}
       />
     </>

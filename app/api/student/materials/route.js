@@ -19,7 +19,19 @@ export async function GET(request) {
     const db = await getDb();
 
     const userDoc = await db.collection('users').findOne({ _id: new ObjectId(student.userId) });
-    const enrolledYears = userDoc?.enrolledYears || [];
+    const rawEnrolledYears = Array.isArray(userDoc?.enrolledYears) ? userDoc.enrolledYears : [];
+    const currentYear = (userDoc?.academicYearId && userDoc?.classCode)
+      ? {
+          yearId: `${userDoc.classCode}_${String(userDoc.academicYearId).replace(/\//g, '-')}`,
+          classCode: userDoc.classCode,
+          academicYear: userDoc.academicYearId,
+          label: `${userDoc.academicYearId} (${userDoc.classCode})`,
+          status: 'active',
+        }
+      : null;
+    const enrolledYears = currentYear && !rawEnrolledYears.some((y) => y?.yearId === currentYear.yearId)
+      ? [...rawEnrolledYears, currentYear]
+      : rawEnrolledYears;
 
     const { searchParams } = new URL(request.url);
     const yearId = searchParams.get('yearId');
@@ -84,12 +96,12 @@ export async function GET(request) {
 
     return NextResponse.json({ 
       materials,
-      enrolledYears: userDoc?.enrolledYears || [],
-      currentYear: {
+      enrolledYears,
+      currentYear: currentYear || {
         classCode: userDoc?.classCode || 'Tidak Diketahui',
         academicYear: userDoc?.academicYearId || 'Tidak Diketahui',
-        label: userDoc?.academicYearId && userDoc?.classCode 
-          ? `${userDoc.academicYearId} (${userDoc.classCode})` 
+        label: userDoc?.academicYearId && userDoc?.classCode
+          ? `${userDoc.academicYearId} (${userDoc.classCode})`
           : 'Data Kelas Aktif Tidak Lengkap'
       }
     });

@@ -113,8 +113,11 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Ujian ini telah melewati batas waktu (deadline) dan tidak dapat lagi diakses. Silakan hubungi guru Anda.' }, { status: 403 });
     }
 
-    if (exam.isExamOpen === false) {
-      return NextResponse.json({ error: 'Ujian sedang ditutup oleh guru. Tunggu sampai ujian dibuka kembali.' }, { status: 403 });
+    if (exam.isExamOpen !== true) {
+      return NextResponse.json(
+        { error: 'Ujian belum dimulai. Tunggu guru atau pengawas membuka ujian terlebih dahulu.' },
+        { status: 403 }
+      );
     }
 
     // Check for existing session
@@ -161,6 +164,10 @@ export async function POST(request, { params }) {
     const newSession = {
       examId: examId.toString(),
       studentId,
+      academicYearId: exam.academicYearId || null,
+      classCodeSnapshot: exam.classCodeSnapshot || subject.classCode || null,
+      subjectNameSnapshot: exam.subjectNameSnapshot || subject.subjectName || null,
+      examTitleSnapshot: exam.title || null,
       exitCount: 0,
       status: 'in-progress',
       questions: selected, // store the randomized set for this student

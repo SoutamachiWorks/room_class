@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import styles from './student-attendance.module.css';
 
 function StatusBadge({ status }) {
@@ -14,12 +15,15 @@ function Skeleton({ h = 20, w = '100%', radius = 8 }) {
 }
 
 export default function StudentAttendancePage() {
+  const searchParams = useSearchParams();
+  const yearId = searchParams.get('yearId');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch('/api/student/attendance')
+    const url = yearId ? `/api/student/attendance?yearId=${yearId}` : '/api/student/attendance';
+    fetch(url)
       .then(r => r.json())
       .then(d => {
         if (d.error) throw new Error(d.error);
@@ -27,7 +31,7 @@ export default function StudentAttendancePage() {
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [yearId]);
 
   const stats = data?.stats ?? { hadir: 0, sakit: 0, izin: 0, alpha: 0 };
   const history = data?.history ?? [];

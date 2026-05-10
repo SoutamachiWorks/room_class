@@ -22,7 +22,7 @@ export async function GET(request) {
 
     // Build filter
     const filter = {};
-    if (role && ['admin', 'teacher', 'student'].includes(role)) {
+    if (role && ['admin', 'teacher', 'student', 'principal', 'curriculum'].includes(role)) {
       filter.role = role;
     }
     if (classCode) {
@@ -76,7 +76,7 @@ export async function POST(request) {
     const db = await getDb();
     const body = await request.json();
 
-    const { role, fullName, username, password, email, phone, teacherId, studentId, classCode, academicYearId } = body;
+    const { role, fullName, username, password, email, phone, teacherId, studentId, classCode, academicYearId, isProctor } = body;
 
     // Validate required fields
     if (!role || !fullName || !username || !password || !email) {
@@ -87,9 +87,9 @@ export async function POST(request) {
     }
 
     // Validate role
-    if (!['teacher', 'student'].includes(role)) {
+    if (!['teacher', 'student', 'principal', 'curriculum'].includes(role)) {
       return NextResponse.json(
-        { error: 'Role harus teacher atau student' },
+        { error: 'Role tidak valid' },
         { status: 400 }
       );
     }
@@ -111,6 +111,18 @@ export async function POST(request) {
       if (!classCode) {
         return NextResponse.json(
           { error: 'Kode kelas wajib diisi' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (role === 'student') {
+      const classCodeDoc = await db.collection('classCodes').findOne({
+        code: { $regex: `^${classCode}$`, $options: 'i' },
+      });
+      if (!classCodeDoc) {
+        return NextResponse.json(
+          { error: 'Kode kelas tidak ditemukan. Buat kode kelas terlebih dahulu di menu Kode Kelas.' },
           { status: 400 }
         );
       }
@@ -163,12 +175,25 @@ export async function POST(request) {
 
     if (role === 'teacher') {
       userDoc.teacherId = teacherId;
+      userDoc.isProctor = Boolean(isProctor);
     }
     if (role === 'student') {
       userDoc.studentId = studentId;
       userDoc.classCode = classCode;
-      if (academicYearId) {
-        userDoc.academicYearId = academicYearId;
+      const activeAcademicYear = await db.collection('academicYears').findOne({ isActive: true });
+      const normalizedAcademicYearId = academicYearId || activeAcademicYear?.label || null;
+      if (normalizedAcademicYearId) {
+        userDoc.academicYearId = normalizedAcademicYearId;
+        userDoc.enrolledYears = [
+          {
+            yearId: `${classCode}_${String(normalizedAcademicYearId).replace(/\//g, '-')}`,
+            classCode,
+            academicYear: normalizedAcademicYearId,
+            label: `${normalizedAcademicYearId} (${classCode})`,
+            status: 'active',
+            archivedAt: null,
+          },
+        ];
       }
     }
 
@@ -179,7 +204,7 @@ export async function POST(request) {
       userId: admin.userId,
       userName: admin.fullName,
       action: 'create',
-      target: `${role === 'teacher' ? 'Guru' : 'Siswa'}: ${fullName}`,
+      target: `${role}: ${fullName}`,
       details: { createdUserId: result.insertedId.toString(), role, username },
     });
 

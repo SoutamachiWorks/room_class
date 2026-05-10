@@ -19,6 +19,7 @@ export async function GET(request) {
       user: {
         userId: payload.userId,
         role: payload.role,
+        isProctor: Boolean(payload.isProctor),
         fullName: payload.fullName,
         username: payload.username,
       },

@@ -6,7 +6,7 @@ import { requireRole, handleAuthError } from '@/lib/auth';
 /**
  * PATCH /api/student/exams/[id]/violation
  * Increments exitCount on the student's active examSession.
- * If exitCount >= 2, sets status to 'locked'.
+ * If exitCount >= 3, sets status to 'locked'.
  *
  * Body: { sessionId }
  */

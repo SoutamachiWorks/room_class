@@ -15,7 +15,19 @@ export async function GET(request) {
 
     const userDoc = await db.collection('users').findOne({ _id: new ObjectId(student.userId) });
     const studentId = userDoc?.studentId;
-    const enrolledYears = userDoc?.enrolledYears || [];
+    const rawEnrolledYears = Array.isArray(userDoc?.enrolledYears) ? userDoc.enrolledYears : [];
+    const currentYear = (userDoc?.academicYearId && userDoc?.classCode)
+      ? {
+          yearId: `${userDoc.classCode}_${String(userDoc.academicYearId).replace(/\//g, '-')}`,
+          classCode: userDoc.classCode,
+          academicYear: userDoc.academicYearId,
+          label: `${userDoc.academicYearId} (${userDoc.classCode})`,
+          status: 'active',
+        }
+      : null;
+    const enrolledYears = currentYear && !rawEnrolledYears.some((y) => y?.yearId === currentYear.yearId)
+      ? [...rawEnrolledYears, currentYear]
+      : rawEnrolledYears;
 
     const { searchParams } = new URL(request.url);
     const yearId = searchParams.get('yearId');
@@ -39,7 +51,7 @@ export async function GET(request) {
     const subjectIds = matchingSubjects.map(s => s._id.toString());
 
     if (subjectIds.length === 0) {
-      return NextResponse.json({ exams: [] });
+      return NextResponse.json({ exams: [], enrolledYears, currentYear });
     }
 
     const pipeline = [
@@ -70,6 +82,7 @@ export async function GET(request) {
           title: 1,
           status: 1,
           showResults: 1,
+          showExplanation: 1,
           isExamOpen: 1,
           duration: 1,
           startTime: 1,
@@ -118,14 +131,26 @@ export async function GET(request) {
       }
     }
 
-    const result = exams.map(e => ({
-      ...e,
-      session: sessionMap[e._id.toString()] || null,
-    }));
+    const result = exams.map((e) => {
+      const session = sessionMap[e._id.toString()] || null;
+      if (!session) {
+        return { ...e, session: null };
+      }
+
+      const score = e.showResults ? session.calculatedScore : null;
+      return {
+        ...e,
+        session: {
+          ...session,
+          score,
+        },
+      };
+    });
 
     return NextResponse.json({ 
       exams: result,
-      enrolledYears
+      enrolledYears,
+      currentYear
     });
   } catch (err) {
     const { status, error } = handleAuthError(err);

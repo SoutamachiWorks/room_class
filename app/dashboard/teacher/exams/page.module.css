@@ -48,25 +48,15 @@
   font-weight: 700;
 }
 
-.summaryBlue {
-  color: #8bb0ff;
-  background: rgba(79, 128, 255, 0.2);
-}
+.summaryBlue   { color: #2563eb; background: rgba(79, 128, 255, 0.15); }
+.summaryGreen  { color: #15803d; background: rgba(38, 188, 108, 0.15); }
+.summaryAmber  { color: #92400e; background: rgba(236, 170, 56, 0.15); }
+.summaryPurple { color: #6d28d9; background: rgba(125, 96, 255, 0.15); }
 
-.summaryGreen {
-  color: #70edab;
-  background: rgba(38, 188, 108, 0.2);
-}
-
-.summaryAmber {
-  color: #ffd07b;
-  background: rgba(236, 170, 56, 0.2);
-}
-
-.summaryPurple {
-  color: #b89bff;
-  background: rgba(125, 96, 255, 0.2);
-}
+[data-theme="dark"] .summaryBlue   { color: #8bb0ff; }
+[data-theme="dark"] .summaryGreen  { color: #70edab; }
+[data-theme="dark"] .summaryAmber  { color: #ffd07b; }
+[data-theme="dark"] .summaryPurple { color: #b89bff; }
 
 .panel {
   background: linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 92%, var(--color-primary-light) 8%), var(--bg-card));
@@ -193,54 +183,42 @@
   font-weight: 700;
 }
 
-.mapelBlue {
-  color: #9ec7ff;
-  background: rgba(62, 123, 235, 0.24);
-}
+.mapelBlue   { color: #1d4ed8; background: rgba(62, 123, 235, 0.15); }
+.mapelGreen  { color: #15803d; background: rgba(39, 169, 106, 0.15); }
+.mapelPurple { color: #7e22ce; background: rgba(140, 80, 232, 0.15); }
+.mapelCyan   { color: #0e7490; background: rgba(41, 136, 183, 0.15); }
+.mapelIndigo { color: #3730a3; background: rgba(69, 101, 207, 0.15); }
+.mapelSlate  { color: #334155; background: rgba(84, 106, 159, 0.15); }
 
-.mapelGreen {
-  color: #89eec0;
-  background: rgba(39, 169, 106, 0.24);
-}
-
-.mapelPurple {
-  color: #d3b0ff;
-  background: rgba(140, 80, 232, 0.24);
-}
-
-.mapelCyan {
-  color: #93dcff;
-  background: rgba(41, 136, 183, 0.24);
-}
-
-.mapelIndigo {
-  color: #a9b9ff;
-  background: rgba(69, 101, 207, 0.24);
-}
-
-.mapelSlate {
-  color: #ccd7f8;
-  background: rgba(84, 106, 159, 0.24);
-}
-
-.classBadge {
-  color: var(--color-heading);
-  background: var(--bg-surface-active);
-}
+[data-theme="dark"] .mapelBlue   { color: #9ec7ff; }
+[data-theme="dark"] .mapelGreen  { color: #89eec0; }
+[data-theme="dark"] .mapelPurple { color: #d3b0ff; }
+[data-theme="dark"] .mapelCyan   { color: #93dcff; }
+[data-theme="dark"] .mapelIndigo { color: #a9b9ff; }
+[data-theme="dark"] .mapelSlate  { color: #ccd7f8; }
 
 .typeBadge {
-  color: #9be9b5;
-  background: rgba(36, 161, 96, 0.2);
+  color: #15803d;
+  background: rgba(36, 161, 96, 0.15);
 }
 
+[data-theme="dark"] .typeBadge { color: #9be9b5; }
+
 .statusPublished {
-  color: #89efb9;
-  background: rgba(34, 197, 94, 0.2);
+  color: #15803d;
+  background: rgba(34, 197, 94, 0.15);
 }
 
 .statusDraft {
-  color: #ffd890;
-  background: rgba(225, 152, 43, 0.2);
+  color: #92400e;
+  background: rgba(225, 152, 43, 0.15);
+}
+
+[data-theme="dark"] .statusPublished { color: #89efb9; }
+[data-theme="dark"] .statusDraft     { color: #ffd890; }
+
+.dangerMenu {
+  color: var(--color-failed-text) !important;
 }
 
 .levelDot {
@@ -324,8 +302,13 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
+.classBadge {
+  color: var(--color-heading);
+  background: var(--bg-surface-active);
+}
+
 .dangerMenu {
-  color: #ff9797 !important;
+  color: var(--color-failed-text) !important;
 }
 
 .pagination {
@@ -366,6 +349,7 @@
 .activePage {
   background: linear-gradient(135deg, #5968fb, #6e53ff) !important;
   border-color: transparent !important;
+  color: #fff !important;
 }
 
 .loadingBox {

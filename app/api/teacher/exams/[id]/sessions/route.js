@@ -142,7 +142,7 @@ export async function GET(request, { params }) {
         duration: exam.duration || null,
         deadline: exam.deadline || null,
         showResults: !!exam.showResults,
-        isExamOpen: exam.isExamOpen !== false,
+        isExamOpen: exam.isExamOpen === true,
         status: exam.status || 'draft',
         createdAt: exam.createdAt || null,
       },

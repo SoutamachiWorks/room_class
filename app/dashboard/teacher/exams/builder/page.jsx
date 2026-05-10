@@ -44,13 +44,14 @@ export default function ExamBuilderPage() {
   const [title, setTitle] = useState('');
   const [subjectId, setSubjectId] = useState('');
   const [classCode, setClassCode] = useState('');
+  const [examCategory, setExamCategory] = useState('ulangan');
+  const [validationStatus, setValidationStatus] = useState('');
+  const [revisionNote, setRevisionNote] = useState('');
   const [duration, setDuration] = useState('');
   const [deadline, setDeadline] = useState('');
   const [isRandomized, setIsRandomized] = useState(false);
   const [isOptionRandomized, setIsOptionRandomized] = useState(false);
-  const [showScoreToStudent, setShowScoreToStudent] = useState(false);
   const [showExplanationToStudent, setShowExplanationToStudent] = useState(false);
-  const [restrictAccess, setRestrictAccess] = useState(false);
   const [lockExamPro, setLockExamPro] = useState(false);
 
   const [teacherSubjects, setTeacherSubjects] = useState([]);
@@ -83,8 +84,12 @@ export default function ExamBuilderPage() {
         const exam = data.exam;
         setTitle(exam.title || '');
         setSubjectId(exam.subjectId || '');
+        setExamCategory(exam.examCategory === 'semester' ? 'semester' : 'ulangan');
+        setValidationStatus(exam.validationStatus || '');
+        setRevisionNote(exam.revisionNote || '');
         setIsRandomized(!!exam.isRandomized);
         setIsOptionRandomized(!!exam.isOptionRandomized);
+        setShowExplanationToStudent(!!exam.showExplanation);
         setDuration(exam.duration ? exam.duration.toString() : '');
         if (exam.deadline) {
           const d = new Date(exam.deadline);
@@ -346,6 +351,8 @@ export default function ExamBuilderPage() {
       isOptionRandomized,
       duration: duration ? parseInt(duration, 10) : null,
       deadline: deadline ? new Date(deadline).toISOString() : null,
+      examCategory,
+      showExplanation: showExplanationToStudent,
     };
   }
 
@@ -447,6 +454,12 @@ export default function ExamBuilderPage() {
       setSavingState('idle');
       return;
     }
+    if (examCategory === 'semester') {
+      setSavingState('saved');
+      setStatusMessage('Ujian semester dikirim ke kurikulum untuk proses approval.');
+      router.push('/dashboard/teacher/exams');
+      return;
+    }
     try {
       const res = await fetch(`/api/teacher/exams/${result.id}/publish`, { method: 'PUT' });
       const data = await res.json();
@@ -486,10 +499,16 @@ export default function ExamBuilderPage() {
         <div className={styles.topActions}>
           <button className={styles.btnGhost} onClick={handleSaveDraft} disabled={savingState === 'saving'}>Simpan Draft</button>
           <button className={styles.btnPrimary} onClick={handlePublishExam} disabled={savingState === 'saving'}>
-            Publikasikan Ujian
+            {examCategory === 'semester' ? 'Kirim ke Kurikulum' : 'Publikasikan Ujian'}
           </button>
         </div>
       </div>
+
+      {validationStatus === 'NeedsRevision' && (
+        <div className={styles.errorBanner}>
+          Ujian ini diminta revisi oleh kurikulum. Catatan: {revisionNote || 'Periksa kembali kualitas soal.'}
+        </div>
+      )}
 
       <div className={styles.stepper}>
         {STEP_META.map((step, idx) => {
@@ -536,6 +555,13 @@ export default function ExamBuilderPage() {
                   <input value={classCode || ''} disabled placeholder="Pilih kelas" />
                 </div>
               </div>
+              <div className={styles.formGroup}>
+                <label>Kategori Ujian *</label>
+                <select value={examCategory} onChange={(e) => setExamCategory(e.target.value)}>
+                  <option value="ulangan">Ulangan Biasa (tanpa approval kurikulum)</option>
+                  <option value="semester">Ujian Semester (wajib approval kurikulum)</option>
+                </select>
+              </div>
               <div className={styles.formGrid2}>
                 <div className={styles.switchField}>
                   <div>
@@ -572,9 +598,7 @@ export default function ExamBuilderPage() {
             <section className={styles.card}>
               <h3 className={styles.cardTitle}>Opsi Tambahan</h3>
               {[
-                { label: 'Tampilkan Nilai ke Siswa', sub: 'Siswa dapat melihat nilai setelah mengerjakan ujian', val: showScoreToStudent, set: setShowScoreToStudent },
                 { label: 'Tampilkan Pembahasan', sub: 'Siswa dapat melihat pembahasan setelah ujian selesai', val: showExplanationToStudent, set: setShowExplanationToStudent },
-                { label: 'Batasi Akses Ujian', sub: 'Hanya dapat diakses sesuai jadwal atau kode akses', val: restrictAccess, set: setRestrictAccess },
               ].map((row) => (
                 <div key={row.label} className={styles.switchField}>
                   <div>
@@ -613,7 +637,6 @@ export default function ExamBuilderPage() {
                   </div>
                 ))}
               </div>
-              <button className={styles.btnDashed}>+ Tambah Jenis Soal Lain</button>
             </section>
 
             <section className={styles.card}>
@@ -902,7 +925,9 @@ export default function ExamBuilderPage() {
           {currentStep === 3 && (
             <>
               <button className={styles.btnGhost} onClick={handleSaveDraft} disabled={savingState === 'saving'}>Simpan Perubahan</button>
-              <button className={styles.btnPrimary} onClick={handlePublishExam} disabled={savingState === 'saving'}>Publikasikan Ujian</button>
+              <button className={styles.btnPrimary} onClick={handlePublishExam} disabled={savingState === 'saving'}>
+                {examCategory === 'semester' ? 'Kirim ke Kurikulum' : 'Publikasikan Ujian'}
+              </button>
             </>
           )}
         </div>
@@ -910,4 +935,3 @@ export default function ExamBuilderPage() {
     </div>
   );
 }
-

@@ -13,10 +13,22 @@ export async function GET(request) {
   try {
     const student = await requireRole(request, 'student');
     const db = await getDb();
+    const { searchParams } = new URL(request.url);
+    const yearId = searchParams.get('yearId');
 
     const userDoc = await db.collection('users').findOne({ _id: new ObjectId(student.userId) });
     const studentId = userDoc?.studentId;
-    const classCode = userDoc?.classCode;
+    const enrolledYears = Array.isArray(userDoc?.enrolledYears) ? userDoc.enrolledYears : [];
+
+    let classCode = userDoc?.classCode;
+    if (yearId && enrolledYears.length > 0) {
+      const targetYear = enrolledYears.find((y) => y?.yearId === yearId);
+      if (targetYear?.classCode) {
+        classCode = targetYear.classCode;
+      }
+    }
+
+    const isArchiveMode = !!yearId && classCode !== userDoc?.classCode;
 
     if (!studentId || !classCode) {
       return NextResponse.json({ error: 'Profil siswa tidak lengkap.' }, { status: 403 });
@@ -25,9 +37,11 @@ export async function GET(request) {
     const now = new Date();
 
     // 1. Find an active open session for this student's class
-    const openSessions = await db.collection('attendanceSessions')
-      .find({ classCode, status: 'open' })
-      .toArray();
+    const openSessions = isArchiveMode
+      ? []
+      : await db.collection('attendanceSessions')
+          .find({ classCode, status: 'open' })
+          .toArray();
 
     let activeSession = null;
     for (const session of openSessions) {
@@ -71,7 +85,7 @@ export async function GET(request) {
 
     // 2. Get student's own attendance history
     const history = await db.collection('attendances')
-      .find({ studentId })
+      .find({ studentId, classCode })
       .sort({ date: -1 })
       .limit(50)
       .toArray();
@@ -94,7 +108,7 @@ export async function GET(request) {
     }));
 
     // 3. Attendance summary stats
-    const allRecords = await db.collection('attendances').find({ studentId }).toArray();
+    const allRecords = await db.collection('attendances').find({ studentId, classCode }).toArray();
     const stats = {
       hadir: allRecords.filter(r => r.status === 'hadir').length,
       sakit: allRecords.filter(r => r.status === 'sakit').length,
@@ -102,7 +116,7 @@ export async function GET(request) {
       alpha: allRecords.filter(r => r.status === 'alpha').length,
     };
 
-    return NextResponse.json({ activeSession, history: enrichedHistory, stats });
+    return NextResponse.json({ activeSession, history: enrichedHistory, stats, enrolledYears });
   } catch (err) {
     const { status, error } = handleAuthError(err);
     return NextResponse.json({ error }, { status });

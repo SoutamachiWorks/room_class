@@ -1,0 +1,133 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.eyebrow {
+  color: var(--color-primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.title {
+  color: var(--color-heading);
+  font-size: 1.5rem;
+  margin-top: 4px;
+}
+
+.subtitle {
+  color: var(--color-subtext);
+  margin-top: 4px;
+}
+
+.backBtn {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  color: var(--color-heading);
+  background: var(--bg-card);
+}
+
+.loading,
+.error {
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+}
+
+.error {
+  color: var(--color-failed-text);
+  background: var(--color-failed-bg);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+}
+
+.cardTitle {
+  color: var(--color-heading);
+  margin-bottom: 10px;
+}
+
+.questionImage {
+  max-height: 200px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.questionText {
+  color: var(--color-heading);
+  margin-bottom: 10px;
+}
+
+.options {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+}
+
+.optionKey {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+}
+
+.correct {
+  border-color: rgba(25, 135, 84, 0.5);
+  background: rgba(25, 135, 84, 0.1);
+}
+
+.wrong {
+  border-color: rgba(220, 53, 69, 0.5);
+  background: rgba(220, 53, 69, 0.1);
+}
+
+.meta {
+  color: var(--color-subtext);
+  font-size: 0.86rem;
+}
+
+.answerBox,
+.explanation {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+}

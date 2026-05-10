@@ -240,6 +240,17 @@ export default function AdminHomePage() {
                 }
               />
               <QuickAction
+                href="/dashboard/admin/proctor"
+                label="Set Pengawas Ujian"
+                accent="#22C55E"
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 8v4l3 3" />
+                  </svg>
+                }
+              />
+              <QuickAction
                 href="/dashboard/admin/users"
                 label="Reset Password"
                 accent="#F87171"

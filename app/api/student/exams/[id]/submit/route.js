@@ -4,6 +4,7 @@ import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 import { uploadToR2 } from '@/lib/s3Client';
 import { createNotification } from '@/lib/notification';
+import redis, { buildExamCacheKey } from '@/lib/redis';
 
 /**
  * POST /api/student/exams/[id]/submit
@@ -57,6 +58,9 @@ export async function POST(request, { params }) {
     // We still need exam metadata for notification/logging.
     const exam = await db.collection('exams').findOne({ _id: new ObjectId(examId) });
     if (!exam) return NextResponse.json({ error: 'Ujian tidak ditemukan.' }, { status: 404 });
+    const subject = await db.collection('subjects').findOne({
+      _id: new ObjectId(exam.subjectId),
+    });
 
     // Parse answers
     let answers = [];
@@ -64,6 +68,30 @@ export async function POST(request, { params }) {
       answers = JSON.parse(answersJSON || '[]');
     } catch (e) {
       return NextResponse.json({ error: 'Format jawaban tidak valid.' }, { status: 400 });
+    }
+
+    let cachedViolationCount = null;
+    try {
+      const cacheKey = buildExamCacheKey(examId.toString(), studentId);
+      const cachedRaw = await redis.get(cacheKey);
+      const cached = typeof cachedRaw === 'string' ? JSON.parse(cachedRaw) : cachedRaw;
+      if (cached?.answers) {
+        const mc = Array.isArray(cached.answers.multipleChoice) ? cached.answers.multipleChoice : [];
+        const essay = Array.isArray(cached.answers.essay) ? cached.answers.essay : [];
+        answers = answers.map((ans) => {
+          const idx = Math.max(0, (ans.questionOrder || 1) - 1);
+          return {
+            ...ans,
+            mcAnswer: mc[idx] ?? ans.mcAnswer ?? null,
+            essayAnswer: essay[idx] ?? ans.essayAnswer ?? '',
+          };
+        });
+      }
+      if (Number.isFinite(Number(cached?.violationCount))) {
+        cachedViolationCount = Number(cached.violationCount);
+      }
+    } catch (err) {
+      console.error('Redis read on submit failed:', err);
     }
 
     let hasManualGradingNeeds = false;
@@ -121,12 +149,23 @@ export async function POST(request, { params }) {
       {
         $set: {
           answers,
+          academicYearId: session.academicYearId || exam.academicYearId || null,
+          classCodeSnapshot: session.classCodeSnapshot || exam.classCodeSnapshot || subject?.classCode || null,
+          subjectNameSnapshot: session.subjectNameSnapshot || exam.subjectNameSnapshot || subject?.subjectName || null,
+          ...(cachedViolationCount !== null ? { exitCount: Math.max(session.exitCount || 0, cachedViolationCount) } : {}),
           status: isLockout ? 'locked' : 'submitted',
           gradingStatus,
           submittedAt: new Date(),
         },
       }
     );
+
+    try {
+      const cacheKey = buildExamCacheKey(examId.toString(), studentId);
+      await redis.del(cacheKey);
+    } catch (err) {
+      console.error('Redis cleanup on submit failed:', err);
+    }
 
     // Notifikasi ke guru
     const teacherUser = await db.collection('users').findOne({ role: 'teacher', teacherId: exam.teacherId });

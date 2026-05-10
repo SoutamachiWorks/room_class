@@ -13,6 +13,7 @@ export default function StudentMaterialsPage() {
 
   const [materials, setMaterials] = useState([]);
   const [enrolledYears, setEnrolledYears] = useState([]);
+  const [currentYear, setCurrentYear] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [expandedMaterialId, setExpandedMaterialId] = useState(null);
@@ -27,6 +28,7 @@ export default function StudentMaterialsPage() {
       if (res.ok) {
         setMaterials(data.materials || []);
         setEnrolledYears(data.enrolledYears || []);
+        setCurrentYear(data.currentYear || null);
       }
     } catch (err) {
       console.error('Error fetching materials:', err);
@@ -39,7 +41,8 @@ export default function StudentMaterialsPage() {
     fetchMaterials();
   }, [fetchMaterials]);
 
-  const isArchiveMode = yearId && enrolledYears.length > 0 && yearId !== enrolledYears[enrolledYears.length - 1].yearId;
+  const currentYearId = currentYear?.yearId || null;
+  const isArchiveMode = Boolean(yearId && currentYearId && yearId !== currentYearId);
 
   return (
     <>

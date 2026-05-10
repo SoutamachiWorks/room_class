@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import StatusBadge from '@/components/StatusBadge';
 import styles from './schedule.module.css';
 
@@ -14,6 +15,8 @@ const DAYS = [
 ];
 
 export default function StudentSchedulePage() {
+  const searchParams = useSearchParams();
+  const yearId = searchParams.get('yearId');
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,7 +43,10 @@ export default function StudentSchedulePage() {
     setError('');
     try {
       // Kita panggil tanpa classCode agar server yang mendeteksi via cookie (lebih aman)
-      const res = await fetch(`/api/schedules?dayOfWeek=${day}`);
+      const url = yearId
+        ? `/api/schedules?dayOfWeek=${day}&yearId=${encodeURIComponent(yearId)}`
+        : `/api/schedules?dayOfWeek=${day}`;
+      const res = await fetch(url);
       const data = await res.json();
       
       if (res.ok) {
@@ -53,7 +59,7 @@ export default function StudentSchedulePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [yearId]);
 
   useEffect(() => {
     fetchSchedules(selectedDay);

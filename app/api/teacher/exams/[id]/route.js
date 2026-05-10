@@ -74,7 +74,7 @@ export async function PUT(request, { params }) {
     }
 
     const body = await request.json();
-    const { title, questions, typeSettings, isRandomized, isOptionRandomized, duration, deadline } = body;
+    const { title, questions, typeSettings, isRandomized, isOptionRandomized, duration, deadline, examCategory, showExplanation } = body;
 
     if (!title) {
       return NextResponse.json({ error: 'Judul ujian wajib diisi.' }, { status: 400 });
@@ -127,18 +127,33 @@ export async function PUT(request, { params }) {
       essay: q.essay || null,
       fileUpload: q.fileUpload || null,
     }));
+    const normalizedExamCategory = examCategory === 'semester' ? 'semester' : 'ulangan';
+    const requiresCurriculumApproval = normalizedExamCategory === 'semester';
+    const subjectSnapshot = await db.collection('subjects').findOne({ _id: new ObjectId(existing.subjectId) });
+    const activeAcademicYear = await db.collection('academicYears').findOne({ isActive: true });
 
     await db.collection('exams').updateOne(
       { _id: new ObjectId(id) },
       {
         $set: {
           title,
+          academicYearId: activeAcademicYear?.label || existing.academicYearId || null,
+          classCodeSnapshot: subjectSnapshot?.classCode || existing.classCodeSnapshot || null,
+          subjectNameSnapshot: subjectSnapshot?.subjectName || existing.subjectNameSnapshot || null,
+          examCategory: normalizedExamCategory,
+          requiresCurriculumApproval,
+          validationStatus: requiresCurriculumApproval ? 'Pending' : 'NotRequired',
+          revisionRequired: false,
+          revisionNote: null,
+          validationUpdatedAt: new Date(),
           questions: normalizedQuestions,
           typeSettings: normalizedTypeSettings,
           isRandomized: !!isRandomized,
           isOptionRandomized: !!isOptionRandomized,
           duration: duration ? parseInt(duration, 10) : null,
           deadline: deadline ? new Date(deadline) : null,
+          showResults: true,
+          showExplanation: !!showExplanation,
           updatedAt: new Date(),
         },
       }

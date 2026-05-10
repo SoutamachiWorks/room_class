@@ -91,6 +91,9 @@ export default function ExamsPage() {
         subjectName: exam.subjectDetails?.subjectName || '-',
         classCode: exam.subjectDetails?.classCode || '-',
         typeLabel: getQuestionTypeLabel(exam),
+        examCategory: exam.examCategory === 'semester' ? 'semester' : 'ulangan',
+        requiresCurriculumApproval: exam.requiresCurriculumApproval === true,
+        validationStatus: exam.validationStatus || (exam.requiresCurriculumApproval ? 'Pending' : 'NotRequired'),
       })),
     [exams]
   );
@@ -291,7 +294,9 @@ export default function ExamsPage() {
                   <th>Judul Soal</th>
                   <th>Mata Pelajaran</th>
                   <th>Kelas</th>
+                  <th>Kategori</th>
                   <th>Jenis Soal</th>
+                  <th>Approval</th>
                   <th>Status</th>
                   <th>Dibuat</th>
                   <th>Aksi</th>
@@ -311,8 +316,12 @@ export default function ExamsPage() {
                     <td data-label="Kelas">
                       <span className={styles.classBadge}>{row.classCode}</span>
                     </td>
+                    <td data-label="Kategori">{row.examCategory === 'semester' ? 'Ujian Semester' : 'Ulangan'}</td>
                     <td data-label="Jenis Soal">
                       <span className={styles.typeBadge}>{row.typeLabel}</span>
+                    </td>
+                    <td data-label="Approval">
+                      {row.requiresCurriculumApproval ? row.validationStatus : 'Tidak Perlu'}
                     </td>
                     <td data-label="Status">
                       <span className={`${styles.statusBadge} ${row.status === 'published' ? styles.statusPublished : styles.statusDraft}`}>

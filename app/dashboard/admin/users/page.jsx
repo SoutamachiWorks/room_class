@@ -32,7 +32,9 @@ export default function AdminDashboardPage() {
   const [importResult, setImportResult] = useState(null);
   
   // Form state
-  const [formType, setFormType] = useState('teacher'); // 'teacher' | 'student'
+  const [formType, setFormType] = useState('student');
+  const [classCodes, setClassCodes] = useState([]);
+  const [academicYears, setAcademicYears] = useState([]);
   const [formData, setFormData] = useState({
     fullName: '',
     username: '',
@@ -43,9 +45,11 @@ export default function AdminDashboardPage() {
     studentId: '',
     classCode: '',
     academicYearId: '',
+    isProctor: false,
   });
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Fetch users
   const fetchUsers = useCallback(async () => {
@@ -76,6 +80,18 @@ export default function AdminDashboardPage() {
     fetchUsers();
   }, [fetchUsers]);
 
+  useEffect(() => {
+    fetch('/api/admin/class-codes?limit=1000')
+      .then((res) => res.json())
+      .then((data) => setClassCodes(data.classCodes || []))
+      .catch(() => setClassCodes([]));
+
+    fetch('/api/admin/academic-years')
+      .then((res) => res.json())
+      .then((data) => setAcademicYears(data.academicYears || []))
+      .catch(() => setAcademicYears([]));
+  }, []);
+
   // Handle Search Debounce
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -86,7 +102,7 @@ export default function AdminDashboardPage() {
   }, [searchInput]);
 
   // Handlers
-  const handleOpenForm = (type, user = null) => {
+  const handleOpenForm = (type = 'student', user = null) => {
     setFormType(type);
     setSelectedUser(user);
     if (user) {
@@ -100,6 +116,7 @@ export default function AdminDashboardPage() {
         studentId: user.studentId || '',
         classCode: user.classCode || '',
         academicYearId: user.academicYearId || '',
+        isProctor: Boolean(user.isProctor),
       });
     } else {
       setFormData({
@@ -112,6 +129,7 @@ export default function AdminDashboardPage() {
         studentId: '',
         classCode: '',
         academicYearId: '',
+        isProctor: false,
       });
     }
     setFormError('');
@@ -121,10 +139,12 @@ export default function AdminDashboardPage() {
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setSelectedUser(null);
+    setShowPassword(false);
   };
 
   const handleFormChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value, type, checked } = e.target;
+    setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
   };
 
   const handleSubmit = async (e) => {
@@ -162,6 +182,7 @@ export default function AdminDashboardPage() {
         return;
       }
       payload.teacherId = formData.teacherId;
+      payload.isProctor = Boolean(formData.isProctor);
     } else if (formType === 'student') {
       if (!formData.studentId || !formData.classCode) {
         setFormError('Student ID dan Kode Kelas wajib diisi.');
@@ -244,7 +265,7 @@ export default function AdminDashboardPage() {
     formDataObj.append('file', importFile);
 
     try {
-      const res = await fetch('/api/teacher/students/import', {
+      const res = await fetch('/api/admin/users/import/csv', {
         method: 'POST',
         body: formDataObj,
       });
@@ -268,13 +289,19 @@ export default function AdminDashboardPage() {
   const roleBadgeVariant = (role) => {
     if (role === 'admin') return 'admin';
     if (role === 'teacher') return 'teacher';
+    if (role === 'student') return 'student';
+    if (role === 'principal') return 'process';
+    if (role === 'curriculum') return 'neutral';
     return 'student';
   };
 
   const roleLabel = (role) => {
     if (role === 'admin') return 'Admin';
     if (role === 'teacher') return 'Guru';
-    return 'Siswa';
+    if (role === 'student') return 'Siswa';
+    if (role === 'principal') return 'Kepala Sekolah';
+    if (role === 'curriculum') return 'Kepala Kurikulum';
+    return role;
   };
 
   const teacherCount = users.filter((u) => u.role === 'teacher').length;
@@ -301,28 +328,26 @@ export default function AdminDashboardPage() {
       <div className={styles.roleTabs}>
         <button className={`${styles.tabBtn} ${roleFilter === '' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter(''); setPage(1); }}>Semua</button>
         <button className={`${styles.tabBtn} ${roleFilter === 'admin' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter('admin'); setPage(1); }}>Admin</button>
+        <button className={`${styles.tabBtn} ${roleFilter === 'principal' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter('principal'); setPage(1); }}>Kepala Sekolah</button>
+        <button className={`${styles.tabBtn} ${roleFilter === 'curriculum' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter('curriculum'); setPage(1); }}>Kepala Kurikulum</button>
         <button className={`${styles.tabBtn} ${roleFilter === 'teacher' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter('teacher'); setPage(1); }}>Guru</button>
-        <button className={`${styles.tabBtn} ${roleFilter === 'student' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter('student'); setPage(1); }}>Siswa</button>
+        <button className={ `${styles.tabBtn} ${roleFilter === 'student' ? styles.tabBtnActive : ''}`} onClick={() => { setRoleFilter('student'); setPage(1); }}>Siswa</button>
       </div>
     </div>
   );
 
   const mobileQuickActions = (
     <div className={styles.mobileQuickActions}>
-      <button className={styles.mobileActionCardPrimary} onClick={() => handleOpenForm('teacher')}>
-        <span className={styles.mobileActionTitle}>Tambah Guru</span>
-        <span className={styles.mobileActionDesc}>Buat akun guru baru</span>
-      </button>
-      <button className={styles.mobileActionCard} onClick={() => handleOpenForm('student')}>
-        <span className={styles.mobileActionTitle}>Tambah Siswa</span>
-        <span className={styles.mobileActionDesc}>Buat akun siswa baru</span>
+      <button className={styles.mobileActionCardPrimary} onClick={() => handleOpenForm('student')}>
+        <span className={styles.mobileActionTitle}>Tambah Pengguna</span>
+        <span className={styles.mobileActionDesc}>Role dipilih di form</span>
       </button>
       <button
         className={styles.mobileActionCardTeal}
         onClick={() => { setIsImportModalOpen(true); setImportResult(null); }}
       >
-        <span className={styles.mobileActionTitle}>Import Siswa</span>
-        <span className={styles.mobileActionDesc}>Import dari file Excel</span>
+        <span className={styles.mobileActionTitle}>Import CSV</span>
+        <span className={styles.mobileActionDesc}>Import guru/siswa dari CSV</span>
       </button>
     </div>
   );
@@ -383,26 +408,19 @@ export default function AdminDashboardPage() {
     <>
       {/* ── Page Header ──────────────────────────────────────────────────── */}
       <PageHeader title="Manajemen Akun" subtitle="Kelola data guru dan siswa dengan mudah">
-        <button className={`${styles.btnPrimary} ${styles.headerActionBtn}`} onClick={() => handleOpenForm('teacher')}>
+        <button className={`${styles.btnPrimary} ${styles.headerActionBtn}`} onClick={() => handleOpenForm('student')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Tambah Guru
-        </button>
-        <button className={`${styles.btnPrimary} ${styles.btnDark} ${styles.headerActionBtn}`} onClick={() => handleOpenForm('student')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Tambah Siswa
+          Tambah Pengguna
         </button>
         <button 
           className={`${styles.btnPrimary} ${styles.btnOutline} ${styles.headerActionBtn}`}
           onClick={() => { setIsImportModalOpen(true); setImportResult(null); }} 
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Import Siswa
+          Import CSV
         </button>
       </PageHeader>
 
@@ -580,10 +598,21 @@ export default function AdminDashboardPage() {
       <Modal
         isOpen={isFormOpen}
         onClose={handleCloseForm}
-        title={selectedUser ? `Edit ${formType === 'teacher' ? 'Guru' : 'Siswa'}` : `Tambah ${formType === 'teacher' ? 'Guru' : 'Siswa'} Baru`}
+        title={selectedUser ? 'Edit Pengguna' : 'Tambah Pengguna Baru'}
       >
         <form onSubmit={handleSubmit} className={styles.form}>
           {formError && <div className={styles.formError}>{formError}</div>}
+          <div className={styles.formRow}>
+            <div className={styles.fieldGroup}>
+              <label className={styles.fieldLabel}>Role*</label>
+              <select name="role" value={formType} onChange={(e) => setFormType(e.target.value)} className={styles.input} required>
+                <option value="teacher">Guru</option>
+                <option value="student">Siswa</option>
+                <option value="principal">Kepala Sekolah</option>
+                <option value="curriculum">Kepala Kurikulum</option>
+              </select>
+            </div>
+          </div>
           
           <div className={styles.formRow}>
             <div className={styles.fieldGroup}>
@@ -610,14 +639,70 @@ export default function AdminDashboardPage() {
           <div className={styles.formRow}>
              <div className={styles.fieldGroup}>
               <label className={styles.fieldLabel}>Password {selectedUser && '(Kosongkan jika tidak diubah)'}{!selectedUser && '*'}</label>
-              <input type="password" name="password" value={formData.password} onChange={handleFormChange} className={styles.input} minLength={6} />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleFormChange}
+                  className={styles.input}
+                  minLength={6}
+                  style={{ paddingRight: 44 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    border: 'none',
+                    background: 'transparent',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--color-subtext)',
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
+                >
+                  {showPassword ? (
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
             
             {formType === 'teacher' && (
-               <div className={styles.fieldGroup}>
-                <label className={styles.fieldLabel}>Teacher ID*</label>
-                <input name="teacherId" value={formData.teacherId} onChange={handleFormChange} className={styles.input} required />
-              </div>
+              <>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Teacher ID*</label>
+                  <input name="teacherId" value={formData.teacherId} onChange={handleFormChange} className={styles.input} required />
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel}>Status Pengawas Ujian</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      name="isProctor"
+                      checked={Boolean(formData.isProctor)}
+                      onChange={handleFormChange}
+                    />
+                    Jadikan guru ini sebagai pengawas ujian
+                  </label>
+                </div>
+              </>
             )}
             
             {formType === 'student' && (
@@ -632,19 +717,32 @@ export default function AdminDashboardPage() {
              <div className={styles.formRow}>
                <div className={styles.fieldGroup}>
                 <label className={styles.fieldLabel}>Kode Kelas*</label>
-                <input name="classCode" value={formData.classCode} onChange={handleFormChange} className={styles.input} placeholder="Contoh: 10A" required />
+                <select name="classCode" value={formData.classCode} onChange={handleFormChange} className={styles.input} required>
+                  <option value="">Pilih kode kelas</option>
+                  {classCodes.map((cc) => (
+                    <option key={cc._id} value={cc.code}>
+                      {cc.code} - {cc.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className={styles.fieldGroup}>
                 <label className={styles.fieldLabel}>Tahun Ajaran</label>
-                <input
+                <select
                   name="academicYearId"
                   value={formData.academicYearId}
                   onChange={handleFormChange}
                   className={styles.input}
-                  placeholder="Contoh: 2025/2026"
-                />
+                >
+                  <option value="">Pilih tahun ajaran</option>
+                  {academicYears.map((year) => (
+                    <option key={year._id} value={year.label}>
+                      {year.label}{year.isActive ? ' (Aktif)' : ''}
+                    </option>
+                  ))}
+                </select>
                 <span style={{ fontSize: '0.75rem', color: 'var(--color-subtext)', marginTop: 4, display: 'block' }}>
-                  Opsional. Digunakan untuk Riwayat Belajar saat siswa naik kelas.
+                  Opsional. Kelola daftar tahun ajaran dari menu Admin - Tahun Ajaran.
                 </span>
               </div>
              </div>
@@ -672,19 +770,19 @@ export default function AdminDashboardPage() {
       {/* ── Import Modal ─────────────────────────────────────────────────── */}
       <Modal isOpen={isImportModalOpen} onClose={() => !isImporting && setIsImportModalOpen(false)}>
         <div className={styles.importModalBody}>
-          <h2 className={styles.importTitle}>📥 Import Siswa dari Excel</h2>
+          <h2 className={styles.importTitle}>📥 Import Pengguna dari CSV</h2>
           
           {!importResult && (
              <div className={styles.importIntro}>
                 <p className={styles.importDesc}>
-                   Isi data melalui format baku yang kami sediakan untuk menghindari kegagalan struktur data.
+                   Isi data lewat template CSV. Anda bisa mengimport role guru dan siswa sekaligus.
                 </p>
                 <a 
-                   href="/api/teacher/students/template" 
+                   href="/api/admin/users/import/template"
                    download
                    className={styles.btnOutline}
                 >
-                   Unduh Template Excel (.xlsx)
+                   Unduh Template CSV
                 </a>
              </div>
           )}
@@ -692,7 +790,7 @@ export default function AdminDashboardPage() {
           {importResult && importResult.type === 'success' && (
              <div className={`${styles.alert} ${styles.alertSuccess}`}>
                 <h3 className={styles.alertTitle}>✅ Import Berhasil Diproses!</h3>
-                <p className={styles.alertText}>{importResult.data.successCount} siswa sukses ditambahkan.</p>
+                <p className={styles.alertText}>{importResult.data.successCount} pengguna sukses ditambahkan.</p>
                 
                 {importResult.data.failedCount > 0 && (
                    <div className={styles.alertDetail}>
@@ -720,10 +818,10 @@ export default function AdminDashboardPage() {
           {!importResult || importResult.type === 'error' ? (
              <form onSubmit={handleImport}>
                <div className={styles.fieldGroup}>
-                 <label className={styles.fieldLabel}>Pilih File .xlsx</label>
+                 <label className={styles.fieldLabel}>Pilih File .csv</label>
                  <input 
                    type="file" 
-                   accept=".xlsx, .xls"
+                   accept=".csv,text/csv"
                    onChange={(e) => setImportFile(e.target.files[0])}
                    className={styles.fileInput}
                    required

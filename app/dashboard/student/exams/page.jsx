@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -6,6 +6,7 @@ import PageHeader from '@/components/PageHeader';
 import ContentCard from '@/components/ContentCard';
 import EmptyState from '@/components/EmptyState';
 import StatusBadge from '@/components/StatusBadge';
+import Modal from '@/components/Modal';
 import styles from './student-exams.module.css';
 
 // Hook to detect mobile viewport
@@ -127,6 +128,7 @@ const IconChevronRight = () => (
 function StudentExamsContent() {
   const [exams, setExams] = useState([]);
   const [enrolledYears, setEnrolledYears] = useState([]);
+  const [currentYear, setCurrentYear] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const [notifBlocked, setNotifBlocked] = useState(false);
@@ -135,6 +137,7 @@ function StudentExamsContent() {
   const [search, setSearch] = useState('');
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [page, setPage] = useState(1);
+  const [detailExam, setDetailExam] = useState(null); // modal detail ujian
 
   const isMobile = useIsMobile(640);
 
@@ -157,6 +160,7 @@ function StudentExamsContent() {
       if (res.ok) {
         setExams(data.exams || []);
         setEnrolledYears(data.enrolledYears || []);
+        setCurrentYear(data.currentYear || null);
       }
     } catch (err) {
       console.error('Error fetching exams:', err);
@@ -173,7 +177,7 @@ function StudentExamsContent() {
   const getSessionStatus = useCallback((exam) => {
     const baseStatus = exam.session?.status || 'available';
 
-    if (exam.isExamOpen === false && baseStatus !== 'submitted') {
+    if (exam.isExamOpen !== true && baseStatus !== 'submitted') {
       return 'locked';
     }
 
@@ -216,7 +220,8 @@ function StudentExamsContent() {
   const startIndex = (currentPage - 1) * rowsPerPage;
   const pagedExams = filtered.slice(startIndex, startIndex + rowsPerPage);
 
-  const isArchiveMode = yearId && enrolledYears.length > 0 && yearId !== enrolledYears[enrolledYears.length - 1].yearId;
+  const currentYearId = currentYear?.yearId || null;
+  const isArchiveMode = Boolean(yearId && currentYearId && yearId !== currentYearId);
 
   const handleStartExam = async (exam) => {
     setStartingId(exam._id);
@@ -309,12 +314,12 @@ function StudentExamsContent() {
       {/* Success & Warning Banners */}
       {isSubmitted && (
         <div className={styles.successBanner}>
-          Jawaban berhasil dikirim, nilai akan segera diumuman oleh guru.
+          Jawaban berhasil dikirim.
         </div>
       )}
       {notifBlocked && (
         <div className={styles.warningBanner}>
-          ⚠️ Izin notifikasi ditolak. Aktifkan notifikasi browser untuk mulai ujian.
+          [!] Izin notifikasi ditolak. Aktifkan notifikasi browser untuk mulai ujian.
         </div>
       )}
 
@@ -352,7 +357,7 @@ function StudentExamsContent() {
         footer={
           <div className={styles.paginationInner}>
             <p className={styles.paginationInfo}>
-              Menampilkan {filtered.length === 0 ? 0 : startIndex + 1}–{Math.min(startIndex + rowsPerPage, filtered.length)} dari {filtered.length} ujian
+              Menampilkan {filtered.length === 0 ? 0 : startIndex + 1}-{Math.min(startIndex + rowsPerPage, filtered.length)} dari {filtered.length} ujian
             </p>
             <div className={styles.paginationRight}>
               <select
@@ -365,14 +370,14 @@ function StudentExamsContent() {
                 <option value={20}>20 / halaman</option>
                 <option value={50}>50 / halaman</option>
               </select>
-              <button className={styles.pageBtn} disabled={currentPage === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>‹</button>
+              <button className={styles.pageBtn} disabled={currentPage === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>&lt;</button>
               <button className={`${styles.pageBtn} ${styles.pageBtnActive}`}>{currentPage}</button>
-              <button className={styles.pageBtn} disabled={currentPage === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>›</button>
+              <button className={styles.pageBtn} disabled={currentPage === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>&gt;</button>
             </div>
           </div>
         }
       >
-        {/* Table — desktop */}
+        {/* Table - desktop */}
         <div className={styles.tableContainer}>
           {loading ? (
             <div className={styles.loadingBox}>
@@ -383,7 +388,7 @@ function StudentExamsContent() {
             <EmptyState title="Tidak ada ujian" description="Data ujian tidak ditemukan untuk filter saat ini." />
           ) : (
             <>
-              {/* ── Desktop table ── */}
+              {/* -- Desktop table -- */}
               <table className={styles.table}>
                 <colgroup>
                   {['148px', '220px', '140px', '90px', '190px', '130px', '40px'].map((width, i) => (
@@ -409,6 +414,7 @@ function StudentExamsContent() {
                     const isActionable = status === 'available';
                     const isWaitingReview = status === 'review';
                     const submittedAt = exam.session?.submittedAt;
+                    const score = exam.session?.score;
                     const timeLeftMs = exam.deadline ? new Date(exam.deadline).getTime() - currentTime : 0;
                     const remainHour = Math.max(0, Math.floor(timeLeftMs / 3600000));
                     const remainMinute = Math.max(0, Math.floor((timeLeftMs % 3600000) / 60000));
@@ -416,8 +422,8 @@ function StudentExamsContent() {
                     return (
                       <tr
                         key={exam._id}
-                        className={isActionable ? styles.clickableRow : ''}
-                        onClick={isActionable ? () => handleStartExam(exam) : undefined}
+                        className={styles.clickableRow}
+                        onClick={() => setDetailExam(exam)}
                       >
                         <td>
                           <div className={styles.dateCell}>
@@ -426,7 +432,7 @@ function StudentExamsContent() {
                               {formatIdDate(startAt)}
                             </div>
                             <div className={styles.dateSecondary}>
-                              {formatTime(startAt) || '--:--'} – {formatTime(endAt) || '--:--'}
+                              {formatTime(startAt) || '--:--'} - {formatTime(endAt) || '--:--'}
                             </div>
                           </div>
                         </td>
@@ -453,19 +459,20 @@ function StudentExamsContent() {
                           </div>
                         </td>
                         <td>
-                          {(status === 'submitted' && !isWaitingReview && exam.showResults && exam.session?.calculatedScore !== undefined) && (
-                            <div className={styles.scoreDisplay}>
-                              <span className={styles.scoreBadge}>{Math.round(Number(exam.session?.calculatedScore || 0))}</span>
-                              <span className={styles.scoreSuffix}>/ 100</span>
-                            </div>
-                          )}
                           {status === 'available' && (
-                            <button className={styles.startBtn} onClick={(e) => { e.stopPropagation(); handleStartExam(exam); }} disabled={startingId === exam._id}>
-                              {startingId === exam._id ? 'Memulai...' : 'Mulai Ujian'}
+                            <button className={styles.startBtn} onClick={(e) => { e.stopPropagation(); setDetailExam(exam); }} disabled={startingId === exam._id}>
+                              Mulai Ujian
                             </button>
                           )}
-                          {(status === 'review' || status === 'locked' || (status === 'submitted' && (!exam.showResults || exam.session?.calculatedScore === undefined))) && (
-                            <span className={styles.noScore}>—</span>
+                          {status === 'submitted' && score !== undefined && score !== null && !isWaitingReview && (
+                            <span className={styles.scoreTag}>{Math.round(Number(score))}</span>
+                          )}
+                          {(status === 'review' || status === 'locked' || status === 'submitted') && (
+                            <>
+                              {(status !== 'submitted' || score === undefined || score === null || isWaitingReview) && (
+                                <span className={styles.noScore}>-</span>
+                              )}
+                            </>
                           )}
                         </td>
                         <td className={styles.chevronCell}><IconChevronRight /></td>
@@ -475,7 +482,7 @@ function StudentExamsContent() {
                 </tbody>
               </table>
 
-              {/* ── Mobile card list ── */}
+              {/* -- Mobile card list -- */}
               <div className={styles.mobileList}>
                 {pagedExams.map((exam) => {
                   const startAt = exam.startTime || exam.start_time || exam.createdAt;
@@ -484,6 +491,7 @@ function StudentExamsContent() {
                   const isActionable = status === 'available';
                   const isWaitingReview = status === 'review';
                   const submittedAt = exam.session?.submittedAt;
+                  const score = exam.session?.score;
                   const timeLeftMs = exam.deadline ? new Date(exam.deadline).getTime() - currentTime : 0;
                   const remainHour = Math.max(0, Math.floor(timeLeftMs / 3600000));
                   const remainMinute = Math.max(0, Math.floor((timeLeftMs % 3600000) / 60000));
@@ -506,8 +514,8 @@ function StudentExamsContent() {
                   return (
                     <div
                       key={exam._id}
-                      className={`${styles.mobileCard} ${isActionable ? styles.mobileCardClickable : ''}`}
-                      onClick={isActionable ? () => handleStartExam(exam) : undefined}
+                      className={`${styles.mobileCard} ${styles.mobileCardClickable}`}
+                      onClick={() => setDetailExam(exam)}
                     >
                       {/* Top row: badge + chevron */}
                       <div className={styles.mobileCardTop}>
@@ -531,7 +539,7 @@ function StudentExamsContent() {
                           <span className={styles.mobileMetaIcon}><IconCalendar /></span>
                           <span>
                             {formatIdDate(startAt)}
-                            <span className={styles.mobileMetaTime}> · {formatTime(startAt) || '--:--'} – {formatTime(endAt) || '--:--'}</span>
+                            <span className={styles.mobileMetaTime}> · {formatTime(startAt) || '--:--'} - {formatTime(endAt) || '--:--'}</span>
                           </span>
                         </div>
                         {/* Subject + class */}
@@ -555,19 +563,19 @@ function StudentExamsContent() {
 
                       {/* Action / Score */}
                       <div className={styles.mobileCardAction}>
-                        {(status === 'submitted' && !isWaitingReview && exam.showResults && exam.session?.calculatedScore !== undefined) && (
-                          <div className={styles.scoreDisplay}>
-                            <span className={styles.scoreBadge}>{Math.round(Number(exam.session?.calculatedScore || 0))}</span>
-                            <span className={styles.scoreSuffix}>/ 100</span>
+                        {status === 'submitted' && score !== undefined && score !== null && !isWaitingReview && (
+                          <div className={styles.detailScoreInline}>
+                            <span>Nilai:</span>
+                            <strong>{Math.round(Number(score))} / 100</strong>
                           </div>
                         )}
                         {status === 'available' && (
                           <button
                             className={`${styles.startBtn} ${styles.startBtnFull}`}
-                            onClick={(e) => { e.stopPropagation(); handleStartExam(exam); }}
+                            onClick={(e) => { e.stopPropagation(); setDetailExam(exam); }}
                             disabled={startingId === exam._id}
                           >
-                            {startingId === exam._id ? 'Memulai...' : 'Mulai Ujian'}
+                            Mulai Ujian
                           </button>
                         )}
                       </div>
@@ -579,6 +587,137 @@ function StudentExamsContent() {
           )}
         </div>
       </ContentCard>
+
+      {/* -- Modal Detail Ujian -- */}
+      {detailExam && (() => {
+        const exam = detailExam;
+        const status = exam.uiStatus;
+        const startAt = exam.startTime || exam.start_time || exam.createdAt;
+        const endAt = exam.endTime || exam.end_time || (exam.duration ? new Date(new Date(startAt).getTime() + exam.duration * 60000).toISOString() : null);
+        const submittedAt = exam.session?.submittedAt;
+        const score = exam.session?.score;
+        const isWaitingReview = status === 'review';
+        const timeLeftMs = exam.deadline ? new Date(exam.deadline).getTime() - currentTime : 0;
+        const remainHour = Math.max(0, Math.floor(timeLeftMs / 3600000));
+        const remainMinute = Math.max(0, Math.floor((timeLeftMs % 3600000) / 60000));
+
+        const badgeClass = { submitted: styles.stateDone, available: styles.stateAvailable, review: styles.stateReview, locked: styles.stateLocked }[status];
+        const badgeLabel = { submitted: 'Sudah Dikumpulkan', available: 'Tersedia', review: 'Menunggu Koreksi', locked: 'Terkunci' }[status];
+
+        return (
+          <Modal isOpen onClose={() => setDetailExam(null)} title="Detail Ujian">
+            <div className={styles.detailModal}>
+              {/* Header info */}
+              <div className={styles.detailHeader}>
+                <div className={styles.detailTitleRow}>
+                  <h3 className={styles.detailTitle}>{exam.title}</h3>
+                  <span className={`${styles.stateBadge} ${badgeClass}`}>{badgeLabel}</span>
+                </div>
+                <div className={styles.detailSubject}>
+                  {exam.subjectDetails?.subjectName || '-'}
+                  <StatusBadge variant="student" size="sm" pill>{exam.subjectDetails?.classCode || '-'}</StatusBadge>
+                </div>
+              </div>
+
+              {/* Info grid */}
+              <div className={styles.detailGrid}>
+                <div className={styles.detailItem}>
+                  <span className={styles.detailItemLabel}>Tanggal</span>
+                  <span className={styles.detailItemValue}>{formatIdDate(startAt)}</span>
+                </div>
+                <div className={styles.detailItem}>
+                  <span className={styles.detailItemLabel}>Waktu</span>
+                  <span className={styles.detailItemValue}>{formatTime(startAt) || '--:--'} - {formatTime(endAt) || '--:--'}</span>
+                </div>
+                <div className={styles.detailItem}>
+                  <span className={styles.detailItemLabel}>Durasi</span>
+                  <span className={styles.detailItemValue}>{exam.duration ? `${exam.duration} menit` : '-'}</span>
+                </div>
+                <div className={styles.detailItem}>
+                  <span className={styles.detailItemLabel}>Jumlah Soal</span>
+                  <span className={styles.detailItemValue}>{exam.randomCount || exam.totalQuestions} soal</span>
+                </div>
+                {exam.deadline && (
+                  <div className={styles.detailItem} style={{ gridColumn: '1 / -1' }}>
+                    <span className={styles.detailItemLabel}>Deadline</span>
+                    <span className={styles.detailItemValue} style={{ color: '#f97316' }}>{formatIdDateTime(exam.deadline)}</span>
+                  </div>
+                )}
+                {status === 'available' && exam.deadline && (
+                  <div className={styles.detailItem} style={{ gridColumn: '1 / -1' }}>
+                    <span className={styles.detailItemLabel}>Waktu Tersisa</span>
+                    <span className={styles.detailItemValue} style={{ color: 'var(--accent-yellow, #f59e0b)', fontWeight: 700 }}>{remainHour} jam {remainMinute} menit</span>
+                  </div>
+                )}
+                {submittedAt && (
+                  <div className={styles.detailItem} style={{ gridColumn: '1 / -1' }}>
+                    <span className={styles.detailItemLabel}>Dikumpulkan</span>
+                    <span className={styles.detailItemValue}>{formatIdDateTime(submittedAt)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Nilai */}
+              {(status === 'submitted' || status === 'review') && score !== undefined && score !== null && !isWaitingReview && (
+                <div className={styles.detailScoreBox}>
+                  <span className={styles.detailScoreLabel}>Nilai Anda</span>
+                  <div className={styles.detailScoreValue}>{Math.round(Number(score))}<span className={styles.detailScoreSuffix}> / 100</span></div>
+                </div>
+              )}
+              {/* Menunggu koreksi */}
+              {status === 'review' && (
+                <div className={styles.detailInfoBox}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  Jawaban Anda sedang menunggu koreksi dari guru.
+                </div>
+              )}
+
+              {/* Terkunci */}
+              {status === 'locked' && (
+                <div className={styles.detailInfoBox} style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', color: 'var(--color-failed-text, #ef4444)' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Ujian ini terkunci. Hubungi guru jika ada masalah.
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className={styles.detailActions}>
+                {/* Mulai Ujian */}
+                {status === 'available' && (
+                  <button
+                    className={`${styles.startBtn} ${styles.startBtnFull}`}
+                    onClick={() => { setDetailExam(null); handleStartExam(exam); }}
+                    disabled={startingId === exam._id}
+                  >
+                    {startingId === exam._id ? 'Memulai...' : '> Mulai Ujian'}
+                  </button>
+                )}
+
+                {/* Lihat Nilai */}
+                {(status === 'submitted') && score !== undefined && score !== null && !isWaitingReview && (
+                  <div className={styles.detailScoreInline}>
+                    <span>Nilai:</span>
+                    <strong>{Math.round(Number(score))} / 100</strong>
+                  </div>
+                )}
+                {/* Lihat Kunci Jawaban - hanya jika showExplanation aktif dan sudah submit */}
+                {(status === 'submitted' || status === 'review') && exam.showExplanation && (
+                  <button
+                    className={styles.detailBtnSecondary}
+                    onClick={() => { setDetailExam(null); router.push(`/dashboard/student/exams/${exam._id}/review`); }}
+                  >
+                    Lihat Evaluasi
+                  </button>
+                )}
+
+                <button className={styles.detailBtnClose} onClick={() => setDetailExam(null)}>
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
     </>
   );
 }
@@ -592,3 +731,6 @@ function StudentExamsPage() {
 }
 
 export default StudentExamsPage;
+
+
+

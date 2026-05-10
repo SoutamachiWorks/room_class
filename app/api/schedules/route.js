@@ -27,12 +27,20 @@ export async function GET(request) {
     let classCode = url.searchParams.get('classCode');
     let teacherId = url.searchParams.get('teacherId');
     const dayOfWeek = url.searchParams.get('dayOfWeek');
+    const yearId = url.searchParams.get('yearId');
 
     // Jika yang login adalah student, paksa gunakan classCode miliknya (keamanan)
     if (payload.role === 'student') {
       const userDoc = await db.collection('users').findOne({ _id: new ObjectId(payload.userId) });
       if (userDoc && userDoc.classCode) {
         classCode = userDoc.classCode;
+      }
+      const enrolledYears = Array.isArray(userDoc?.enrolledYears) ? userDoc.enrolledYears : [];
+      if (yearId && enrolledYears.length > 0) {
+        const targetYear = enrolledYears.find((y) => y?.yearId === yearId);
+        if (targetYear?.classCode) {
+          classCode = targetYear.classCode;
+        }
       }
     } else if (payload.role === 'teacher') {
       const userDoc = await db.collection('users').findOne({ _id: new ObjectId(payload.userId) });

@@ -55,6 +55,7 @@ export async function POST(request) {
     const tokenPayload = {
       userId: user._id.toString(),
       role: user.role,
+      isProctor: Boolean(user.isProctor),
       fullName: user.fullName,
       username: user.username,
     };
@@ -68,6 +69,8 @@ export async function POST(request) {
       admin: '/dashboard/admin',
       teacher: '/dashboard/teacher',
       student: '/dashboard/student',
+      principal: '/dashboard/principal',
+      curriculum: '/dashboard/curriculum',
     };
 
     const redirectTo = redirectMap[user.role] || '/login';

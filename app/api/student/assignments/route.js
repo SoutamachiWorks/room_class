@@ -17,7 +17,19 @@ export async function GET(request) {
 
     const userDoc = await db.collection('users').findOne({ _id: new ObjectId(student.userId) });
     const studentId = userDoc?.studentId;
-    const enrolledYears = userDoc?.enrolledYears || [];
+    const rawEnrolledYears = Array.isArray(userDoc?.enrolledYears) ? userDoc.enrolledYears : [];
+    const currentYear = (userDoc?.academicYearId && userDoc?.classCode)
+      ? {
+          yearId: `${userDoc.classCode}_${String(userDoc.academicYearId).replace(/\//g, '-')}`,
+          classCode: userDoc.classCode,
+          academicYear: userDoc.academicYearId,
+          label: `${userDoc.academicYearId} (${userDoc.classCode})`,
+          status: 'active',
+        }
+      : null;
+    const enrolledYears = currentYear && !rawEnrolledYears.some((y) => y?.yearId === currentYear.yearId)
+      ? [...rawEnrolledYears, currentYear]
+      : rawEnrolledYears;
 
     const { searchParams } = new URL(request.url);
     const yearId = searchParams.get('yearId');
@@ -41,7 +53,7 @@ export async function GET(request) {
     const subjectIds = matchingSubjects.map(s => s._id.toString());
 
     if (subjectIds.length === 0) {
-      return NextResponse.json({ assignments: [] });
+      return NextResponse.json({ assignments: [], enrolledYears, currentYear });
     }
 
     // Get assignments linked to those subjects
@@ -103,7 +115,8 @@ export async function GET(request) {
 
     return NextResponse.json({ 
       assignments: result,
-      enrolledYears
+      enrolledYears,
+      currentYear
     });
   } catch (err) {
     const { status, error } = handleAuthError(err);

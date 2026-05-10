@@ -1,0 +1,72 @@
+.page {
+  display: grid;
+  gap: 16px;
+}
+
+.title {
+  margin: 0;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: var(--color-subtext);
+}
+
+.error {
+  color: #dc2626;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.tableWrap {
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stack span {
+  color: var(--color-subtext);
+  font-size: 0.82rem;
+}
+
+.assignRow {
+  display: flex;
+  gap: 8px;
+}
+
+.selectInput {
+  min-width: 220px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: var(--bg-card);
+}
+
+.saveBtn {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  background: var(--bg-app);
+  cursor: pointer;
+}

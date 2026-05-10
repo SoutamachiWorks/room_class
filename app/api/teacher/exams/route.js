@@ -89,7 +89,7 @@ export async function POST(request) {
     if (!teacherId) return NextResponse.json({ error: 'Identifikasi guru gagal' }, { status: 403 });
 
     const body = await request.json();
-    const { title, subjectId, questions, typeSettings, isRandomized, isOptionRandomized, duration, deadline } = body;
+    const { title, subjectId, questions, typeSettings, isRandomized, isOptionRandomized, duration, deadline, examCategory, showExplanation } = body;
 
     // Validation
     if (!title || typeof title !== 'string') {
@@ -140,6 +140,7 @@ export async function POST(request) {
     if (!verifySubject) {
       return NextResponse.json({ error: 'Mata pelajaran tidak valid untuk akun Anda.' }, { status: 403 });
     }
+    const activeAcademicYear = await db.collection('academicYears').findOne({ isActive: true });
 
     // Normalize question order
     const normalizedQuestions = questions.map((q, idx) => ({
@@ -150,17 +151,27 @@ export async function POST(request) {
       essay: q.essay || null,
       fileUpload: q.fileUpload || null,
     }));
+    const normalizedExamCategory = examCategory === 'semester' ? 'semester' : 'ulangan';
+    const requiresCurriculumApproval = normalizedExamCategory === 'semester';
 
     const newExam = {
       teacherId,
       subjectId,
+      academicYearId: activeAcademicYear?.label || null,
+      classCodeSnapshot: verifySubject.classCode || null,
+      subjectNameSnapshot: verifySubject.subjectName || null,
       title,
+      examCategory: normalizedExamCategory,
+      requiresCurriculumApproval,
+      validationStatus: requiresCurriculumApproval ? 'Pending' : 'NotRequired',
       questions: normalizedQuestions,
       typeSettings: normalizedTypeSettings,
       isRandomized: !!isRandomized,
       isOptionRandomized: !!isOptionRandomized,
       duration: duration ? parseInt(duration, 10) : null,
       deadline: deadline ? new Date(deadline) : null,
+      showResults: true,
+      showExplanation: !!showExplanation,
       status: 'draft',
       createdAt: new Date(),
       updatedAt: new Date(),

@@ -7,6 +7,8 @@ import styles from './KenaikanKelas.module.css';
 export default function PromotionPage() {
   const [activeTab, setActiveTab] = useState('bulk'); // 'bulk' | 'excel'
   const [classCodes, setClassCodes] = useState([]);
+  const [academicYears, setAcademicYears] = useState([]);
+  const [activeAcademicYear, setActiveAcademicYear] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -40,6 +42,27 @@ export default function PromotionPage() {
       }
     }
     fetchClassCodes();
+
+    async function fetchAcademicYears() {
+      try {
+        const res = await fetch('/api/admin/academic-years');
+        const data = await res.json();
+        if (res.ok) {
+          const years = data.academicYears || [];
+          setAcademicYears(years);
+          const active = years.find((y) => y.isActive)?.label || '';
+          setActiveAcademicYear(active);
+          if (active) {
+            setBulkData((prev) => ({ ...prev, academicYear: prev.academicYear || active }));
+            setManualAcademicYear((prev) => prev || active);
+            setExcelYear((prev) => prev || active);
+          }
+        }
+      } catch (err) {
+        console.error('Gagal mengambil tahun ajaran:', err);
+      }
+    }
+    fetchAcademicYears();
   }, []);
 
   useEffect(() => {
@@ -238,14 +261,19 @@ export default function PromotionPage() {
             {/* Row 2: Full Width */}
             <div className={styles.inputGroup}>
               <label className={styles.label}>Tahun Ajaran Baru (ID/Label)</label>
-              <input 
-                type="text" 
-                className={styles.inputField} 
-                placeholder="Contoh: 2024/2025" 
+              <select
+                className={styles.inputField}
                 value={bulkData.academicYear}
                 onChange={e => setBulkData({...bulkData, academicYear: e.target.value})}
                 required
-              />
+              >
+                <option value="">Pilih Tahun Ajaran...</option>
+                {academicYears.map((year) => (
+                  <option key={year._id} value={year.label}>
+                    {year.label}{year.label === activeAcademicYear ? ' (Aktif)' : ''}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Row 3: Action */}
@@ -292,14 +320,19 @@ export default function PromotionPage() {
 
             <div className={styles.inputGroup}>
               <label className={styles.label}>Tahun Ajaran Baru (ID/Label)</label>
-              <input 
-                type="text" 
-                className={styles.inputField} 
-                placeholder="Contoh: 2024/2025" 
+              <select
+                className={styles.inputField}
                 value={manualAcademicYear}
                 onChange={e => setManualAcademicYear(e.target.value)}
                 required
-              />
+              >
+                <option value="">Pilih Tahun Ajaran...</option>
+                {academicYears.map((year) => (
+                  <option key={year._id} value={year.label}>
+                    {year.label}{year.label === activeAcademicYear ? ' (Aktif)' : ''}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Section B: Student Table */}
@@ -367,14 +400,19 @@ export default function PromotionPage() {
             
             <div className={styles.inputGroup}>
               <label className={styles.label}>Tahun Ajaran Baru (ID/Label)</label>
-              <input 
-                type="text" 
-                className={styles.inputField} 
-                placeholder="Contoh: 2024/2025" 
+              <select
+                className={styles.inputField}
                 value={excelYear}
                 onChange={e => setExcelYear(e.target.value)}
                 required
-              />
+              >
+                <option value="">Pilih Tahun Ajaran...</option>
+                {academicYears.map((year) => (
+                  <option key={year._id} value={year.label}>
+                    {year.label}{year.label === activeAcademicYear ? ' (Aktif)' : ''}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className={styles.inputGroup}>

@@ -3,6 +3,22 @@ import { jwtVerify } from 'jose';
 
 // Routes that don't require authentication
 const publicPaths = ['/login', '/api/auth/login', '/api/auth/logout'];
+const routePermissions = {
+  '/dashboard/admin': ['admin'],
+  '/dashboard/teacher': ['admin', 'teacher'],
+  '/dashboard/student': ['admin', 'student'],
+  '/dashboard/principal': ['admin', 'principal'],
+  '/dashboard/curriculum': ['admin', 'curriculum'],
+  '/dashboard/proctor': ['admin', 'teacher'],
+};
+
+const roleDefaultDashboard = {
+  admin: '/dashboard/admin',
+  teacher: '/dashboard/teacher',
+  student: '/dashboard/student',
+  principal: '/dashboard/principal',
+  curriculum: '/dashboard/curriculum',
+};
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
@@ -16,12 +32,7 @@ export async function middleware(request) {
         try {
           const secret = new TextEncoder().encode(process.env.JWT_SECRET);
           const { payload } = await jwtVerify(token, secret);
-          const redirectMap = {
-            admin: '/dashboard/admin',
-            teacher: '/dashboard/teacher',
-            student: '/dashboard/student',
-          };
-          const redirectTo = redirectMap[payload.role];
+          const redirectTo = roleDefaultDashboard[payload.role];
           if (redirectTo) {
             return NextResponse.redirect(new URL(redirectTo, request.url));
           }
@@ -45,19 +56,23 @@ export async function middleware(request) {
       const secret = new TextEncoder().encode(process.env.JWT_SECRET);
       const { payload } = await jwtVerify(token, secret);
 
-      // Role-based access control
-      const roleFromPath = pathname.split('/')[2]; // e.g., 'admin', 'teacher', 'student'
-      
-      if (roleFromPath && payload.role !== roleFromPath) {
-        // Redirect to their correct dashboard
-        const redirectMap = {
-          admin: '/dashboard/admin',
-          teacher: '/dashboard/teacher',
-          student: '/dashboard/student',
-        };
-        return NextResponse.redirect(
-          new URL(redirectMap[payload.role] || '/login', request.url)
-        );
+      // Role-based access control per route permission map
+      const matchedRoute = Object.keys(routePermissions).find((route) =>
+        pathname.startsWith(route)
+      );
+
+      if (matchedRoute) {
+        const allowedRoles = routePermissions[matchedRoute];
+        if (!allowedRoles.includes(payload.role)) {
+          return NextResponse.redirect(new URL('/unauthorized', request.url));
+        }
+        if (
+          matchedRoute === '/dashboard/proctor' &&
+          payload.role === 'teacher' &&
+          !payload.isProctor
+        ) {
+          return NextResponse.redirect(new URL('/unauthorized', request.url));
+        }
       }
 
       // Attach user info to headers for downstream use

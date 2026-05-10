@@ -155,6 +155,44 @@ async function saveEnrollmentHistory(studentObjectIds, sourceClassCode, oldAcade
   }
 }
 
+async function upsertCurrentEnrollment(studentObjectIds, classCode, academicYearId) {
+  try {
+    const db = await getDb();
+    if (!classCode || !academicYearId || !Array.isArray(studentObjectIds) || studentObjectIds.length === 0) return;
+
+    const yearId = `${classCode}_${String(academicYearId).replace(/\//g, '-')}`;
+    const users = await db.collection('users')
+      .find({ _id: { $in: studentObjectIds }, role: 'student' })
+      .project({ enrolledYears: 1 })
+      .toArray();
+
+    for (const user of users) {
+      const enrolled = Array.isArray(user.enrolledYears) ? [...user.enrolledYears] : [];
+      const normalized = enrolled
+        .filter(Boolean)
+        .map((entry) => ({ ...entry, status: entry.yearId === yearId ? 'active' : 'archived' }));
+      const idx = normalized.findIndex((entry) => entry.yearId === yearId);
+      const activeEntry = {
+        yearId,
+        classCode,
+        academicYear: academicYearId,
+        label: `${academicYearId} (${classCode})`,
+        status: 'active',
+        archivedAt: null,
+      };
+      if (idx >= 0) normalized[idx] = { ...normalized[idx], ...activeEntry };
+      else normalized.push(activeEntry);
+
+      await db.collection('users').updateOne(
+        { _id: user._id },
+        { $set: { enrolledYears: normalized } }
+      );
+    }
+  } catch (error) {
+    console.error('Failed to upsert current enrollment:', error);
+  }
+}
+
 /**
  * Method A: Bulk Move via UI
  */
@@ -197,6 +235,7 @@ export async function promoteClassBulk(sourceClassCode, targetClassCode, newAcad
 
     // Save enrollment history (awaited) - use the OLD year
     await saveEnrollmentHistory(objectIds, sourceClassCode, oldAcademicYearId);
+    await upsertCurrentEnrollment(objectIds, isGraduating ? 'GRADUATED' : targetClassCode, newAcademicYearId);
 
     // Trigger background cleanup
     if (studentIds.length > 0) {
@@ -271,17 +310,20 @@ export async function promoteViaExcel(formData) {
       throw new Error('Tidak ada data valid untuk diproses.');
     }
 
-    const result = await db.collection('users').bulkWrite(bulkOps);
-
-    // Save enrollment history per student
-    const students = await db.collection('users')
+    // Capture current student mapping BEFORE update (source class/year for history + cleanup)
+    const existingStudents = await db.collection('users')
       .find({ role: 'student', studentId: { $in: nisList } })
       .project({ _id: 1, studentId: 1, classCode: 1, academicYearId: 1 })
       .toArray();
+    const existingByNis = new Map(existingStudents.map((s) => [s.studentId, s]));
 
-    // Group by classCode for history saving and cleanup
+    const result = await db.collection('users').bulkWrite(bulkOps);
+
+    // Save enrollment history per student based on PRE-UPDATE class/year
     const byClass = {};
-    for (const s of students) {
+    for (const nis of nisList) {
+      const s = existingByNis.get(nis);
+      if (!s) continue;
       const cc = s.classCode;
       if (!byClass[cc]) byClass[cc] = { ids: [], oldYear: s.academicYearId };
       byClass[cc].ids.push(s._id);
@@ -289,7 +331,13 @@ export async function promoteViaExcel(formData) {
 
     for (const [classCode, group] of Object.entries(byClass)) {
       await saveEnrollmentHistory(group.ids, classCode, group.oldYear);
-      const sIds = students.filter(s => s.classCode === classCode).map(s => s.studentId).filter(Boolean);
+      const targetByNis = new Map(validatedData.map((row) => [row.nis, row.newClassCode]));
+      for (const s of existingStudents.filter((item) => item.classCode === classCode)) {
+        const nextClass = targetByNis.get(s.studentId);
+        if (!nextClass) continue;
+        await upsertCurrentEnrollment([s._id], nextClass.toUpperCase() === 'GRADUATED' ? 'GRADUATED' : nextClass, newAcademicYearId);
+      }
+      const sIds = existingStudents.filter(s => s.classCode === classCode).map(s => s.studentId).filter(Boolean);
       cleanupOldSubmissions(sIds, classCode, group.oldYear).catch(console.error);
     }
 
@@ -354,6 +402,7 @@ export async function promoteManualSelection(studentMongoIds, targetClassCode, n
 
     for (const [classCode, group] of Object.entries(byClass)) {
       await saveEnrollmentHistory(group.ids, classCode, group.oldYear);
+      await upsertCurrentEnrollment(group.ids, isGraduating ? 'GRADUATED' : targetClassCode, newAcademicYearId);
       cleanupOldSubmissions(group.studentIds, classCode, group.oldYear).catch(console.error);
     }
 

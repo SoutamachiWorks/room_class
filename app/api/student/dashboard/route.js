@@ -12,11 +12,39 @@ export async function GET(request) {
   try {
     const student = await requireRole(request, 'student');
     const db = await getDb();
+    const { searchParams } = new URL(request.url);
+    const yearId = searchParams.get('yearId');
 
     const userDoc = await db.collection('users').findOne({ _id: new ObjectId(student.userId) });
-    const classCode = userDoc?.classCode;
+    const activeClassCode = userDoc?.classCode;
     const studentId = userDoc?.studentId;
-    const enrolledYears = userDoc?.enrolledYears || [];
+    const rawEnrolledYears = Array.isArray(userDoc?.enrolledYears) ? userDoc.enrolledYears : [];
+
+    const currentYearEntry = (userDoc?.academicYearId && activeClassCode)
+      ? {
+          yearId: `${activeClassCode}_${String(userDoc.academicYearId).replace(/\//g, '-')}`,
+          classCode: activeClassCode,
+          academicYear: userDoc.academicYearId,
+          label: `${userDoc.academicYearId} (${activeClassCode})`,
+          status: 'active',
+        }
+      : null;
+
+    const hasCurrentYearInList = currentYearEntry
+      ? rawEnrolledYears.some((y) => y?.yearId === currentYearEntry.yearId)
+      : false;
+
+    const enrolledYears = hasCurrentYearInList
+      ? rawEnrolledYears
+      : (currentYearEntry ? [...rawEnrolledYears, currentYearEntry] : rawEnrolledYears);
+
+    let classCode = activeClassCode;
+    if (yearId && enrolledYears.length > 0) {
+      const targetYear = enrolledYears.find((y) => y?.yearId === yearId);
+      if (targetYear?.classCode) {
+        classCode = targetYear.classCode;
+      }
+    }
 
     if (!classCode || !studentId) {
       return NextResponse.json({ error: 'Profil siswa tidak lengkap.' }, { status: 403 });
@@ -29,7 +57,7 @@ export async function GET(request) {
     for (const s of matchingSubjects) subjectLookup[s._id.toString()] = s;
 
     if (subjectIds.length === 0) {
-      return NextResponse.json({ pendingAssignments: [], availableExams: [], recentGrades: [] });
+      return NextResponse.json({ pendingAssignments: [], availableExams: [], recentGrades: [], enrolledYears });
     }
 
     // --- 1. Get pending assignments (not yet submitted) ---

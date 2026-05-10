@@ -32,6 +32,7 @@ function Skeleton({ h = 20, w = '100%', radius = 8 }) {
 export default function TeacherDashboardPage() {
   const [data, setData] = useState(null);
   const [schedules, setSchedules] = useState([]);
+  const [authUser, setAuthUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [schedulesLoading, setSchedulesLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -61,6 +62,7 @@ export default function TeacherDashboardPage() {
     fetch('/api/auth/me')
       .then(r => r.json())
       .then(d => {
+        setAuthUser(d.user || null);
         if (d.user?.role === 'teacher') {
           // fetch schedule
           return fetch(`/api/schedules?teacherId=${d.user.username}&dayOfWeek=${dayOfWeek}`); // Di DB teacherId biasanya sama dengan username (G-100X)
@@ -86,12 +88,23 @@ export default function TeacherDashboardPage() {
           <h1 className={styles.pageTitle}>Command Center</h1>
           <p className={styles.pageSubtitle}>Ringkasan aktivitas kelas Anda hari ini.</p>
         </div>
-        <Link href="/dashboard/teacher/assignments" className={styles.btnPrimary}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Buat Tugas
-        </Link>
+        <div className={styles.headerActions}>
+          {authUser?.isProctor && (
+            <Link href="/dashboard/proctor" className={styles.btnSecondary}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8v4l3 3" />
+              </svg>
+              Monitoring Ujian
+            </Link>
+          )}
+          <Link href="/dashboard/teacher/assignments" className={styles.btnPrimary}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Buat Tugas
+          </Link>
+        </div>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}

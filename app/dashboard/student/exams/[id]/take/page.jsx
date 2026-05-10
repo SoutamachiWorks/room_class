@@ -8,6 +8,7 @@ import styles from '../../../../admin/admin.module.css';
 import ex from './exam-take.module.css';
 
 export default function TakeExamPage() {
+  const MAX_VIOLATIONS = 3;
   const { id: examId } = useParams();
   const router = useRouter();
 
@@ -31,6 +32,8 @@ export default function TakeExamPage() {
   const [fullscreenGranted, setFullscreenGranted] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(true);
   const [consentChecked, setConsentChecked] = useState(false);
+  const [dndChecked, setDndChecked] = useState(false);
+  const [isMobileClient, setIsMobileClient] = useState(false);
   
   const [toastMessage, setToastMessage] = useState('');
   const [showStrikeModal, setShowStrikeModal] = useState(false);
@@ -42,6 +45,16 @@ export default function TakeExamPage() {
   const leftTabAtRef = useRef(null);
 
   const [showFullscreenOverlay, setShowFullscreenOverlay] = useState(false);
+  const isDirty = useRef(false);
+  const syncInFlightRef = useRef(false);
+  const [syncState, setSyncState] = useState('idle'); // idle | syncing | synced | error
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
+
+  useEffect(() => {
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (typeof window !== 'undefined' && window.innerWidth < 768);
+    setIsMobileClient(mobile);
+  }, []);
 
   useEffect(() => {
     const checkFullscreen = () => {
@@ -134,6 +147,46 @@ export default function TakeExamPage() {
     }
   }
 
+  const buildRedisAnswers = useCallback(() => {
+    const multipleChoice = questions.map((q) => {
+      if (!q.multipleChoice) return null;
+      return answers[q.displayOrder]?.mcAnswer ?? null;
+    });
+    const essay = questions.map((q) => {
+      if (!q.essay) return '';
+      return answers[q.displayOrder]?.essayAnswer ?? '';
+    });
+    return { multipleChoice, essay };
+  }, [questions, answers]);
+
+  const syncExamCache = useCallback(async (force = false, violationOverride = null) => {
+    if (!sessionId || !examId) return;
+    if (!force && !isDirty.current) return;
+    if (syncInFlightRef.current) return;
+    syncInFlightRef.current = true;
+    setSyncState('syncing');
+    try {
+      await fetch('/api/exam/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          examId,
+          sessionId,
+          answers: buildRedisAnswers(),
+          violationCount: violationOverride ?? exitCount,
+        }),
+      });
+      isDirty.current = false;
+      setSyncState('synced');
+      setLastSyncedAt(new Date());
+    } catch (err) {
+      console.error('Redis sync failed:', err);
+      setSyncState('error');
+    } finally {
+      syncInFlightRef.current = false;
+    }
+  }, [sessionId, examId, buildRedisAnswers, exitCount]);
+
   async function handleSubmitAuto() {
     if (submittingRef.current) return;
     setSubmitting(true);
@@ -142,14 +195,6 @@ export default function TakeExamPage() {
 
   const triggerStrike = useCallback(async () => {
     if (!sessionId || isChoosingFile) return;
-
-    if (exitCount >= 2) {
-      setLocked(true);
-      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-      alert("Pelanggaran ke-3! Ujian otomatis dikunci dan jawaban Anda sedang dikirim.");
-      await processSubmit(true);
-      return;
-    }
 
     try {
       const res = await fetch(`/api/student/exams/${examId}/violation`, {
@@ -167,13 +212,14 @@ export default function TakeExamPage() {
       }
 
       setExitCount(data.exitCount);
-      setStrikeMessage(`Pelanggaran ke-${data.exitCount} tercatat. Jika mencapai 3 pelanggaran, ujian otomatis dikunci.`);
+      setStrikeMessage(`Pelanggaran ke-${data.exitCount} tercatat. Jika mencapai ${MAX_VIOLATIONS} pelanggaran, ujian otomatis dikunci.`);
       setShowStrikeModal(true);
+      await syncExamCache(true, data.exitCount);
       
     } catch (err) {
       console.error('Failed to record violation:', err);
     }
-  }, [sessionId, examId, router, exitCount, isChoosingFile]);
+  }, [sessionId, examId, router, isChoosingFile, syncExamCache]);
 
   const handleLeaveTab = useCallback(() => {
     if (locked || !fullscreenGranted || isChoosingFile || showConsentModal) return;
@@ -216,8 +262,10 @@ export default function TakeExamPage() {
 
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (document.hidden) handleLeaveTab();
-      else handleReturnTab();
+      if (document.hidden) {
+        handleLeaveTab();
+        void syncExamCache(true);
+      } else handleReturnTab();
     };
 
     const onFullscreenChange = () => {
@@ -242,7 +290,14 @@ export default function TakeExamPage() {
       document.removeEventListener('fullscreenchange', onFullscreenChange);
       window.removeEventListener('focus', onFocus);
     };
-  }, [handleLeaveTab, handleReturnTab, isChoosingFile]);
+  }, [handleLeaveTab, handleReturnTab, isChoosingFile, syncExamCache]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      syncExamCache(false);
+    }, 90_000);
+    return () => clearInterval(interval);
+  }, [syncExamCache]);
 
   // Start exam session on mount (fetches questions)
   useEffect(() => {
@@ -277,7 +332,7 @@ export default function TakeExamPage() {
           setTimeLeft(remainingSeconds);
         }
 
-        if (data.exitCount >= 2) {
+        if (data.exitCount >= MAX_VIOLATIONS) {
           router.replace('/dashboard/student/exams/lockout');
           return;
         }
@@ -333,10 +388,12 @@ export default function TakeExamPage() {
       ...prev,
       [questionOrder]: { ...prev[questionOrder], questionOrder, [field]: value },
     }));
+    isDirty.current = true;
   };
 
   const updateFileAnswer = (questionOrder, files) => {
     setFileAnswers(prev => ({ ...prev, [questionOrder]: files }));
+    isDirty.current = true;
   };
 
   const handleSubmit = async () => {
@@ -346,6 +403,7 @@ export default function TakeExamPage() {
     if (!confirmed) return;
 
     setSubmitting(true);
+    await syncExamCache(true);
     await processSubmit();
   };
 
@@ -388,7 +446,7 @@ export default function TakeExamPage() {
           <p className={ex.examConsentWarning}>
             <strong>PERHATIAN:</strong><br />
             Untuk menjaga integritas, ujian ini diwajibkan dalam mode <strong>Layar Penuh (Fullscreen)</strong>. Jika Anda terdeteksi pindah tab, membuka aplikasi lain, atau keluar dari layar penuh lebih dari 5 detik, sistem akan mencatat pelanggaran.<br /><br />
-            Batas maksimal pelanggaran adalah <strong>2 kali</strong>. Pada pelanggaran ke-3, ujian akan otomatis <strong>terkunci</strong> dan disubmit secara paksa.
+            Anda akan mendapat <strong>2 kali peringatan</strong>. Pada pelanggaran ke-<strong>{MAX_VIOLATIONS}</strong>, ujian akan otomatis <strong>terkunci</strong> dan disubmit secara paksa.
           </p>
           <label className={ex.examConsentLabel}>
             <input 
@@ -398,12 +456,32 @@ export default function TakeExamPage() {
                className={ex.examConsentCheckbox}
             />
             <span className={ex.examConsentText}>
-              Saya mengerti bahwa keluar dari layar penuh atau pindah tab sebanyak 2 kali akan mengunci ujian saya.
+              Saya mengerti bahwa pada pelanggaran ke-{MAX_VIOLATIONS}, ujian saya akan terkunci otomatis.
             </span>
           </label>
+          {isMobileClient && (
+            <>
+              <label className={ex.examConsentLabel}>
+                <input
+                  type="checkbox"
+                  checked={dndChecked}
+                  onChange={(e) => setDndChecked(e.target.checked)}
+                  className={ex.examConsentCheckbox}
+                />
+                <span className={ex.examConsentText}>
+                  Saya sudah mengaktifkan mode Jangan Ganggu (Do Not Disturb) di perangkat mobile.
+                </span>
+              </label>
+              <div className={ex.examConsentWarning} style={{ marginTop: 8 }}>
+                <strong>Panduan cepat DND:</strong><br />
+                Android: Tarik Quick Settings → pilih <strong>Do Not Disturb</strong>.<br />
+                iPhone: Control Center → aktifkan <strong>Focus / Do Not Disturb</strong>.
+              </div>
+            </>
+          )}
           <button 
-             className={`${styles.btnPrimary} ${ex.examConsentBtn} ${!consentChecked ? ex.examConsentBtnDisabled : ''}`}
-             disabled={!consentChecked}
+             className={`${styles.btnPrimary} ${ex.examConsentBtn} ${(!consentChecked || (isMobileClient && !dndChecked)) ? ex.examConsentBtnDisabled : ''}`}
+             disabled={!consentChecked || (isMobileClient && !dndChecked)}
              onClick={async () => {
                 try {
                   if (document.documentElement.requestFullscreen) {
@@ -482,7 +560,13 @@ export default function TakeExamPage() {
         <div className={ex.examHeaderInfo}>
           <h1 className={ex.examHeaderTitle}>{examTitle}</h1>
           <p className={ex.examHeaderMeta}>
-            Soal {currentQuestionIndex + 1} dari {questions.length} • Pelanggaran: {exitCount}/2
+            Soal {currentQuestionIndex + 1} dari {questions.length} • Pelanggaran: {exitCount}/{MAX_VIOLATIONS}
+          </p>
+          <p className={ex.examHeaderMeta} style={{ marginTop: 4 }}>
+            {syncState === 'syncing' && '⟳ Auto-save berjalan...'}
+            {syncState === 'synced' && `✓ Auto-save tersimpan${lastSyncedAt ? ` (${lastSyncedAt.toLocaleTimeString('id-ID')})` : ''}`}
+            {syncState === 'error' && '⚠ Auto-save gagal, akan dicoba lagi otomatis'}
+            {syncState === 'idle' && '• Auto-save siap'}
           </p>
         </div>
         <div className={ex.examHeaderActions}>
