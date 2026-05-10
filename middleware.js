@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
+const MAX_TOKEN_AGE_SECONDS = 60 * 60 * 24;
+
+function isTokenTooOld(payload) {
+  if (!payload?.iat || typeof payload.iat !== 'number') return true;
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  return nowSeconds - payload.iat > MAX_TOKEN_AGE_SECONDS;
+}
+
 // Routes that don't require authentication
 const publicPaths = ['/login', '/api/auth/login', '/api/auth/logout'];
 const routePermissions = {
@@ -32,6 +40,9 @@ export async function middleware(request) {
         try {
           const secret = new TextEncoder().encode(process.env.JWT_SECRET);
           const { payload } = await jwtVerify(token, secret);
+          if (isTokenTooOld(payload)) {
+            throw new Error('Token expired by max age policy');
+          }
           const redirectTo = roleDefaultDashboard[payload.role];
           if (redirectTo) {
             return NextResponse.redirect(new URL(redirectTo, request.url));
@@ -55,6 +66,9 @@ export async function middleware(request) {
     try {
       const secret = new TextEncoder().encode(process.env.JWT_SECRET);
       const { payload } = await jwtVerify(token, secret);
+      if (isTokenTooOld(payload)) {
+        throw new Error('Token expired by max age policy');
+      }
 
       // Role-based access control per route permission map
       const matchedRoute = Object.keys(routePermissions).find((route) =>
