@@ -1,5 +1,7 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import styles from '../dokumentasi.module.css';
+import { studentScreenshots } from '../studentScreenshots';
 
 const studentGuides = [
   {
@@ -11,41 +13,53 @@ const studentGuides = [
     ],
   },
   {
-    title: 'Membaca materi',
+    title: 'Tugas',
     steps: [
-      'Buka menu Materi.',
-      'Pilih materi berdasarkan mata pelajaran atau kelas yang tersedia.',
-      'Baca isi materi dan buka lampiran jika guru menambahkan file pendukung.',
+      'Buka menu Tugas atau pilih tugas dari dashboard utama.',
+      'Baca instruksi dan perhatikan deadline pengumpulan.',
+      'Unggah file jawaban atau isi jawaban sesuai format yang diminta, lalu kirim tugas.',
     ],
   },
   {
-    title: 'Mengumpulkan tugas',
+    title: 'Materi',
     steps: [
-      'Buka menu Tugas atau pilih tugas dari dashboard.',
-      'Baca instruksi dan perhatikan deadline.',
-      'Unggah jawaban atau isi jawaban sesuai format yang diminta, lalu kirim tugas.',
+      'Buka menu Materi.',
+      'Pilih materi berdasarkan mata pelajaran atau kelas yang tersedia.',
+      'Buka detail materi untuk membaca isi materi dan lampiran pendukung dari guru.',
     ],
   },
   {
     title: 'Mengikuti ujian',
     steps: [
       'Buka menu Ujian dan pilih ujian yang tersedia.',
-      'Baca instruksi sebelum menekan mulai ujian.',
-      'Kerjakan soal sampai selesai dan submit jawaban.',
+      'Tekan mulai ujian, lalu baca peringatan ujian sebelum masuk ke form soal.',
+      'Kerjakan soal pada form ujian sampai selesai dan submit jawaban.',
       'Selama ujian, tetap berada pada tab ujian agar tidak tercatat sebagai aktivitas mencurigakan.',
+    ],
+  },
+  {
+    title: 'Melihat nilai dan evaluasi',
+    steps: [
+      'Buka hasil ujian setelah nilai tersedia.',
+      'Masuk ke detail nilai untuk melihat ringkasan hasil pengerjaan.',
+      'Buka evaluasi ujian untuk melihat pembahasan atau umpan balik yang tersedia.',
     ],
   },
 ];
 
 const studentScenario = [
   'Siswa login ke RoomClass.',
-  'Siswa membuka dashboard utama untuk melihat tugas dan ujian yang tersedia.',
-  'Siswa membuka materi dari guru dan membaca isi materi.',
-  'Siswa membuka tugas, mengisi atau mengunggah jawaban, lalu mengirim tugas.',
-  'Siswa membuka ujian yang sudah dipublish guru.',
-  'Siswa mengerjakan ujian tanpa berpindah tab sebagai skenario normal.',
-  'Pada simulasi terpisah, siswa berpindah tab sesuai arahan penguji untuk melihat pencatatan anti-cheat.',
-  'Siswa submit ujian setelah semua jawaban selesai.',
+  'Siswa membuka dashboard utama untuk melihat ringkasan tugas, materi, dan ujian.',
+  'Siswa membuka menu Tugas untuk mengecek daftar tugas dari guru.',
+  'Siswa mengunggah file jawaban atau melengkapi jawaban, lalu mengirim tugas.',
+  'Siswa membuka menu Materi untuk melihat materi pembelajaran.',
+  'Siswa membuka detail materi dan membaca isi materi yang diberikan guru.',
+  'Siswa membuka menu Ujian, lalu memilih ujian yang tersedia.',
+  'Siswa menekan mulai ujian dan membaca peringatan ujian.',
+  'Siswa menjawab soal pada form ujian sampai selesai.',
+  'Siswa mengecek hasil ujian setelah nilai tersedia.',
+  'Siswa membuka detail nilai dan memilih lihat evaluasi.',
+  'Siswa melihat hasil evaluasi ujian sebagai umpan balik pengerjaan.',
 ];
 
 function GuideCards() {
@@ -76,7 +90,7 @@ function StudentScenario() {
       <div className={styles.sectionHeading}>
         <span className={`${styles.eyebrow} ${styles.flowTone}`}>Alur Uji Coba Siswa</span>
         <h2>Urutan pengujian role siswa</h2>
-        <p>Alur ini difokuskan pada fitur yang diuji di sekolah: materi, tugas, ujian, dan anti-cheat.</p>
+        <p>Alur ini mengikuti screenshot siswa dari login sampai melihat hasil evaluasi ujian.</p>
       </div>
       <div className={styles.timeline}>
         {studentScenario.map((item, index) => (
@@ -119,14 +133,38 @@ export default function StudentDocumentationPage() {
         <span className={`${styles.eyebrow} ${styles.studentTone}`}>Dokumentasi Siswa</span>
         <h1>Alur siswa untuk materi, tugas, dan ujian</h1>
         <p>
-          Halaman ini berisi panduan siswa dan alur uji coba. Screenshot siswa bisa ditambahkan
-          nanti dengan format besar seperti halaman admin dan guru.
+          Panduan ini menampilkan alur siswa dari login, dashboard utama, pengumpulan tugas,
+          membaca materi, mulai dan menjawab ujian, sampai melihat nilai serta evaluasi.
         </p>
       </header>
 
       <GuideCards />
       <StudentScenario />
       <AntiCheatNotes />
+
+      <section className={styles.roleDocTimeline}>
+        {studentScreenshots.map((item, index) => (
+          <article key={item.image} className={styles.roleDocStep}>
+            <div className={styles.roleDocStepText}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <div>
+                <h2>{item.title}</h2>
+                <p>{item.description}</p>
+              </div>
+            </div>
+            <div className={styles.roleDocImageFrame}>
+              <Image
+                src={item.image}
+                alt={`Screenshot ${item.title} pada alur siswa RoomClass`}
+                width={item.width}
+                height={item.height}
+                sizes="(max-width: 1100px) 100vw, 1120px"
+                priority={index < 2}
+              />
+            </div>
+          </article>
+        ))}
+      </section>
     </main>
   );
 }
