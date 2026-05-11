@@ -1,0 +1,1113 @@
+.pageShell {
+  min-height: 100vh;
+  padding: 32px clamp(16px, 4vw, 56px) 56px;
+  color: #132033;
+  background:
+    radial-gradient(circle at top left, rgba(120, 163, 255, 0.24), transparent 32rem),
+    radial-gradient(circle at 85% 12%, rgba(110, 231, 183, 0.18), transparent 26rem),
+    linear-gradient(135deg, #f7f9fc 0%, #eef3f8 52%, #f8fbff 100%);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  gap: 28px;
+  align-items: stretch;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.heroContent,
+.heroPanel,
+.noticeCard,
+.guideCard,
+.flowSection,
+.antiCheatSection,
+.footerCta {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
+}
+
+.heroContent {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(28px, 5vw, 56px);
+  border-radius: 34px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.heroContent::after {
+  position: absolute;
+  right: -90px;
+  bottom: -110px;
+  width: 260px;
+  height: 260px;
+  content: '';
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(120, 163, 255, 0.28), rgba(110, 231, 183, 0.28));
+  filter: blur(2px);
+}
+
+.heroTopBar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.heroBadge,
+.eyebrow,
+.noticeLabel {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.heroBadge {
+  padding: 8px 12px;
+  color: #2457c5;
+  background: rgba(120, 163, 255, 0.14);
+}
+
+.homeBadgeLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 8px 12px;
+  border: 1px solid rgba(36, 87, 197, 0.18);
+  border-radius: 999px;
+  color: #132033;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 10px 24px rgba(36, 87, 197, 0.1);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  transition:
+    transform 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.homeBadgeLink::before {
+  content: '<';
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #2457c5;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.homeBadgeLink:hover,
+.homeBadgeLink:focus-visible {
+  color: #0f3d8e;
+  border-color: rgba(36, 87, 197, 0.32);
+  background: #ffffff;
+  box-shadow: 0 14px 30px rgba(36, 87, 197, 0.16);
+  transform: translateY(-2px);
+}
+
+.homeBadgeLink:focus-visible {
+  outline: 3px solid rgba(120, 163, 255, 0.45);
+  outline-offset: 4px;
+}
+
+.hero h1 {
+  position: relative;
+  z-index: 1;
+  max-width: 860px;
+  margin: 18px 0 16px;
+  color: #0f172a;
+  font-size: clamp(2.1rem, 6vw, 4.8rem);
+  line-height: 0.97;
+  letter-spacing: -0.07em;
+}
+
+.hero p,
+.sectionHeading p,
+.noticeCard p,
+.antiCheatSection p,
+.footerCta p {
+  color: #536174;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.heroContent > p {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  font-size: 1.08rem;
+}
+
+.heroActions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.primaryAction,
+.secondaryAction,
+.quickLink {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-weight: 800;
+  isolation: isolate;
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    color 0.22s ease,
+    border-color 0.22s ease,
+    background 0.22s ease;
+}
+
+.primaryAction::before,
+.secondaryAction::before,
+.quickLink::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: '';
+  opacity: 0;
+  transform: translateX(-35%) scaleX(0.65);
+  transform-origin: left;
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+.primaryAction::before {
+  background: linear-gradient(135deg, #2457c5, #0d7a4f);
+}
+
+.secondaryAction::before,
+.quickLink::before {
+  background: linear-gradient(135deg, rgba(120, 163, 255, 0.22), rgba(110, 231, 183, 0.24));
+}
+
+.primaryAction {
+  padding: 12px 18px;
+  color: #ffffff;
+  background: #132033;
+  box-shadow: 0 12px 28px rgba(19, 32, 51, 0.2);
+}
+
+.secondaryAction {
+  padding: 12px 18px;
+  color: #132033;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.primaryAction:hover,
+.secondaryAction:hover,
+.quickLink:hover,
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible,
+.quickLink:focus-visible {
+  transform: translateY(-3px);
+}
+
+.primaryAction:hover,
+.primaryAction:focus-visible {
+  box-shadow: 0 16px 34px rgba(36, 87, 197, 0.28);
+}
+
+.secondaryAction:hover,
+.secondaryAction:focus-visible,
+.quickLink:hover,
+.quickLink:focus-visible {
+  color: #0f3d8e;
+  border-color: rgba(36, 87, 197, 0.32);
+  box-shadow: 0 14px 30px rgba(36, 87, 197, 0.14);
+}
+
+.primaryAction:hover::before,
+.secondaryAction:hover::before,
+.quickLink:hover::before,
+.primaryAction:focus-visible::before,
+.secondaryAction:focus-visible::before,
+.quickLink:focus-visible::before {
+  opacity: 1;
+  transform: translateX(0) scaleX(1);
+}
+
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible,
+.quickLink:focus-visible,
+.rolePortalCard:focus-visible {
+  outline: 3px solid rgba(120, 163, 255, 0.45);
+  outline-offset: 4px;
+}
+
+.heroPanel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 34px;
+  background: #132033;
+}
+
+.heroPanel div {
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.heroPanel span {
+  display: block;
+  margin-bottom: 18px;
+  color: #97b6ff;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.heroPanel strong {
+  display: block;
+  color: #ffffff;
+  font-size: 1.18rem;
+}
+
+.heroPanel p {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.94rem;
+}
+
+.jumpNav {
+  position: sticky;
+  top: 12px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 1180px;
+  margin: 18px auto 0;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.jumpNav a {
+  padding: 9px 14px;
+  border-radius: 999px;
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.jumpNav a:hover {
+  color: #0f172a;
+  background: #eef4ff;
+}
+
+.noticeGrid,
+.rolePortalGrid,
+.roleSection,
+.screenshotSection,
+.flowSection,
+.antiCheatSection,
+.footerCta {
+  max-width: 1180px;
+  margin: 24px auto 0;
+}
+
+.noticeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.noticeCard {
+  padding: 24px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.rolePortalGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.rolePortalCard {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  min-height: 190px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  isolation: isolate;
+  transition:
+    transform 0.24s ease,
+    border-color 0.24s ease,
+    box-shadow 0.24s ease,
+    background 0.24s ease;
+}
+
+.rolePortalCard::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: '';
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+.rolePortalCard::after {
+  position: absolute;
+  top: -70px;
+  right: -70px;
+  width: 180px;
+  height: 180px;
+  content: '';
+  border-radius: 999px;
+  opacity: 0;
+  filter: blur(2px);
+  transform: translate(22px, -22px) scale(0.72);
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+.rolePortalCard:nth-child(1)::before {
+  background: linear-gradient(135deg, rgba(120, 163, 255, 0.22), rgba(255, 255, 255, 0.9));
+}
+
+.rolePortalCard:nth-child(2)::before {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(255, 255, 255, 0.9));
+}
+
+.rolePortalCard:nth-child(3)::before {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(255, 255, 255, 0.9));
+}
+
+.rolePortalCard:nth-child(1)::after {
+  background: rgba(120, 163, 255, 0.38);
+}
+
+.rolePortalCard:nth-child(2)::after {
+  background: rgba(245, 158, 11, 0.34);
+}
+
+.rolePortalCard:nth-child(3)::after {
+  background: rgba(16, 185, 129, 0.34);
+}
+
+.rolePortalCard:hover,
+.rolePortalCard:focus-visible {
+  transform: translateY(-6px);
+  border-color: rgba(36, 87, 197, 0.24);
+  box-shadow: 0 26px 64px rgba(15, 23, 42, 0.14);
+}
+
+.rolePortalCard:hover::before,
+.rolePortalCard:hover::after,
+.rolePortalCard:focus-visible::before,
+.rolePortalCard:focus-visible::after {
+  opacity: 1;
+  transform: translate(0, 0) scale(1);
+}
+
+.rolePortalCard h2 {
+  margin: 24px 0 8px;
+  color: #0f172a;
+  font-size: 1.65rem;
+  transition: color 0.22s ease;
+}
+
+.rolePortalCard p {
+  margin: 0;
+  color: #536174;
+  line-height: 1.65;
+  transition: color 0.22s ease;
+}
+
+.rolePortalCard:hover h2,
+.rolePortalCard:focus-visible h2 {
+  color: #0f3d8e;
+}
+
+.rolePortalCard:hover p,
+.rolePortalCard:focus-visible p {
+  color: #334155;
+}
+
+.noticeLabel {
+  padding: 7px 10px;
+  color: #856404;
+  background: #fff3cd;
+}
+
+.noticeCard h2,
+.footerCta h2,
+.antiCheatSection h2,
+.sectionHeading h2 {
+  margin: 12px 0 8px;
+  color: #0f172a;
+  letter-spacing: -0.035em;
+}
+
+.roleSection {
+  padding-top: 28px;
+}
+
+.sectionHeading {
+  max-width: 780px;
+  margin-bottom: 18px;
+}
+
+.sectionHeading h2 {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+}
+
+.eyebrow {
+  padding: 8px 11px;
+}
+
+.adminTone {
+  color: #2457c5;
+  background: rgba(120, 163, 255, 0.15);
+}
+
+.teacherTone {
+  color: #956006;
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.studentTone {
+  color: #0d7a4f;
+  background: rgba(16, 185, 129, 0.14);
+}
+
+.flowTone {
+  color: #4c1d95;
+  background: rgba(167, 139, 250, 0.16);
+}
+
+.warningTone {
+  color: #b42318;
+  background: rgba(248, 113, 113, 0.15);
+}
+
+.guideGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.guideCard {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  padding: 24px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.guideCard h3 {
+  margin-bottom: 12px;
+  color: #132033;
+  font-size: 1.18rem;
+}
+
+.guideCard ol {
+  display: grid;
+  gap: 10px;
+  padding-left: 20px;
+  color: #475569;
+  line-height: 1.65;
+}
+
+.guideCard li::marker {
+  color: #78a3ff;
+  font-weight: 900;
+}
+
+.linkRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 18px;
+}
+
+.quickLink {
+  padding: 8px 12px;
+  color: #2457c5;
+  background: rgba(120, 163, 255, 0.12);
+  font-size: 0.86rem;
+}
+
+.screenshotSection {
+  padding-top: 28px;
+}
+
+.screenshotGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.screenshotCard {
+  display: grid;
+  gap: 14px;
+}
+
+.screenshotMeta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.screenshotMeta span {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: #2457c5;
+  background: rgba(120, 163, 255, 0.14);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.screenshotMeta h3 {
+  margin: 0 0 4px;
+  color: #132033;
+  font-size: 1rem;
+}
+
+.screenshotMeta p {
+  margin: 0;
+  color: #536174;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.screenshotFrame {
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 16px 44px rgba(15, 23, 42, 0.08);
+}
+
+.screenshotFrame img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.roleDocShell {
+  min-height: 100vh;
+  padding: 32px clamp(16px, 4vw, 56px) 64px;
+  color: #132033;
+  background: linear-gradient(135deg, #f7f9fc 0%, #eef3f8 52%, #f8fbff 100%);
+}
+
+.roleDocHeader,
+.roleDocTimeline {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.roleDocHeader {
+  padding: 18px 0 8px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  color: #2457c5;
+  border: 1px solid rgba(36, 87, 197, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 12px 28px rgba(36, 87, 197, 0.1);
+  font-size: 0.92rem;
+  font-weight: 800;
+  transition:
+    transform 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.backLink::before {
+  content: '<';
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #2457c5;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.backLink:hover,
+.backLink:focus-visible {
+  color: #0f3d8e;
+  border-color: rgba(36, 87, 197, 0.32);
+  background: #ffffff;
+  box-shadow: 0 16px 34px rgba(36, 87, 197, 0.16);
+  transform: translateY(-2px);
+}
+
+.backLink:focus-visible {
+  outline: 3px solid rgba(120, 163, 255, 0.45);
+  outline-offset: 4px;
+}
+
+.roleDocHeader h1 {
+  max-width: 900px;
+  margin: 16px 0 12px;
+  color: #0f172a;
+  font-size: 3rem;
+  line-height: 1.12;
+}
+
+.roleDocHeader p {
+  max-width: 820px;
+  margin: 0;
+  color: #536174;
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.roleDocTimeline {
+  display: grid;
+  gap: 30px;
+  margin-top: 28px;
+}
+
+.roleDocStep {
+  display: grid;
+  gap: 14px;
+}
+
+.roleDocStepText {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.roleDocStepText > span {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: #2457c5;
+  background: rgba(120, 163, 255, 0.14);
+  font-weight: 900;
+}
+
+.roleDocStepText h2 {
+  margin: 0 0 4px;
+  color: #0f172a;
+  font-size: 1.35rem;
+}
+
+.roleDocStepText p {
+  margin: 0;
+  color: #536174;
+  line-height: 1.65;
+}
+
+.roleDocImageFrame {
+  overflow: auto;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 18px 46px rgba(15, 23, 42, 0.1);
+}
+
+.roleDocImageFrame img {
+  width: 100%;
+  height: auto;
+  min-width: 960px;
+  display: block;
+}
+
+.flowSection,
+.antiCheatSection,
+.footerCta {
+  padding: clamp(24px, 4vw, 36px);
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.timeline {
+  display: grid;
+  gap: 12px;
+}
+
+.timelineItem {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: start;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 20px;
+  background: #ffffff;
+}
+
+.timelineItem span {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  color: #2457c5;
+  background: rgba(120, 163, 255, 0.14);
+  font-weight: 900;
+}
+
+.timelineItem p {
+  color: #334155;
+  line-height: 1.65;
+}
+
+.antiCheatSection {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(280px, 1fr);
+  gap: 24px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 247, 237, 0.88));
+}
+
+.antiCheatSection ul {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 0;
+  list-style: none;
+}
+
+.antiCheatSection li {
+  padding: 14px 16px;
+  border-left: 4px solid #f87171;
+  border-radius: 14px;
+  color: #475569;
+  background: #ffffff;
+  line-height: 1.6;
+}
+
+.footerCta {
+  text-align: center;
+}
+
+.footerCta .heroActions {
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .hero,
+  .noticeGrid,
+  .rolePortalGrid,
+  .guideGrid,
+  .screenshotGrid,
+  .antiCheatSection {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    gap: 18px;
+  }
+
+  .hero h1 {
+    font-size: clamp(2rem, 8vw, 3.6rem);
+    line-height: 1.02;
+  }
+
+  .heroPanel {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .rolePortalCard {
+    min-height: 160px;
+  }
+
+  .roleSection,
+  .flowSection,
+  .antiCheatSection,
+  .footerCta,
+  .roleDocTimeline {
+    margin-top: 20px;
+  }
+
+  .roleDocHeader h1 {
+    font-size: 2.2rem;
+  }
+
+  .roleDocImageFrame img {
+    min-width: 760px;
+  }
+
+  .jumpNav {
+    border-radius: 24px;
+  }
+}
+
+@media (max-width: 560px) {
+  .pageShell {
+    padding: 14px 10px 36px;
+    background:
+      radial-gradient(circle at 90% 0%, rgba(120, 163, 255, 0.2), transparent 18rem),
+      linear-gradient(135deg, #f7f9fc 0%, #eef3f8 100%);
+  }
+
+  .hero {
+    gap: 12px;
+  }
+
+  .heroContent {
+    padding: 22px 18px;
+  }
+
+  .heroContent::after {
+    right: -150px;
+    bottom: -150px;
+  }
+
+  .heroBadge,
+  .eyebrow,
+  .noticeLabel,
+  .homeBadgeLink {
+    font-size: 0.68rem;
+    letter-spacing: 0.07em;
+  }
+
+  .heroTopBar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .homeBadgeLink,
+  .heroBadge {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .hero h1 {
+    margin: 14px 0 12px;
+    font-size: clamp(2rem, 12vw, 2.75rem);
+    letter-spacing: -0.055em;
+  }
+
+  .hero p,
+  .sectionHeading p,
+  .noticeCard p,
+  .antiCheatSection p,
+  .footerCta p,
+  .roleDocHeader p,
+  .roleDocStepText p,
+  .timelineItem p {
+    font-size: 0.94rem;
+    line-height: 1.65;
+  }
+
+  .heroContent > p {
+    font-size: 0.96rem;
+  }
+
+  .heroPanel {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .heroPanel div {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .heroPanel span {
+    margin-bottom: 8px;
+    font-size: 0.72rem;
+  }
+
+  .heroContent,
+  .heroPanel,
+  .noticeCard,
+  .guideCard,
+  .flowSection,
+  .antiCheatSection,
+  .footerCta {
+    border-radius: 22px;
+  }
+
+  .rolePortalGrid,
+  .noticeGrid,
+  .guideGrid,
+  .timeline {
+    gap: 12px;
+  }
+
+  .rolePortalCard,
+  .noticeCard,
+  .guideCard {
+    min-height: 0;
+    padding: 18px;
+  }
+
+  .rolePortalCard h2 {
+    margin: 18px 0 8px;
+    font-size: 1.42rem;
+  }
+
+  .heroActions,
+  .linkRow,
+  .jumpNav {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .primaryAction,
+  .secondaryAction,
+  .quickLink,
+  .jumpNav a {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .timelineItem {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .roleDocShell {
+    padding: 14px 10px 36px;
+  }
+
+  .roleDocHeader h1 {
+    margin-top: 12px;
+    font-size: clamp(1.9rem, 10vw, 2.35rem);
+    line-height: 1.08;
+  }
+
+  .backLink {
+    margin-bottom: 14px;
+  }
+
+  .sectionHeading {
+    margin-bottom: 14px;
+  }
+
+  .sectionHeading h2 {
+    font-size: clamp(1.55rem, 8vw, 2.1rem);
+  }
+
+  .guideCard h3,
+  .roleDocStepText h2 {
+    font-size: 1.12rem;
+  }
+
+  .guideCard ol {
+    gap: 8px;
+    padding-left: 18px;
+  }
+
+  .roleDocStepText {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .roleDocStepText > span,
+  .timelineItem span {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .roleDocImageFrame {
+    overflow: hidden;
+    border-radius: 14px;
+  }
+
+  .roleDocImageFrame img {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .pageShell,
+  .roleDocShell {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .heroContent,
+  .noticeCard,
+  .rolePortalCard,
+  .guideCard,
+  .flowSection,
+  .antiCheatSection,
+  .footerCta {
+    padding: 16px;
+  }
+
+  .heroActions {
+    margin-top: 20px;
+  }
+
+  .roleDocTimeline {
+    gap: 22px;
+  }
+
+  .roleDocStep {
+    gap: 10px;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .primaryAction:hover,
+  .secondaryAction:hover,
+  .quickLink:hover,
+  .rolePortalCard:hover {
+    transform: none;
+  }
+}

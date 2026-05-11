@@ -12,11 +12,19 @@ import * as jose from 'jose';
 async function getUserIdFromToken(request) {
   const cookieStore = await cookies();
   const token = cookieStore.get('auth-token')?.value;
-  if (!token) throw new Error('Unauthenticated');
+  if (!token) throw { status: 401, error: 'Tidak terautentikasi' };
 
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret_for_dev_only');
-  const { payload } = await jose.jwtVerify(token, secret);
-  return payload.userId;
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET belum dikonfigurasi');
+  }
+
+  try {
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const { payload } = await jose.jwtVerify(token, secret);
+    return payload.userId;
+  } catch {
+    throw { status: 401, error: 'Token tidak valid' };
+  }
 }
 
 /**

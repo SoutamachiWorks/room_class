@@ -10,10 +10,12 @@ import styles from './page.module.css';
 const PAGE_SIZE = 10;
 
 function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(`(max-width: ${breakpoint}px)`).matches;
+  });
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    setIsMobile(mq.matches);
     const handler = (e) => setIsMobile(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
@@ -25,12 +27,10 @@ function getQuestionTypeLabel(exam) {
   const questions = exam?.questions || [];
   const hasMc = questions.some((q) => !!q.multipleChoice);
   const hasEssay = questions.some((q) => !!q.essay);
-  const hasUpload = questions.some((q) => !!q.fileUpload);
 
-  const totalActive = [hasMc, hasEssay, hasUpload].filter(Boolean).length;
+  const totalActive = [hasMc, hasEssay].filter(Boolean).length;
   if (totalActive > 1) return 'Campuran';
   if (hasEssay) return 'Esai';
-  if (hasUpload) return 'File Upload';
   return 'Pilihan Ganda';
 }
 
@@ -81,7 +81,10 @@ export default function ExamsPage() {
   }, []);
 
   useEffect(() => {
-    fetchExams();
+    const timer = setTimeout(() => {
+      void fetchExams();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchExams]);
 
   const normalizedRows = useMemo(
@@ -92,8 +95,6 @@ export default function ExamsPage() {
         classCode: exam.subjectDetails?.classCode || '-',
         typeLabel: getQuestionTypeLabel(exam),
         examCategory: exam.examCategory === 'semester' ? 'semester' : 'ulangan',
-        requiresCurriculumApproval: exam.requiresCurriculumApproval === true,
-        validationStatus: exam.validationStatus || (exam.requiresCurriculumApproval ? 'Pending' : 'NotRequired'),
       })),
     [exams]
   );
@@ -131,12 +132,9 @@ export default function ExamsPage() {
     });
   }, [normalizedRows, searchTerm, subjectFilter, classFilter, typeFilter, statusFilter]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, subjectFilter, classFilter, typeFilter, statusFilter]);
-
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
   const currentRows = filteredRows.slice(startIndex, startIndex + PAGE_SIZE);
 
   const resetFilters = () => {
@@ -145,6 +143,7 @@ export default function ExamsPage() {
     setClassFilter('');
     setTypeFilter('');
     setStatusFilter('');
+    setCurrentPage(1);
   };
 
   const handleTogglePublish = async (exam) => {
@@ -233,7 +232,10 @@ export default function ExamsPage() {
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Cari judul soal, topik, atau kata kunci..."
             />
           </div>
@@ -244,7 +246,7 @@ export default function ExamsPage() {
 
         {isFilterOpen && (
           <div className={styles.filterRow}>
-            <select value={subjectFilter} onChange={(e) => setSubjectFilter(e.target.value)}>
+            <select value={subjectFilter} onChange={(e) => { setSubjectFilter(e.target.value); setCurrentPage(1); }}>
               <option value="">Semua Mapel</option>
               {subjectOptions.map((subject) => (
                 <option key={subject} value={subject}>
@@ -252,7 +254,7 @@ export default function ExamsPage() {
                 </option>
               ))}
             </select>
-            <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
+            <select value={classFilter} onChange={(e) => { setClassFilter(e.target.value); setCurrentPage(1); }}>
               <option value="">Semua Kelas</option>
               {classOptions.map((item) => (
                 <option key={item} value={item}>
@@ -260,14 +262,13 @@ export default function ExamsPage() {
                 </option>
               ))}
             </select>
-            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+            <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}>
               <option value="">Semua Jenis</option>
               <option value="Pilihan Ganda">Pilihan Ganda</option>
               <option value="Esai">Esai</option>
-              <option value="File Upload">File Upload</option>
               <option value="Campuran">Campuran</option>
             </select>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}>
               <option value="">Semua Status</option>
               <option value="published">Publikasi</option>
               <option value="draft">Draft</option>
@@ -296,7 +297,6 @@ export default function ExamsPage() {
                   <th>Kelas</th>
                   <th>Kategori</th>
                   <th>Jenis Soal</th>
-                  <th>Approval</th>
                   <th>Status</th>
                   <th>Dibuat</th>
                   <th>Aksi</th>
@@ -319,9 +319,6 @@ export default function ExamsPage() {
                     <td data-label="Kategori">{row.examCategory === 'semester' ? 'Ujian Semester' : 'Ulangan'}</td>
                     <td data-label="Jenis Soal">
                       <span className={styles.typeBadge}>{row.typeLabel}</span>
-                    </td>
-                    <td data-label="Approval">
-                      {row.requiresCurriculumApproval ? row.validationStatus : 'Tidak Perlu'}
                     </td>
                     <td data-label="Status">
                       <span className={`${styles.statusBadge} ${row.status === 'published' ? styles.statusPublished : styles.statusDraft}`}>
@@ -438,8 +435,8 @@ export default function ExamsPage() {
             <button disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
               {'<'}
             </button>
-            <button className={styles.activePage}>{currentPage}</button>
-            <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
+            <button className={styles.activePage}>{safeCurrentPage}</button>
+            <button disabled={safeCurrentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
               {'>'}
             </button>
           </div>

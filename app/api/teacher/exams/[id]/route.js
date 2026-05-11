@@ -74,10 +74,13 @@ export async function PUT(request, { params }) {
     }
 
     const body = await request.json();
-    const { title, questions, typeSettings, isRandomized, isOptionRandomized, duration, deadline, examCategory, showExplanation } = body;
+    const { title, subjectId, questions, typeSettings, isRandomized, isOptionRandomized, duration, deadline, examCategory, showExplanation } = body;
 
     if (!title) {
       return NextResponse.json({ error: 'Judul ujian wajib diisi.' }, { status: 400 });
+    }
+    if (!subjectId) {
+      return NextResponse.json({ error: 'Mata pelajaran wajib dipilih.' }, { status: 400 });
     }
 
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
@@ -87,7 +90,10 @@ export async function PUT(request, { params }) {
     // Validate each question block
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      const hasType = q.multipleChoice || q.essay || q.fileUpload;
+      if (q.fileUpload) {
+        return NextResponse.json({ error: `Soal #${i + 1}: Upload file dinonaktifkan untuk ujian anti-cheat. Gunakan pilihan ganda atau esai.` }, { status: 400 });
+      }
+      const hasType = q.multipleChoice || q.essay;
       if (!hasType) {
         return NextResponse.json({ error: `Soal #${i + 1} harus memiliki minimal 1 tipe soal aktif.` }, { status: 400 });
       }
@@ -105,18 +111,20 @@ export async function PUT(request, { params }) {
       if (q.essay && !q.essay.questionText) {
         return NextResponse.json({ error: `Soal #${i + 1}: Teks soal esai wajib diisi.` }, { status: 400 });
       }
-      if (q.fileUpload && !q.fileUpload.questionText) {
-        return NextResponse.json({ error: `Soal #${i + 1}: Teks soal file upload wajib diisi.` }, { status: 400 });
-      }
     }
 
     const normalizedTypeSettings = {
       multipleChoice: typeSettings?.multipleChoice !== false,
       essay: !!typeSettings?.essay,
-      fileUpload: !!typeSettings?.fileUpload,
+      fileUpload: false,
     };
-    if (!normalizedTypeSettings.multipleChoice && !normalizedTypeSettings.essay && !normalizedTypeSettings.fileUpload) {
+    if (!normalizedTypeSettings.multipleChoice && !normalizedTypeSettings.essay) {
       return NextResponse.json({ error: 'Minimal satu jenis soal harus aktif.' }, { status: 400 });
+    }
+
+    const verifySubject = await db.collection('subjects').findOne({ _id: new ObjectId(subjectId), teacherId });
+    if (!verifySubject) {
+      return NextResponse.json({ error: 'Mata pelajaran tidak valid untuk akun Anda.' }, { status: 403 });
     }
 
     const normalizedQuestions = questions.map((q, idx) => ({
@@ -125,11 +133,10 @@ export async function PUT(request, { params }) {
       imageSize: Number(q.imageSize || 0),
       multipleChoice: q.multipleChoice || null,
       essay: q.essay || null,
-      fileUpload: q.fileUpload || null,
+      fileUpload: null,
     }));
     const normalizedExamCategory = examCategory === 'semester' ? 'semester' : 'ulangan';
     const requiresCurriculumApproval = normalizedExamCategory === 'semester';
-    const subjectSnapshot = await db.collection('subjects').findOne({ _id: new ObjectId(existing.subjectId) });
     const activeAcademicYear = await db.collection('academicYears').findOne({ isActive: true });
 
     await db.collection('exams').updateOne(
@@ -137,9 +144,10 @@ export async function PUT(request, { params }) {
       {
         $set: {
           title,
+          subjectId,
           academicYearId: activeAcademicYear?.label || existing.academicYearId || null,
-          classCodeSnapshot: subjectSnapshot?.classCode || existing.classCodeSnapshot || null,
-          subjectNameSnapshot: subjectSnapshot?.subjectName || existing.subjectNameSnapshot || null,
+          classCodeSnapshot: verifySubject.classCode || existing.classCodeSnapshot || null,
+          subjectNameSnapshot: verifySubject.subjectName || existing.subjectNameSnapshot || null,
           examCategory: normalizedExamCategory,
           requiresCurriculumApproval,
           validationStatus: requiresCurriculumApproval ? 'Pending' : 'NotRequired',

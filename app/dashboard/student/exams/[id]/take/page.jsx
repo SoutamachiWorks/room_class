@@ -7,8 +7,85 @@ import { ACCEPT_STR, validateFiles } from '@/lib/fileValidation';
 import styles from '../../../../admin/admin.module.css';
 import ex from './exam-take.module.css';
 
+const EXAM_DRAFT_DB = 'roomclass-exam-drafts';
+const EXAM_DRAFT_STORE = 'drafts';
+
+function openExamDraftDb() {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('IndexedDB tidak tersedia.'));
+      return;
+    }
+
+    const request = indexedDB.open(EXAM_DRAFT_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(EXAM_DRAFT_STORE)) {
+        db.createObjectStore(EXAM_DRAFT_STORE, { keyPath: 'examId' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function readExamDraft(examId) {
+  try {
+    const db = await openExamDraftDb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(EXAM_DRAFT_STORE, 'readonly');
+      const request = tx.objectStore(EXAM_DRAFT_STORE).get(examId);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+      tx.oncomplete = () => db.close();
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function writeExamDraft(draft) {
+  try {
+    const db = await openExamDraftDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(EXAM_DRAFT_STORE, 'readwrite');
+      tx.objectStore(EXAM_DRAFT_STORE).put(draft);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.warn('Gagal menyimpan draft lokal ujian:', err);
+  }
+}
+
+async function deleteExamDraft(examId) {
+  try {
+    const db = await openExamDraftDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(EXAM_DRAFT_STORE, 'readwrite');
+      tx.objectStore(EXAM_DRAFT_STORE).delete(examId);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.warn('Gagal menghapus draft lokal ujian:', err);
+  }
+}
+
 export default function TakeExamPage() {
   const MAX_VIOLATIONS = 3;
+  const FILE_UPLOAD_EXAMS_ENABLED = false;
+  const LEAVE_VIOLATION_DELAY_MS = 5000;
+  const FOCUS_LOSS_VIOLATION_DELAY_MS = 1200;
+  const IMMEDIATE_VIOLATION_COOLDOWN_MS = 2500;
+  const FILE_PICKER_SUSPICIOUS_AWAY_MS = 45_000;
+  const FILE_PICKER_RETURN_WATCH_MS = 1500;
   const { id: examId } = useParams();
   const router = useRouter();
 
@@ -26,14 +103,18 @@ export default function TakeExamPage() {
   const [timeLeft, setTimeLeft] = useState(null); // in seconds
   const [locked, setLocked] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [isChoosingFile, setIsChoosingFile] = useState(false);
+  const [, setIsChoosingFile] = useState(false);
 
   // New states for Consent Gate and Violation Rules
   const [fullscreenGranted, setFullscreenGranted] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(true);
   const [consentChecked, setConsentChecked] = useState(false);
   const [dndChecked, setDndChecked] = useState(false);
-  const [isMobileClient, setIsMobileClient] = useState(false);
+  const [isMobileClient] = useState(() => {
+    if (typeof navigator === 'undefined' || typeof window === 'undefined') return false;
+    const ua = navigator.userAgent;
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || window.innerWidth < 768;
+  });
   
   const [toastMessage, setToastMessage] = useState('');
   const [showStrikeModal, setShowStrikeModal] = useState(false);
@@ -43,18 +124,29 @@ export default function TakeExamPage() {
 
   const violationTimerRef = useRef(null);
   const leftTabAtRef = useRef(null);
+  const violationInFlightRef = useRef(false);
+  const lastViolationAtRef = useRef(0);
+  const isChoosingFileRef = useRef(false);
+  const filePickerOpenedAtRef = useRef(null);
+  const filePickerReturnTimerRef = useRef(null);
+  const wakeLockRef = useRef(null);
+  const mobileHiddenAtRef = useRef(null);
+  const mobileSleepWarningRef = useRef(false);
 
   const [showFullscreenOverlay, setShowFullscreenOverlay] = useState(false);
-  const isDirty = useRef(false);
+  const [isDirty, setIsDirty] = useState(false);
   const syncInFlightRef = useRef(false);
+  const syncTerminatedRef = useRef(false);
   const [syncState, setSyncState] = useState('idle'); // idle | syncing | synced | error
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
-
-  useEffect(() => {
-    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-    const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (typeof window !== 'undefined' && window.innerWidth < 768);
-    setIsMobileClient(mobile);
-  }, []);
+  const [isOnline, setIsOnline] = useState(() => {
+    if (typeof navigator === 'undefined') return true;
+    return navigator.onLine;
+  });
+  const [localDraftStatus, setLocalDraftStatus] = useState('idle'); // idle | saved | restored | error
+  const [needsManualSync, setNeedsManualSync] = useState(false);
+  const offlineEventsRef = useRef([]);
+  const offlineStartedAtRef = useRef(null);
 
   useEffect(() => {
     const checkFullscreen = () => {
@@ -73,6 +165,41 @@ export default function TakeExamPage() {
     };
   }, [fullscreenGranted, showConsentModal, locked]);
 
+  const requestWakeLock = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !('wakeLock' in navigator)) return;
+    if (wakeLockRef.current || locked || showConsentModal) return;
+
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request('screen');
+      wakeLockRef.current.addEventListener('release', () => {
+        wakeLockRef.current = null;
+      });
+    } catch (err) {
+      console.warn('Screen Wake Lock unavailable:', err);
+    }
+  }, [locked, showConsentModal]);
+
+  useEffect(() => {
+    if (!fullscreenGranted || showConsentModal || locked) return;
+
+    void requestWakeLock();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    };
+  }, [fullscreenGranted, locked, requestWakeLock, showConsentModal]);
+
   // Auto-submit ref to avoid closure issues
   const submittingRef = useRef(false);
   useEffect(() => {
@@ -83,6 +210,13 @@ export default function TakeExamPage() {
     setError('');
 
     try {
+      if (!isOnline) {
+        await saveLocalDraft({ pendingSync: true });
+        setError('Tidak bisa mengumpulkan jawaban saat offline. Sambungkan internet terlebih dahulu, lalu coba kumpulkan lagi.');
+        setSubmitting(false);
+        return;
+      }
+
       const MAX_SIZE = 10 * 1024 * 1024;
       let totalSize = 0;
       for (const q of questions) {
@@ -127,7 +261,9 @@ export default function TakeExamPage() {
       if (isLockout) formData.append('isLockout', 'true');
       await uploadWithProgress(url, formData, 'POST', (val) => setUploadProgress(val));
 
+      syncTerminatedRef.current = true;
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      await deleteExamDraft(examId);
 
       if (isLockout) {
         router.replace('/dashboard/student/exams/lockout');
@@ -159,14 +295,35 @@ export default function TakeExamPage() {
     return { multipleChoice, essay };
   }, [questions, answers]);
 
+  const saveLocalDraft = useCallback(async (extra = {}) => {
+    if (!examId || !sessionId || questions.length === 0) return;
+
+    await writeExamDraft({
+      examId,
+      sessionId,
+      answers,
+      redisAnswers: buildRedisAnswers(),
+      questionCount: questions.length,
+      offlineEvents: offlineEventsRef.current.slice(-20),
+      updatedAt: new Date().toISOString(),
+      ...extra,
+    });
+  }, [answers, buildRedisAnswers, examId, questions.length, sessionId]);
+
   const syncExamCache = useCallback(async (force = false, violationOverride = null) => {
     if (!sessionId || !examId) return;
-    if (!force && !isDirty.current) return;
+    if (syncTerminatedRef.current || locked) return;
+    if (!force && !isDirty) return;
+    if (!isOnline) {
+      await saveLocalDraft({ pendingSync: true });
+      setSyncState('offline');
+      return;
+    }
     if (syncInFlightRef.current) return;
     syncInFlightRef.current = true;
     setSyncState('syncing');
     try {
-      await fetch('/api/exam/sync', {
+      const res = await fetch('/api/exam/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -174,33 +331,100 @@ export default function TakeExamPage() {
           sessionId,
           answers: buildRedisAnswers(),
           violationCount: violationOverride ?? exitCount,
+          offlineEvents: offlineEventsRef.current.slice(-20),
         }),
       });
-      isDirty.current = false;
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const message = data.error || 'Sinkronisasi ditolak server.';
+        const isTerminalSessionError =
+          res.status === 400 &&
+          (message.includes('Sesi ujian tidak valid') || message.includes('sudah berakhir'));
+
+        if (isTerminalSessionError || res.status === 403) {
+          syncTerminatedRef.current = true;
+          setSyncState('idle');
+          await saveLocalDraft({ pendingSync: false, lastSyncError: message });
+          return;
+        }
+
+        throw new Error(data.error || 'Sinkronisasi ditolak server.');
+      }
+      const data = await res.json().catch(() => ({}));
+      if (data.autoSubmitted) {
+        syncTerminatedRef.current = true;
+        setIsDirty(false);
+        setSyncState('synced');
+        await deleteExamDraft(examId);
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        router.replace('/dashboard/student/exams?submitted=1');
+        return;
+      }
+      setIsDirty(false);
       setSyncState('synced');
       setLastSyncedAt(new Date());
+      setNeedsManualSync(false);
+      offlineEventsRef.current = [];
+      await saveLocalDraft({ pendingSync: false });
     } catch (err) {
       console.error('Redis sync failed:', err);
       setSyncState('error');
+      await saveLocalDraft({ pendingSync: true, lastSyncError: err.message || 'sync-error' });
     } finally {
       syncInFlightRef.current = false;
     }
-  }, [sessionId, examId, buildRedisAnswers, exitCount]);
+  }, [sessionId, examId, locked, isOnline, isDirty, saveLocalDraft, buildRedisAnswers, exitCount, router]);
 
-  async function handleSubmitAuto() {
-    if (submittingRef.current) return;
-    setSubmitting(true);
-    await processSubmit();
-  }
+  const startFilePickerMode = useCallback(() => {
+    if (violationTimerRef.current) {
+      clearTimeout(violationTimerRef.current);
+      violationTimerRef.current = null;
+    }
+    if (filePickerReturnTimerRef.current) {
+      clearTimeout(filePickerReturnTimerRef.current);
+      filePickerReturnTimerRef.current = null;
+    }
+    filePickerOpenedAtRef.current = Date.now();
+    isChoosingFileRef.current = true;
+    setIsChoosingFile(true);
+  }, []);
 
-  const triggerStrike = useCallback(async () => {
-    if (!sessionId || isChoosingFile) return;
+  const finishFilePickerMode = useCallback(() => {
+    isChoosingFileRef.current = false;
+    filePickerOpenedAtRef.current = null;
+    setIsChoosingFile(false);
+  }, []);
+
+  const ensureFullscreenBeforeFilePicker = useCallback(async () => {
+    if (document.fullscreenElement) return true;
+
+    try {
+      await document.documentElement.requestFullscreen();
+      setFullscreenGranted(true);
+      setShowFullscreenOverlay(false);
+      return true;
+    } catch {
+      setShowFullscreenOverlay(true);
+      return false;
+    }
+  }, []);
+
+  const triggerStrike = useCallback(async (reason = 'focus-loss') => {
+    if (!sessionId || isChoosingFileRef.current || locked || showConsentModal) return;
+
+    const now = Date.now();
+    if (violationInFlightRef.current || now - lastViolationAtRef.current < IMMEDIATE_VIOLATION_COOLDOWN_MS) {
+      return;
+    }
+
+    violationInFlightRef.current = true;
+    lastViolationAtRef.current = now;
 
     try {
       const res = await fetch(`/api/student/exams/${examId}/violation`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
+        body: JSON.stringify({ sessionId, reason }),
       });
       const data = await res.json();
 
@@ -218,20 +442,61 @@ export default function TakeExamPage() {
       
     } catch (err) {
       console.error('Failed to record violation:', err);
+    } finally {
+      violationInFlightRef.current = false;
     }
-  }, [sessionId, examId, router, isChoosingFile, syncExamCache]);
+  }, [sessionId, examId, router, locked, showConsentModal, syncExamCache]);
 
-  const handleLeaveTab = useCallback(() => {
-    if (locked || !fullscreenGranted || isChoosingFile || showConsentModal) return;
+  const verifyFilePickerReturn = useCallback(async (selectedFileCount = 0) => {
+    const openedAt = filePickerOpenedAtRef.current;
+    const timeAway = openedAt ? Date.now() - openedAt : 0;
+
+    if (filePickerReturnTimerRef.current) {
+      clearTimeout(filePickerReturnTimerRef.current);
+      filePickerReturnTimerRef.current = null;
+    }
+
+    finishFilePickerMode();
+
+    if (!document.fullscreenElement) {
+      try {
+        await document.documentElement.requestFullscreen();
+        setFullscreenGranted(true);
+        setShowFullscreenOverlay(false);
+      } catch {
+        setShowFullscreenOverlay(true);
+      }
+    }
+
+    if (timeAway > FILE_PICKER_SUSPICIOUS_AWAY_MS) {
+      void triggerStrike(selectedFileCount > 0 ? 'file-picker-open-too-long' : 'file-picker-open-too-long-without-file');
+      return;
+    }
+
+    filePickerReturnTimerRef.current = setTimeout(() => {
+      if (document.hidden || !document.hasFocus()) {
+        void triggerStrike('file-picker-return-lost-focus');
+      }
+      filePickerReturnTimerRef.current = null;
+    }, FILE_PICKER_RETURN_WATCH_MS);
+  }, [finishFilePickerMode, triggerStrike]);
+
+  const handleLeaveTab = useCallback((reason = 'focus-loss', delayMs = LEAVE_VIOLATION_DELAY_MS) => {
+    if (locked || !fullscreenGranted || isChoosingFileRef.current || showConsentModal) return;
+    if (isMobileClient && (reason === 'visibility-hidden' || reason === 'window-blur')) {
+      mobileHiddenAtRef.current = Date.now();
+      mobileSleepWarningRef.current = true;
+      return;
+    }
     
     if (!violationTimerRef.current) {
       leftTabAtRef.current = Date.now();
       violationTimerRef.current = setTimeout(() => {
-        triggerStrike();
+        triggerStrike(reason);
         violationTimerRef.current = null;
-      }, 5000);
+      }, delayMs);
     }
-  }, [locked, fullscreenGranted, isChoosingFile, showConsentModal, triggerStrike]);
+  }, [isMobileClient, locked, fullscreenGranted, showConsentModal, triggerStrike]);
 
   const handleReturnTab = useCallback(async () => {
     if (locked || !fullscreenGranted || showConsentModal) return;
@@ -241,56 +506,172 @@ export default function TakeExamPage() {
       violationTimerRef.current = null;
       
       const timeAway = Date.now() - leftTabAtRef.current;
-      if (timeAway < 5000 && !isChoosingFile) {
-        setToastMessage("⚠️ Peringatan: Jangan keluar dari layar ujian!");
+      if (timeAway < LEAVE_VIOLATION_DELAY_MS && !isChoosingFileRef.current) {
+        setToastMessage('Peringatan: Jangan keluar dari layar ujian!');
         setTimeout(() => setToastMessage(''), 4000);
       }
     }
-    
-    // File choosing fallback focus recovery
-    setTimeout(async () => {
-       if (isChoosingFile && !document.fullscreenElement) {
-          try {
-             await document.documentElement.requestFullscreen();
-             setFullscreenGranted(true);
-          } catch(e) {}
-       }
-       setIsChoosingFile(false);
-    }, 500);
 
-  }, [locked, fullscreenGranted, isChoosingFile, showConsentModal]);
+    if (isMobileClient && mobileSleepWarningRef.current) {
+      mobileSleepWarningRef.current = false;
+      const sleepDuration = mobileHiddenAtRef.current ? Math.round((Date.now() - mobileHiddenAtRef.current) / 1000) : null;
+      mobileHiddenAtRef.current = null;
+      setToastMessage(
+        sleepDuration && sleepDuration > 3
+          ? `Layar Anda sempat mati/terkunci sekitar ${sleepDuration} detik. Pastikan layar tetap aktif selama ujian!`
+          : 'Layar Anda sempat mati/terkunci. Pastikan layar tetap aktif selama ujian!'
+      );
+      setTimeout(() => setToastMessage(''), 6000);
+      void requestWakeLock();
+      if (!document.fullscreenElement) {
+        setShowFullscreenOverlay(true);
+      }
+    }
+
+  }, [isMobileClient, locked, fullscreenGranted, requestWakeLock, showConsentModal]);
+
+  const handleUnsafeShortcut = useCallback((event) => {
+    if (locked || !fullscreenGranted || isChoosingFileRef.current || showConsentModal) return;
+
+    const key = event.key || '';
+    const code = event.code || '';
+    const isAltTab = event.altKey && (key === 'Tab' || code === 'Tab');
+    const isWindowsKey = key === 'Meta' || code === 'MetaLeft' || code === 'MetaRight' || event.metaKey;
+    const isSystemMenuShortcut = event.ctrlKey && (key === 'Escape' || code === 'Escape');
+    const lowerKey = key.toLowerCase();
+    const isDevToolsShortcut =
+      key === 'F12' ||
+      (event.ctrlKey && event.shiftKey && ['i', 'j', 'c'].includes(lowerKey)) ||
+      (event.ctrlKey && ['u', 's', 'p'].includes(lowerKey));
+
+    if (!isAltTab && !isWindowsKey && !isSystemMenuShortcut && !isDevToolsShortcut) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (violationTimerRef.current) {
+      clearTimeout(violationTimerRef.current);
+      violationTimerRef.current = null;
+    }
+    leftTabAtRef.current = Date.now();
+    setToastMessage(isDevToolsShortcut
+      ? 'Pelanggaran terdeteksi: shortcut browser/inspect tidak diperbolehkan.'
+      : 'Pelanggaran terdeteksi: shortcut keluar dari ujian digunakan.');
+    setTimeout(() => setToastMessage(''), 4000);
+    void triggerStrike(isDevToolsShortcut ? 'blocked-browser-shortcut' : isAltTab ? 'alt-tab' : isWindowsKey ? 'windows-key' : 'system-menu-shortcut');
+    void syncExamCache(true);
+  }, [locked, fullscreenGranted, showConsentModal, triggerStrike, syncExamCache]);
+
+  const handleFileInputClick = useCallback(async (event) => {
+    if (locked || showConsentModal) {
+      event.preventDefault();
+      return;
+    }
+
+    if (!document.fullscreenElement) {
+      event.preventDefault();
+      const fullscreenReady = await ensureFullscreenBeforeFilePicker();
+      if (fullscreenReady) {
+        setToastMessage('Mode fullscreen aktif. Klik upload file sekali lagi untuk memilih file.');
+        setTimeout(() => setToastMessage(''), 4000);
+      } else {
+        setToastMessage('Masuk fullscreen terlebih dahulu sebelum memilih file.');
+        setTimeout(() => setToastMessage(''), 4000);
+      }
+      return;
+    }
+
+    startFilePickerMode();
+  }, [ensureFullscreenBeforeFilePicker, locked, showConsentModal, startFilePickerMode]);
 
   useEffect(() => {
     const onVisibilityChange = () => {
       if (document.hidden) {
-        handleLeaveTab();
+        handleLeaveTab('visibility-hidden');
         void syncExamCache(true);
       } else handleReturnTab();
     };
 
     const onFullscreenChange = () => {
-      if (!document.fullscreenElement) handleLeaveTab();
+      if (!document.fullscreenElement) {
+        if (isMobileClient && mobileSleepWarningRef.current) {
+          setShowFullscreenOverlay(true);
+          return;
+        }
+        handleLeaveTab('fullscreen-exit');
+      }
       else handleReturnTab();
     };
 
+    const onBlur = () => {
+      if (isChoosingFileRef.current) return;
+      handleLeaveTab('window-blur', FOCUS_LOSS_VIOLATION_DELAY_MS);
+      void syncExamCache(true);
+    };
+
     const onFocus = () => {
-      // If we're supposed to be in fullscreen but aren't, handleReturnTab will show the overlay/logic
-      if (isChoosingFile) {
-        // Small delay to ensure browser focus state is updated
-        setTimeout(handleReturnTab, 100);
+      if (isChoosingFileRef.current) {
+        if (filePickerReturnTimerRef.current) {
+          clearTimeout(filePickerReturnTimerRef.current);
+        }
+        filePickerReturnTimerRef.current = setTimeout(() => {
+          if (isChoosingFileRef.current) {
+            void verifyFilePickerReturn(0);
+          }
+        }, 500);
+        return;
       }
+
+      handleReturnTab();
+    };
+
+    const onContextMenu = (event) => {
+      if (locked || !fullscreenGranted || isChoosingFileRef.current || showConsentModal) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setToastMessage('Klik kanan dinonaktifkan selama ujian.');
+      setTimeout(() => setToastMessage(''), 4000);
+    };
+
+    const onBlockedMobileInteraction = (event) => {
+      if (locked || !fullscreenGranted || isChoosingFileRef.current || showConsentModal) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setToastMessage('Aksi salin/tempel/seleksi dinonaktifkan selama ujian.');
+      setTimeout(() => setToastMessage(''), 4000);
+      void triggerStrike(`blocked-${event.type}`);
+      void syncExamCache(true);
     };
 
     document.addEventListener('visibilitychange', onVisibilityChange);
     document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('keydown', handleUnsafeShortcut, true);
+    document.addEventListener('contextmenu', onContextMenu, true);
+    document.addEventListener('selectstart', onBlockedMobileInteraction, true);
+    document.addEventListener('dragstart', onBlockedMobileInteraction, true);
+    document.addEventListener('copy', onBlockedMobileInteraction, true);
+    document.addEventListener('cut', onBlockedMobileInteraction, true);
+    document.addEventListener('paste', onBlockedMobileInteraction, true);
+    window.addEventListener('blur', onBlur);
     window.addEventListener('focus', onFocus);
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       document.removeEventListener('fullscreenchange', onFullscreenChange);
+      document.removeEventListener('keydown', handleUnsafeShortcut, true);
+      document.removeEventListener('contextmenu', onContextMenu, true);
+      document.removeEventListener('selectstart', onBlockedMobileInteraction, true);
+      document.removeEventListener('dragstart', onBlockedMobileInteraction, true);
+      document.removeEventListener('copy', onBlockedMobileInteraction, true);
+      document.removeEventListener('cut', onBlockedMobileInteraction, true);
+      document.removeEventListener('paste', onBlockedMobileInteraction, true);
+      window.removeEventListener('blur', onBlur);
       window.removeEventListener('focus', onFocus);
+      if (filePickerReturnTimerRef.current) {
+        clearTimeout(filePickerReturnTimerRef.current);
+        filePickerReturnTimerRef.current = null;
+      }
     };
-  }, [handleLeaveTab, handleReturnTab, isChoosingFile, syncExamCache]);
+  }, [handleLeaveTab, handleReturnTab, handleUnsafeShortcut, isMobileClient, locked, fullscreenGranted, showConsentModal, syncExamCache, triggerStrike, verifyFilePickerReturn]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -298,6 +679,57 @@ export default function TakeExamPage() {
     }, 90_000);
     return () => clearInterval(interval);
   }, [syncExamCache]);
+
+  useEffect(() => {
+    if (!sessionId || questions.length === 0) return;
+    void saveLocalDraft({ pendingSync: isDirty });
+  }, [answers, isDirty, questions.length, saveLocalDraft, sessionId]);
+
+  useEffect(() => {
+    if (localDraftStatus === 'restored' && isOnline && sessionId) {
+      const timer = setTimeout(() => {
+        void syncExamCache(true).finally(() => setLocalDraftStatus('saved'));
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [isOnline, localDraftStatus, sessionId, syncExamCache]);
+
+  useEffect(() => {
+    const markOffline = () => {
+      setIsOnline(false);
+      setNeedsManualSync(true);
+      setSyncState('offline');
+      offlineStartedAtRef.current = Date.now();
+      setToastMessage('Koneksi terputus. Jawaban sementara disimpan lokal dan belum tersimpan ke server.');
+      setTimeout(() => setToastMessage(''), 6000);
+      void saveLocalDraft({ pendingSync: true });
+    };
+
+    const markOnline = () => {
+      setIsOnline(true);
+      const startedAt = offlineStartedAtRef.current;
+      if (startedAt) {
+        offlineEventsRef.current.push({
+          type: 'offline-period',
+          at: new Date(startedAt).toISOString(),
+          durationMs: Date.now() - startedAt,
+          answerChanges: null,
+        });
+      }
+      offlineStartedAtRef.current = null;
+      setNeedsManualSync(true);
+      setToastMessage('Koneksi kembali aktif. Menyinkronkan jawaban ke server...');
+      setTimeout(() => setToastMessage(''), 6000);
+      void syncExamCache(true);
+    };
+
+    window.addEventListener('offline', markOffline);
+    window.addEventListener('online', markOnline);
+    return () => {
+      window.removeEventListener('offline', markOffline);
+      window.removeEventListener('online', markOnline);
+    };
+  }, [saveLocalDraft, syncExamCache]);
 
   // Start exam session on mount (fetches questions)
   useEffect(() => {
@@ -317,11 +749,21 @@ export default function TakeExamPage() {
         }
 
         setSessionId(data.sessionId);
+        syncTerminatedRef.current = false;
         setQuestions(data.questions || []);
         setExitCount(data.exitCount || 0);
         setExamTitle(data.examTitle || 'Ujian');
         setExamDuration(data.examDuration || null);
         setStartedAt(data.startedAt || null);
+
+        const localDraft = await readExamDraft(examId);
+        if (localDraft?.sessionId === data.sessionId && localDraft.answers && typeof localDraft.answers === 'object') {
+          setAnswers(localDraft.answers);
+          setIsDirty(!!localDraft.pendingSync);
+          setNeedsManualSync(!!localDraft.pendingSync);
+          offlineEventsRef.current = Array.isArray(localDraft.offlineEvents) ? localDraft.offlineEvents : [];
+          setLocalDraftStatus('restored');
+        }
 
         if (data.examDuration && data.startedAt) {
           const start = new Date(data.startedAt).getTime();
@@ -354,7 +796,8 @@ export default function TakeExamPage() {
       // Time is up, auto submit
       if (!submittingRef.current) {
         alert('Waktu ujian telah habis! Jawaban Anda akan otomatis dikumpulkan.');
-        handleSubmitAuto();
+        setSubmitting(true);
+        void processSubmit();
       }
       return;
     }
@@ -370,7 +813,7 @@ export default function TakeExamPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft, locked, fullscreenGranted]);
+  }, [timeLeft, locked, fullscreenGranted, processSubmit]);
 
   const requestFullscreenAndContinue = async () => {
     try {
@@ -388,16 +831,41 @@ export default function TakeExamPage() {
       ...prev,
       [questionOrder]: { ...prev[questionOrder], questionOrder, [field]: value },
     }));
-    isDirty.current = true;
+    setIsDirty(true);
   };
 
-  const updateFileAnswer = (questionOrder, files) => {
+  const updateFileAnswer = useCallback((questionOrder, files) => {
     setFileAnswers(prev => ({ ...prev, [questionOrder]: files }));
-    isDirty.current = true;
-  };
+    setIsDirty(true);
+  }, []);
+
+  const handleFileInputChange = useCallback(async (event, questionOrder) => {
+    const files = Array.from(event.target.files);
+    if (files.length === 0) {
+      await verifyFilePickerReturn(0);
+      return;
+    }
+
+    const validation = validateFiles(files);
+    
+    if (!validation.valid) {
+      alert(`Kesalahan Upload:\n${validation.errors.join('\n')}\n\nPastikan format file sesuai dan ukuran maksimal 50MB per file.`);
+      event.target.value = '';
+      await verifyFilePickerReturn(files.length);
+      return;
+    }
+
+    updateFileAnswer(questionOrder, files);
+    await verifyFilePickerReturn(files.length);
+  }, [updateFileAnswer, verifyFilePickerReturn]);
 
   const handleSubmit = async () => {
     if (submitting) return;
+    if (!isOnline) {
+      await saveLocalDraft({ pendingSync: true });
+      setError('Tidak bisa mengumpulkan jawaban saat offline. Sambungkan internet terlebih dahulu, lalu coba kumpulkan lagi.');
+      return;
+    }
 
     const confirmed = window.confirm('Anda yakin ingin mengumpulkan jawaban? Tindakan ini tidak dapat dibatalkan.');
     if (!confirmed) return;
@@ -406,6 +874,9 @@ export default function TakeExamPage() {
     await syncExamCache(true);
     await processSubmit();
   };
+
+  const hasPendingLocalDraft = needsManualSync || syncState === 'offline' || localDraftStatus === 'restored';
+  const canManualSync = isOnline && hasPendingLocalDraft && syncState !== 'syncing';
 
   // ── Loading state ──────────────────────────────────────────────────────
   if (loading) {
@@ -445,7 +916,8 @@ export default function TakeExamPage() {
           </div>
           <p className={ex.examConsentWarning}>
             <strong>PERHATIAN:</strong><br />
-            Untuk menjaga integritas, ujian ini diwajibkan dalam mode <strong>Layar Penuh (Fullscreen)</strong>. Jika Anda terdeteksi pindah tab, membuka aplikasi lain, atau keluar dari layar penuh lebih dari 5 detik, sistem akan mencatat pelanggaran.<br /><br />
+            Untuk menjaga integritas, ujian ini diwajibkan dalam mode <strong>Layar Penuh (Fullscreen)</strong>. Jika Anda terdeteksi pindah tab, membuka aplikasi lain, menekan shortcut sistem seperti Alt+Tab atau tombol Windows, atau keluar dari layar penuh, sistem akan mencatat pelanggaran.<br /><br />
+            Pada perangkat mobile, sistem akan mencoba menjaga layar tetap menyala. Jika layar sempat mati/terkunci, Anda akan diminta kembali ke fullscreen dan pastikan layar tetap aktif selama ujian.<br /><br />
             Anda akan mendapat <strong>2 kali peringatan</strong>. Pada pelanggaran ke-<strong>{MAX_VIOLATIONS}</strong>, ujian akan otomatis <strong>terkunci</strong> dan disubmit secara paksa.
           </p>
           <label className={ex.examConsentLabel}>
@@ -489,6 +961,7 @@ export default function TakeExamPage() {
                   }
                   setFullscreenGranted(true);
                   setShowConsentModal(false);
+                  void requestWakeLock();
                 } catch (e) {
                   alert('Browser menolak akses Layar Penuh. Pastikan Anda memberikan izin.');
                 }
@@ -517,6 +990,7 @@ export default function TakeExamPage() {
                 await document.documentElement.requestFullscreen();
                 setShowFullscreenOverlay(false);
                 setIsChoosingFile(false);
+                void requestWakeLock();
               } catch (e) {
                 alert('Gagal masuk mode layar penuh. Pastikan Anda tidak sedang membuka tab lain.');
               }
@@ -546,7 +1020,11 @@ export default function TakeExamPage() {
             <button className={`${styles.btnPrimary} ${ex.examStrikeBtn}`} onClick={async () => {
               setShowStrikeModal(false);
               if (!document.fullscreenElement) {
-                try { await document.documentElement.requestFullscreen(); setFullscreenGranted(true); } catch(e){}
+                try {
+                  await document.documentElement.requestFullscreen();
+                  setFullscreenGranted(true);
+                  void requestWakeLock();
+                } catch(e){}
               }
             }}>
               Saya Mengerti, Kembali ke Ujian
@@ -566,10 +1044,22 @@ export default function TakeExamPage() {
             {syncState === 'syncing' && '⟳ Auto-save berjalan...'}
             {syncState === 'synced' && `✓ Auto-save tersimpan${lastSyncedAt ? ` (${lastSyncedAt.toLocaleTimeString('id-ID')})` : ''}`}
             {syncState === 'error' && '⚠ Auto-save gagal, akan dicoba lagi otomatis'}
+            {syncState === 'offline' && '⚠ Offline: jawaban tersimpan lokal, belum tersimpan ke server'}
             {syncState === 'idle' && '• Auto-save siap'}
+            {localDraftStatus === 'restored' && ' • Draft lokal dipulihkan'}
           </p>
         </div>
         <div className={ex.examHeaderActions}>
+          {hasPendingLocalDraft && (
+            <button
+              type="button"
+              className={ex.examSyncBtn}
+              disabled={!canManualSync}
+              onClick={() => { void syncExamCache(true); }}
+            >
+              {syncState === 'syncing' ? 'Menyinkronkan...' : isOnline ? 'Sinkronkan Jawaban' : 'Menunggu Internet'}
+            </button>
+          )}
           {timeLeft !== null && (
             <div className={`${ex.examTimerBadge} ${timeLeft < 60 ? ex.examTimerUrgent : ex.examTimerNormal}`}>
               ⏱️ {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
@@ -607,7 +1097,7 @@ export default function TakeExamPage() {
               )}
 
               {q.multipleChoice && (
-                <div className={q.essay || q.fileUpload ? ex.examSectionSpaced : undefined}>
+                <div className={q.essay ? ex.examSectionSpaced : undefined}>
                   <p className={ex.examQuestionText}>{q.multipleChoice.questionText}</p>
                   <div className={ex.examOptionsList}>
                     {q.multipleChoice.options.map((opt, idx) => {
@@ -624,13 +1114,13 @@ export default function TakeExamPage() {
               )}
 
               {q.essay && (
-                <div className={q.fileUpload ? ex.examSectionSpaced : undefined}>
+                <div>
                   <p className={`${ex.examQuestionText} ${ex.examQuestionTextSmall}`}>{q.essay.questionText}</p>
                   <textarea className={`${styles.input} ${ex.examEssayInput}`} placeholder="Tuliskan jawaban Anda di sini..." value={answers[q.displayOrder]?.essayAnswer || ''} onChange={(e) => updateAnswer(q.displayOrder, 'essayAnswer', e.target.value)} />
                 </div>
               )}
 
-              {q.fileUpload && (
+              {FILE_UPLOAD_EXAMS_ENABLED && q.fileUpload && (
                 <div>
                   <p className={`${ex.examQuestionText} ${ex.examQuestionTextSmall}`}>{q.fileUpload.questionText}</p>
                   <input
@@ -638,32 +1128,9 @@ export default function TakeExamPage() {
                     multiple
                     accept={ACCEPT_STR}
                     className={`${styles.input} ${ex.examFileInput}`}
-                    onClick={() => setIsChoosingFile(true)}
-                    onChange={async (e) => {
-                      const files = Array.from(e.target.files);
-                      const validation = validateFiles(files);
-                      
-                      if (!validation.valid) {
-                        alert(`Kesalahan Upload:\n${validation.errors.join('\n')}\n\nPastikan format file sesuai dan ukuran maksimal 50MB per file.`);
-                        e.target.value = ''; // Reset
-                        setIsChoosingFile(false);
-                        return;
-                      }
-
-                      updateFileAnswer(q.displayOrder, files);
-                      
-                      // Try to re-enter fullscreen immediately after selection (user gesture)
-                      try {
-                        if (!document.fullscreenElement) {
-                          await document.documentElement.requestFullscreen();
-                          setFullscreenGranted(true);
-                        }
-                      } catch (err) {
-                        console.log('Fullscreen re-entry failed, user must click manual button.');
-                      } finally {
-                        setIsChoosingFile(false);
-                      }
-                    }}
+                    onClick={handleFileInputClick}
+                    onCancel={() => { void verifyFilePickerReturn(0); }}
+                    onChange={(e) => handleFileInputChange(e, q.displayOrder)}
                   />
                   {fileAnswers[q.displayOrder] && fileAnswers[q.displayOrder].length > 0 && (
                     <div className={ex.examFilePreview}>
@@ -714,3 +1181,4 @@ export default function TakeExamPage() {
     </div>
   );
 }
+

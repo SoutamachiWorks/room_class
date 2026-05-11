@@ -18,8 +18,18 @@ export async function GET(request) {
     const token = cookieStore.get('auth-token')?.value;
     if (!token) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
 
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret_for_dev_only');
-    const { payload } = await jose.jwtVerify(token, secret);
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET belum dikonfigurasi');
+    }
+
+    let payload;
+    try {
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+      const verified = await jose.jwtVerify(token, secret);
+      payload = verified.payload;
+    } catch {
+      return NextResponse.json({ error: 'Token tidak valid' }, { status: 401 });
+    }
     
     const db = await getDb();
 
@@ -96,9 +106,11 @@ export async function GET(request) {
     return NextResponse.json({ schedules });
 
   } catch (err) {
-    // Gunakan handleAuthError jika butuh pembatasan ketat, sementara kita anggap semua user terautentikasi bisa baca.
-    // Jika ada error auth, asumsikan user tidak terdaftar.
     console.error('API Schedules Error:', err);
+    const { status, error } = handleAuthError(err);
+    if (status && status !== 500) {
+      return NextResponse.json({ error }, { status });
+    }
     return NextResponse.json({ error: 'Gagal memuat jadwal' }, { status: 500 });
   }
 }

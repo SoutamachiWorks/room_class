@@ -104,7 +104,10 @@ export async function POST(request) {
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      if (!q.multipleChoice && !q.essay && !q.fileUpload) {
+      if (q.fileUpload) {
+        return NextResponse.json({ error: `Soal #${i + 1}: Upload file dinonaktifkan untuk ujian anti-cheat. Gunakan pilihan ganda atau esai.` }, { status: 400 });
+      }
+      if (!q.multipleChoice && !q.essay) {
         return NextResponse.json({ error: `Soal #${i + 1}: Minimal harus ada 1 tipe pertanyaan.` }, { status: 400 });
       }
       if (q.multipleChoice) {
@@ -121,17 +124,14 @@ export async function POST(request) {
       if (q.essay && !q.essay.questionText) {
         return NextResponse.json({ error: `Soal #${i + 1}: Teks soal esai wajib diisi.` }, { status: 400 });
       }
-      if (q.fileUpload && !q.fileUpload.questionText) {
-        return NextResponse.json({ error: `Soal #${i + 1}: Teks soal file upload wajib diisi.` }, { status: 400 });
-      }
     }
 
     const normalizedTypeSettings = {
       multipleChoice: typeSettings?.multipleChoice !== false,
       essay: !!typeSettings?.essay,
-      fileUpload: !!typeSettings?.fileUpload,
+      fileUpload: false,
     };
-    if (!normalizedTypeSettings.multipleChoice && !normalizedTypeSettings.essay && !normalizedTypeSettings.fileUpload) {
+    if (!normalizedTypeSettings.multipleChoice && !normalizedTypeSettings.essay) {
       return NextResponse.json({ error: 'Minimal satu jenis soal harus aktif.' }, { status: 400 });
     }
 
@@ -149,7 +149,7 @@ export async function POST(request) {
       imageSize: Number(q.imageSize || 0),
       multipleChoice: q.multipleChoice || null,
       essay: q.essay || null,
-      fileUpload: q.fileUpload || null,
+      fileUpload: null,
     }));
     const normalizedExamCategory = examCategory === 'semester' ? 'semester' : 'ulangan';
     const requiresCurriculumApproval = normalizedExamCategory === 'semester';

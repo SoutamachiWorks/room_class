@@ -5,6 +5,9 @@ import { requireRole, handleAuthError } from '@/lib/auth';
 import { uploadToR2 } from '@/lib/s3Client';
 import { createNotification } from '@/lib/notification';
 import redis, { buildExamCacheKey } from '@/lib/redis';
+import { createAnswerHash } from '@/lib/examIntegrity';
+
+const SERVER_SUBMIT_GRACE_MS = 60_000;
 
 /**
  * POST /api/student/exams/[id]/submit
@@ -62,6 +65,18 @@ export async function POST(request, { params }) {
       _id: new ObjectId(exam.subjectId),
     });
 
+    const now = Date.now();
+    if (exam.deadline && new Date(exam.deadline).getTime() < now) {
+      return NextResponse.json({ error: 'Batas akhir ujian sudah lewat. Jawaban tidak dapat dikumpulkan.' }, { status: 409 });
+    }
+
+    if (exam.duration && session.startedAt) {
+      const endAt = new Date(session.startedAt).getTime() + Number(exam.duration) * 60 * 1000;
+      if (endAt + SERVER_SUBMIT_GRACE_MS < now) {
+        return NextResponse.json({ error: 'Durasi ujian sudah habis. Jawaban tidak dapat dikumpulkan.' }, { status: 409 });
+      }
+    }
+
     // Parse answers
     let answers = [];
     try {
@@ -71,11 +86,27 @@ export async function POST(request, { params }) {
     }
 
     let cachedViolationCount = null;
+    let cachedOfflineEvents = [];
     try {
       const cacheKey = buildExamCacheKey(examId.toString(), studentId);
       const cachedRaw = await redis.get(cacheKey);
       const cached = typeof cachedRaw === 'string' ? JSON.parse(cachedRaw) : cachedRaw;
       if (cached?.answers) {
+        if (cached.answerHash) {
+          const expectedHash = createAnswerHash({
+            examId: examId.toString(),
+            sessionId,
+            studentId,
+            answers: cached.answers,
+          });
+          if (expectedHash !== cached.answerHash) {
+            return NextResponse.json(
+              { error: 'Integritas jawaban sementara tidak valid. Silakan sinkronkan ulang jawaban sebelum submit.' },
+              { status: 409 }
+            );
+          }
+        }
+
         const mc = Array.isArray(cached.answers.multipleChoice) ? cached.answers.multipleChoice : [];
         const essay = Array.isArray(cached.answers.essay) ? cached.answers.essay : [];
         answers = answers.map((ans) => {
@@ -89,6 +120,9 @@ export async function POST(request, { params }) {
       }
       if (Number.isFinite(Number(cached?.violationCount))) {
         cachedViolationCount = Number(cached.violationCount);
+      }
+      if (Array.isArray(cached?.offlineEvents)) {
+        cachedOfflineEvents = cached.offlineEvents;
       }
     } catch (err) {
       console.error('Redis read on submit failed:', err);
@@ -153,6 +187,7 @@ export async function POST(request, { params }) {
           classCodeSnapshot: session.classCodeSnapshot || exam.classCodeSnapshot || subject?.classCode || null,
           subjectNameSnapshot: session.subjectNameSnapshot || exam.subjectNameSnapshot || subject?.subjectName || null,
           ...(cachedViolationCount !== null ? { exitCount: Math.max(session.exitCount || 0, cachedViolationCount) } : {}),
+          offlineEvents: cachedOfflineEvents,
           status: isLockout ? 'locked' : 'submitted',
           gradingStatus,
           submittedAt: new Date(),

@@ -357,6 +357,33 @@
   flex-shrink: 0;
 }
 
+.helpButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--bg-card);
+  color: var(--color-heading);
+  font-size: 0.86rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-btn);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.helpButton:hover {
+  transform: translateY(-1px);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+.helpButton svg {
+  width: 17px;
+  height: 17px;
+  color: var(--color-primary);
+}
+
 .accountMenu {
   position: relative;
 }
@@ -594,6 +621,18 @@
   /* Shrink gap in top bar right */
   .topBarRight {
     gap: 10px;
+  }
+
+  .helpButton {
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+    padding: 0;
+    border-radius: 14px;
+  }
+
+  .helpButton span {
+    display: none;
   }
 
   /* Hide role badge on mobile to save space */

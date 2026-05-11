@@ -51,6 +51,8 @@ export default function MaterialsPage() {
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const getFileListKey = (file, index, scope = 'file') =>
+    [scope, file?.fileKey, file?.filename, file?.url, file?.originalName, index].filter(Boolean).join(':');
 
   // Initialization: Fetch Dependency Data & Primary Fetch Core
   useEffect(() => {
@@ -285,7 +287,7 @@ export default function MaterialsPage() {
                       <div className={styles.descriptionPreview}>{mat.text}</div>
                       <div className={styles.fileChipList}>
                         {(mat.files || []).map((f, i) => (
-                          <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" className={styles.fileChip}>
+                          <a key={getFileListKey(f, i, `table-${mat._id}`)} href={f.url} target="_blank" rel="noopener noreferrer" className={styles.fileChip}>
                             📎 {f.originalName}
                           </a>
                         ))}
@@ -336,7 +338,7 @@ export default function MaterialsPage() {
                 {(mat.files || []).length > 0 && (
                   <div className={styles.fileChipList}>
                     {mat.files.slice(0, 2).map((f, i) => (
-                      <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" className={styles.fileChip}>📎 {f.originalName}</a>
+                      <a key={getFileListKey(f, i, `mobile-${mat._id}`)} href={f.url} target="_blank" rel="noopener noreferrer" className={styles.fileChip}>📎 {f.originalName}</a>
                     ))}
                   </div>
                 )}
@@ -433,8 +435,8 @@ export default function MaterialsPage() {
 
             {/* Box mapping Arrays visualizing exactly what we retain logically */}
             <div className={styles.filePreviewList}>
-              {retainedOldFiles.map((prevFl) => (
-                <div key={prevFl.filename} className={`${styles.filePreviewItem} ${styles.filePreviewRetained}`}>
+              {retainedOldFiles.map((prevFl, idx) => (
+                <div key={getFileListKey(prevFl, idx, 'retained')} className={`${styles.filePreviewItem} ${styles.filePreviewRetained}`}>
                   <span>📎 {prevFl.originalName} (Lawas)</span>
                   <button type="button" onClick={() => removeRetainedFile(prevFl.filename)} className={styles.fileRemoveBtn}>Hapus</button>
                 </div>

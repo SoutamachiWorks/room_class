@@ -64,6 +64,13 @@ async function sanitizeQuestions(questions) {
         // Do NOT send correctAnswer to client
       };
     }
+    if (sanitized.fileUpload) {
+      sanitized.essay = {
+        questionText: sanitized.fileUpload.questionText,
+        explanation: sanitized.fileUpload.explanation || '',
+      };
+      sanitized.fileUpload = null;
+    }
     return sanitized;
   }));
 }
@@ -147,7 +154,18 @@ export async function POST(request, { params }) {
     }
 
     // Get all questions
-    const allQuestions = exam.questions || [];
+    const allQuestions = (exam.questions || []).map((q) => (
+      q.fileUpload
+        ? {
+            ...q,
+            essay: q.essay || {
+              questionText: q.fileUpload.questionText,
+              explanation: q.fileUpload.explanation || '',
+            },
+            fileUpload: null,
+          }
+        : q
+    ));
 
     // Shuffle only if isRandomized is true
     let selected;

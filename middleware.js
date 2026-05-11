@@ -70,6 +70,11 @@ export async function middleware(request) {
         throw new Error('Token expired by max age policy');
       }
 
+      // Temporary disable: curriculum question bank validation feature
+      if (pathname.startsWith('/dashboard/curriculum/question-bank')) {
+        return NextResponse.redirect(new URL('/dashboard/curriculum', request.url));
+      }
+
       // Role-based access control per route permission map
       const matchedRoute = Object.keys(routePermissions).find((route) =>
         pathname.startsWith(route)

@@ -12,7 +12,7 @@ function createEmptyQuestion(type = 'multipleChoice') {
     imageSize: 0,
     multipleChoice: type === 'multipleChoice' ? { questionText: '', options: ['', ''], correctAnswer: null, explanation: '' } : null,
     essay: type === 'essay' ? { questionText: '', explanation: '' } : null,
-    fileUpload: type === 'fileUpload' ? { questionText: '', explanation: '' } : null,
+    fileUpload: null,
   };
 }
 
@@ -25,7 +25,6 @@ const STEP_META = [
 const DEFAULT_TYPE_SETTINGS = [
   { id: 'multipleChoice', label: 'Pilihan Ganda', desc: 'Siswa memilih satu jawaban yang benar', enabled: true, color: 'green' },
   { id: 'essay', label: 'Esai', desc: 'Siswa menjawab dengan uraian', enabled: false, color: 'orange' },
-  { id: 'fileUpload', label: 'File Upload', desc: 'Siswa mengunggah file sebagai jawaban', enabled: false, color: 'blue' },
 ];
 
 export default function ExamBuilderPage() {
@@ -43,10 +42,7 @@ export default function ExamBuilderPage() {
 
   const [title, setTitle] = useState('');
   const [subjectId, setSubjectId] = useState('');
-  const [classCode, setClassCode] = useState('');
   const [examCategory, setExamCategory] = useState('ulangan');
-  const [validationStatus, setValidationStatus] = useState('');
-  const [revisionNote, setRevisionNote] = useState('');
   const [duration, setDuration] = useState('');
   const [deadline, setDeadline] = useState('');
   const [isRandomized, setIsRandomized] = useState(false);
@@ -85,8 +81,6 @@ export default function ExamBuilderPage() {
         setTitle(exam.title || '');
         setSubjectId(exam.subjectId || '');
         setExamCategory(exam.examCategory === 'semester' ? 'semester' : 'ulangan');
-        setValidationStatus(exam.validationStatus || '');
-        setRevisionNote(exam.revisionNote || '');
         setIsRandomized(!!exam.isRandomized);
         setIsOptionRandomized(!!exam.isOptionRandomized);
         setShowExplanationToStudent(!!exam.showExplanation);
@@ -124,11 +118,11 @@ export default function ExamBuilderPage() {
             };
           }
           return {
-            ...createEmptyQuestion('fileUpload'),
-            type: 'fileUpload',
+            ...createEmptyQuestion('essay'),
+            type: 'essay',
             imageUrl: q.imageUrl || null,
             imageSize: q.imageSize || 0,
-            fileUpload: {
+            essay: {
               questionText: q.fileUpload?.questionText || '',
               explanation: q.fileUpload?.explanation || '',
             },
@@ -147,9 +141,8 @@ export default function ExamBuilderPage() {
           const detected = {
             multipleChoice: mapped.some((q) => q.type === 'multipleChoice'),
             essay: mapped.some((q) => q.type === 'essay'),
-            fileUpload: mapped.some((q) => q.type === 'fileUpload'),
           };
-          if (!detected.multipleChoice && !detected.essay && !detected.fileUpload) {
+          if (!detected.multipleChoice && !detected.essay) {
             detected.multipleChoice = true;
           }
           setTypeSettings((prev) =>
@@ -168,17 +161,10 @@ export default function ExamBuilderPage() {
     loadExam();
   }, [editId]);
 
-  useEffect(() => {
-    if (!editId) {
-      setInitialLoading(false);
-      return;
-    }
-  }, [editId]);
-
-  useEffect(() => {
-    const selected = teacherSubjects.find((s) => s._id === subjectId);
-    setClassCode(selected?.classCode || '');
-  }, [subjectId, teacherSubjects]);
+  const classCode = useMemo(
+    () => teacherSubjects.find((s) => s._id === subjectId)?.classCode || '',
+    [subjectId, teacherSubjects]
+  );
 
   const selectedQuestion = questions[selectedQuestionIndex] || null;
   const enabledQuestionTypes = typeSettings.filter((t) => t.enabled);
@@ -186,7 +172,6 @@ export default function ExamBuilderPage() {
   const typeCounts = useMemo(() => ({
     multipleChoice: questions.filter((q) => q.type === 'multipleChoice').length,
     essay: questions.filter((q) => q.type === 'essay').length,
-    fileUpload: questions.filter((q) => q.type === 'fileUpload').length,
   }), [questions]);
 
   const canGoStep2 = title.trim() && subjectId;
@@ -195,7 +180,7 @@ export default function ExamBuilderPage() {
       return q.multipleChoice?.questionText?.trim() && (q.multipleChoice.options || []).every((o) => o.trim()) && q.multipleChoice.correctAnswer !== null;
     }
     if (q.type === 'essay') return q.essay?.questionText?.trim();
-    return q.fileUpload?.questionText?.trim();
+    return false;
   });
 
   const examSummary = {
@@ -286,8 +271,7 @@ export default function ExamBuilderPage() {
   function getNextQuestionType() {
     const enabled = typeSettings.filter((t) => t.enabled).map((t) => t.id);
     if (enabled.includes('multipleChoice')) return 'multipleChoice';
-    if (enabled.includes('essay')) return 'essay';
-    return 'fileUpload';
+    return 'essay';
   }
 
   function removeQuestion(index) {
@@ -332,10 +316,7 @@ export default function ExamBuilderPage() {
         questionText: q.essay?.questionText || '',
         explanation: q.essay?.explanation || '',
       } : null,
-      fileUpload: q.type === 'fileUpload' ? {
-        questionText: q.fileUpload?.questionText || '',
-        explanation: q.fileUpload?.explanation || '',
-      } : null,
+      fileUpload: null,
     }));
 
     return {
@@ -345,7 +326,7 @@ export default function ExamBuilderPage() {
       typeSettings: {
         multipleChoice: !!typeSettings.find((t) => t.id === 'multipleChoice')?.enabled,
         essay: !!typeSettings.find((t) => t.id === 'essay')?.enabled,
-        fileUpload: !!typeSettings.find((t) => t.id === 'fileUpload')?.enabled,
+        fileUpload: false,
       },
       isRandomized,
       isOptionRandomized,
@@ -408,8 +389,8 @@ export default function ExamBuilderPage() {
         alert(msg);
         return { ok: false };
       }
-      if (q.type === 'fileUpload' && !q.fileUpload?.questionText?.trim()) {
-        const msg = `Soal #${i + 1}: Teks instruksi file upload wajib diisi.`;
+      if (q.type !== 'multipleChoice' && q.type !== 'essay') {
+        const msg = `Soal #${i + 1}: Jenis soal upload file dinonaktifkan untuk ujian anti-cheat. Gunakan pilihan ganda atau esai.`;
         setError(msg);
         alert(msg);
         return { ok: false };
@@ -454,12 +435,6 @@ export default function ExamBuilderPage() {
       setSavingState('idle');
       return;
     }
-    if (examCategory === 'semester') {
-      setSavingState('saved');
-      setStatusMessage('Ujian semester dikirim ke kurikulum untuk proses approval.');
-      router.push('/dashboard/teacher/exams');
-      return;
-    }
     try {
       const res = await fetch(`/api/teacher/exams/${result.id}/publish`, { method: 'PUT' });
       const data = await res.json();
@@ -499,16 +474,10 @@ export default function ExamBuilderPage() {
         <div className={styles.topActions}>
           <button className={styles.btnGhost} onClick={handleSaveDraft} disabled={savingState === 'saving'}>Simpan Draft</button>
           <button className={styles.btnPrimary} onClick={handlePublishExam} disabled={savingState === 'saving'}>
-            {examCategory === 'semester' ? 'Kirim ke Kurikulum' : 'Publikasikan Ujian'}
+            Publikasikan Ujian
           </button>
         </div>
       </div>
-
-      {validationStatus === 'NeedsRevision' && (
-        <div className={styles.errorBanner}>
-          Ujian ini diminta revisi oleh kurikulum. Catatan: {revisionNote || 'Periksa kembali kualitas soal.'}
-        </div>
-      )}
 
       <div className={styles.stepper}>
         {STEP_META.map((step, idx) => {
@@ -545,7 +514,7 @@ export default function ExamBuilderPage() {
               <div className={styles.formGrid2}>
                 <div className={styles.formGroup}>
                   <label>Integrasi Mata Pelajaran *</label>
-                  <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} disabled={!!editId}>
+                  <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
                     <option value="">Pilih mata pelajaran</option>
                     {teacherSubjects.map((s) => <option key={s._id} value={s._id}>{s.subjectName}</option>)}
                   </select>
@@ -558,8 +527,8 @@ export default function ExamBuilderPage() {
               <div className={styles.formGroup}>
                 <label>Kategori Ujian *</label>
                 <select value={examCategory} onChange={(e) => setExamCategory(e.target.value)}>
-                  <option value="ulangan">Ulangan Biasa (tanpa approval kurikulum)</option>
-                  <option value="semester">Ujian Semester (wajib approval kurikulum)</option>
+                  <option value="ulangan">Ulangan Biasa</option>
+                  <option value="semester">Ujian Semester</option>
                 </select>
               </div>
               <div className={styles.formGrid2}>
@@ -661,8 +630,8 @@ export default function ExamBuilderPage() {
               {questions.map((q, idx) => (
                 <button key={`${q.type}-${idx}`} className={`${styles.questionItem} ${idx === selectedQuestionIndex ? styles.questionItemActive : ''}`} onClick={() => setSelectedQuestionIndex(idx)}>
                   <div className={styles.questionItemMain}>
-                    <strong>{q.type === 'multipleChoice' ? `Soal ${idx + 1}` : q.type === 'essay' ? `Esai ${idx + 1}` : `File Upload ${idx + 1}`}</strong>
-                    <small>{q.type === 'multipleChoice' ? 'Pilihan Ganda' : q.type === 'essay' ? 'Esai' : 'File Upload'}</small>
+                    <strong>{q.type === 'multipleChoice' ? `Soal ${idx + 1}` : `Esai ${idx + 1}`}</strong>
+                    <small>{q.type === 'multipleChoice' ? 'Pilihan Ganda' : 'Esai'}</small>
                   </div>
                 </button>
               ))}
@@ -743,13 +712,6 @@ export default function ExamBuilderPage() {
                       rows={5}
                     />
                   )}
-                  {selectedQuestion.type === 'fileUpload' && (
-                    <textarea
-                      value={selectedQuestion.fileUpload?.questionText || ''}
-                      onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, fileUpload: { ...q.fileUpload, questionText: e.target.value } }))}
-                      rows={5}
-                    />
-                  )}
                 </div>
 
                 {selectedQuestion.type === 'multipleChoice' && (
@@ -811,18 +773,14 @@ export default function ExamBuilderPage() {
                     value={
                       selectedQuestion.type === 'multipleChoice'
                         ? (selectedQuestion.multipleChoice?.explanation || '')
-                        : selectedQuestion.type === 'essay'
-                          ? (selectedQuestion.essay?.explanation || '')
-                          : (selectedQuestion.fileUpload?.explanation || '')
+                        : (selectedQuestion.essay?.explanation || '')
                     }
                     onChange={(e) => {
                       const val = e.target.value;
                       if (selectedQuestion.type === 'multipleChoice') {
                         updateQuestion(selectedQuestionIndex, (q) => ({ ...q, multipleChoice: { ...q.multipleChoice, explanation: val } }));
-                      } else if (selectedQuestion.type === 'essay') {
-                        updateQuestion(selectedQuestionIndex, (q) => ({ ...q, essay: { ...q.essay, explanation: val } }));
                       } else {
-                        updateQuestion(selectedQuestionIndex, (q) => ({ ...q, fileUpload: { ...q.fileUpload, explanation: val } }));
+                        updateQuestion(selectedQuestionIndex, (q) => ({ ...q, essay: { ...q.essay, explanation: val } }));
                       }
                     }}
                     rows={4}
@@ -888,7 +846,6 @@ export default function ExamBuilderPage() {
                 <div><span>Total Soal</span><strong>{questions.length} soal</strong></div>
                 <div><span>Pilihan Ganda</span><strong>{typeCounts.multipleChoice} soal</strong></div>
                 <div><span>Esai</span><strong>{typeCounts.essay} soal</strong></div>
-                <div><span>File Upload</span><strong>{typeCounts.fileUpload} soal</strong></div>
               </div>
             </section>
           </div>
@@ -926,7 +883,7 @@ export default function ExamBuilderPage() {
             <>
               <button className={styles.btnGhost} onClick={handleSaveDraft} disabled={savingState === 'saving'}>Simpan Perubahan</button>
               <button className={styles.btnPrimary} onClick={handlePublishExam} disabled={savingState === 'saving'}>
-                {examCategory === 'semester' ? 'Kirim ke Kurikulum' : 'Publikasikan Ujian'}
+                Publikasikan Ujian
               </button>
             </>
           )}

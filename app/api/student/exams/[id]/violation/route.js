@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
+import redis, { buildExamCacheKey } from '@/lib/redis';
 
 /**
  * PATCH /api/student/exams/[id]/violation
@@ -57,6 +58,14 @@ export async function PATCH(request, { params }) {
         },
       }
     );
+
+    if (newStatus === 'locked') {
+      try {
+        await redis.del(buildExamCacheKey(examId.toString(), studentId));
+      } catch (err) {
+        console.error('Redis cleanup on lock failed:', err);
+      }
+    }
 
     return NextResponse.json({
       exitCount: newExitCount,
