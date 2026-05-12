@@ -2,6 +2,20 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/mongodb';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { checkFixedWindowRateLimit } from '@/lib/rateLimit';
+
+const LOGIN_RATE_LIMIT = 8;
+const LOGIN_RATE_WINDOW_SECONDS = 10 * 60;
+
+function getClientIp(request) {
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) return forwardedFor.split(',')[0].trim();
+  return request.headers.get('x-real-ip') || 'unknown';
+}
+
+function normalizeRateLimitPart(value) {
+  return String(value || 'unknown').trim().toLowerCase().replace(/[^a-z0-9@._-]/g, '_').slice(0, 80);
+}
 
 export async function POST(request) {
   try {
@@ -11,6 +25,28 @@ export async function POST(request) {
       return NextResponse.json(
         { error: 'Identifier dan password wajib diisi' },
         { status: 400 }
+      );
+    }
+
+    const ip = normalizeRateLimitPart(getClientIp(request));
+    const account = normalizeRateLimitPart(identifier);
+    const [ipLimit, accountLimit] = await Promise.all([
+      checkFixedWindowRateLimit({
+        key: `rate:login:ip:${ip}`,
+        limit: LOGIN_RATE_LIMIT * 3,
+        windowSeconds: LOGIN_RATE_WINDOW_SECONDS,
+      }),
+      checkFixedWindowRateLimit({
+        key: `rate:login:account:${account}`,
+        limit: LOGIN_RATE_LIMIT,
+        windowSeconds: LOGIN_RATE_WINDOW_SECONDS,
+      }),
+    ]);
+
+    if (!ipLimit.allowed || !accountLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Terlalu banyak percobaan login. Coba lagi beberapa menit lagi.' },
+        { status: 429 }
       );
     }
 

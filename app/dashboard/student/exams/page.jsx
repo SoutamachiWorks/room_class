@@ -11,10 +11,12 @@ import styles from './student-exams.module.css';
 
 // Hook to detect mobile viewport
 function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(`(max-width: ${breakpoint}px)`).matches;
+  });
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    setIsMobile(mq.matches);
     const handler = (e) => setIsMobile(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
@@ -25,6 +27,7 @@ function useIsMobile(breakpoint = 640) {
 const FILTER_TABS = [
   { key: 'all', label: 'Semua' },
   { key: 'available', label: 'Tersedia' },
+  { key: 'ongoing', label: 'Sedang Dikerjakan' },
   { key: 'submitted', label: 'Sudah Dikerjakan' },
   { key: 'review', label: 'Menunggu Koreksi' },
   { key: 'locked', label: 'Terkunci' },
@@ -177,7 +180,7 @@ function StudentExamsContent() {
   const getSessionStatus = useCallback((exam) => {
     const baseStatus = exam.session?.status || 'available';
 
-    if (exam.isExamOpen !== true && baseStatus !== 'submitted') {
+    if (exam.isExamOpen !== true && baseStatus !== 'submitted' && baseStatus !== 'in-progress') {
       return 'locked';
     }
 
@@ -191,6 +194,7 @@ function StudentExamsContent() {
       return 'review';
     }
 
+    if (baseStatus === 'in-progress') return 'ongoing';
     if (baseStatus === 'submitted') return 'submitted';
     if (baseStatus === 'locked') return 'locked';
     return 'available';
@@ -410,11 +414,12 @@ function StudentExamsContent() {
                   {pagedExams.map((exam) => {
                     const startAt = exam.startTime || exam.start_time || exam.createdAt;
                     const endAt = exam.endTime || exam.end_time || (exam.duration ? new Date(new Date(startAt).getTime() + exam.duration * 60000).toISOString() : null);
-                    const status = exam.uiStatus;
-                    const isActionable = status === 'available';
+                  const status = exam.uiStatus;
+                    const isActionable = status === 'available' || status === 'ongoing';
                     const isWaitingReview = status === 'review';
                     const submittedAt = exam.session?.submittedAt;
                     const score = exam.session?.score;
+                    const draftUpdatedAt = exam.session?.draftUpdatedAt;
                     const timeLeftMs = exam.deadline ? new Date(exam.deadline).getTime() - currentTime : 0;
                     const remainHour = Math.max(0, Math.floor(timeLeftMs / 3600000));
                     const remainMinute = Math.max(0, Math.floor((timeLeftMs % 3600000) / 60000));
@@ -454,14 +459,15 @@ function StudentExamsContent() {
                           <div className={styles.statusCell}>
                             {status === 'submitted' && (<><span className={`${styles.stateBadge} ${styles.stateDone}`}>Sudah Dikumpulkan</span><span className={styles.stateSub}>Dikumpulkan: {formatIdDateTime(submittedAt)}</span></>)}
                             {status === 'available' && (<><span className={`${styles.stateBadge} ${styles.stateAvailable}`}>Tersedia</span><span className={styles.stateSub}>{exam.deadline ? `Sisa: ${remainHour}j ${remainMinute}m` : 'Siap dikerjakan'}</span></>)}
+                            {status === 'ongoing' && (<><span className={`${styles.stateBadge} ${styles.stateAvailable}`}>Sedang Dikerjakan</span><span className={styles.stateSub}>{draftUpdatedAt ? `Draft: ${formatIdDateTime(draftUpdatedAt)}` : 'Sesi ujian masih aktif'}</span></>)}
                             {status === 'review' && (<><span className={`${styles.stateBadge} ${styles.stateReview}`}>Menunggu Koreksi</span><span className={styles.stateSub}>Dikumpulkan: {formatIdDateTime(submittedAt)}</span></>)}
                             {status === 'locked' && (<><span className={`${styles.stateBadge} ${styles.stateLocked}`}>Terkunci</span><span className={styles.stateSub}>Tersedia: {formatIdDateTime(exam.createdAt)}</span></>)}
                           </div>
                         </td>
                         <td>
-                          {status === 'available' && (
+                          {isActionable && (
                             <button className={styles.startBtn} onClick={(e) => { e.stopPropagation(); setDetailExam(exam); }} disabled={startingId === exam._id}>
-                              Mulai Ujian
+                              {status === 'ongoing' ? 'Lanjutkan Ujian' : 'Mulai Ujian'}
                             </button>
                           )}
                           {status === 'submitted' && score !== undefined && score !== null && !isWaitingReview && (
@@ -488,10 +494,11 @@ function StudentExamsContent() {
                   const startAt = exam.startTime || exam.start_time || exam.createdAt;
                   const endAt = exam.endTime || exam.end_time || (exam.duration ? new Date(new Date(startAt).getTime() + exam.duration * 60000).toISOString() : null);
                   const status = exam.uiStatus;
-                  const isActionable = status === 'available';
+                  const isActionable = status === 'available' || status === 'ongoing';
                   const isWaitingReview = status === 'review';
                   const submittedAt = exam.session?.submittedAt;
                   const score = exam.session?.score;
+                  const draftUpdatedAt = exam.session?.draftUpdatedAt;
                   const timeLeftMs = exam.deadline ? new Date(exam.deadline).getTime() - currentTime : 0;
                   const remainHour = Math.max(0, Math.floor(timeLeftMs / 3600000));
                   const remainMinute = Math.max(0, Math.floor((timeLeftMs % 3600000) / 60000));
@@ -500,6 +507,7 @@ function StudentExamsContent() {
                   const badgeClass = {
                     submitted: styles.stateDone,
                     available: styles.stateAvailable,
+                    ongoing: styles.stateAvailable,
                     review: styles.stateReview,
                     locked: styles.stateLocked,
                   }[status];
@@ -507,6 +515,7 @@ function StudentExamsContent() {
                   const badgeLabel = {
                     submitted: 'Sudah Dikumpulkan',
                     available: 'Tersedia',
+                    ongoing: 'Sedang Dikerjakan',
                     review: 'Menunggu Koreksi',
                     locked: 'Terkunci',
                   }[status];
@@ -557,6 +566,7 @@ function StudentExamsContent() {
                       <div className={styles.mobileCardSub}>
                         {status === 'submitted' && `Dikumpulkan: ${formatIdDateTime(submittedAt)}`}
                         {status === 'available' && (exam.deadline ? `Waktu tersisa: ${remainHour} jam ${remainMinute} menit` : 'Siap dikerjakan')}
+                        {status === 'ongoing' && (draftUpdatedAt ? `Draft terakhir: ${formatIdDateTime(draftUpdatedAt)}` : 'Sesi ujian masih aktif')}
                         {status === 'review' && `Dikumpulkan: ${formatIdDateTime(submittedAt)}`}
                         {status === 'locked' && `Akan tersedia: ${formatIdDateTime(exam.createdAt)}`}
                       </div>
@@ -569,13 +579,13 @@ function StudentExamsContent() {
                             <strong>{Math.round(Number(score))} / 100</strong>
                           </div>
                         )}
-                        {status === 'available' && (
+                        {isActionable && (
                           <button
                             className={`${styles.startBtn} ${styles.startBtnFull}`}
                             onClick={(e) => { e.stopPropagation(); setDetailExam(exam); }}
                             disabled={startingId === exam._id}
                           >
-                            Mulai Ujian
+                            {status === 'ongoing' ? 'Lanjutkan Ujian' : 'Mulai Ujian'}
                           </button>
                         )}
                       </div>
@@ -597,12 +607,14 @@ function StudentExamsContent() {
         const submittedAt = exam.session?.submittedAt;
         const score = exam.session?.score;
         const isWaitingReview = status === 'review';
+        const isActionable = status === 'available' || status === 'ongoing';
+        const draftUpdatedAt = exam.session?.draftUpdatedAt;
         const timeLeftMs = exam.deadline ? new Date(exam.deadline).getTime() - currentTime : 0;
         const remainHour = Math.max(0, Math.floor(timeLeftMs / 3600000));
         const remainMinute = Math.max(0, Math.floor((timeLeftMs % 3600000) / 60000));
 
-        const badgeClass = { submitted: styles.stateDone, available: styles.stateAvailable, review: styles.stateReview, locked: styles.stateLocked }[status];
-        const badgeLabel = { submitted: 'Sudah Dikumpulkan', available: 'Tersedia', review: 'Menunggu Koreksi', locked: 'Terkunci' }[status];
+        const badgeClass = { submitted: styles.stateDone, available: styles.stateAvailable, ongoing: styles.stateAvailable, review: styles.stateReview, locked: styles.stateLocked }[status];
+        const badgeLabel = { submitted: 'Sudah Dikumpulkan', available: 'Tersedia', ongoing: 'Sedang Dikerjakan', review: 'Menunggu Koreksi', locked: 'Terkunci' }[status];
 
         return (
           <Modal isOpen onClose={() => setDetailExam(null)} title="Detail Ujian">
@@ -649,6 +661,12 @@ function StudentExamsContent() {
                     <span className={styles.detailItemValue} style={{ color: 'var(--accent-yellow, #f59e0b)', fontWeight: 700 }}>{remainHour} jam {remainMinute} menit</span>
                   </div>
                 )}
+                {status === 'ongoing' && (
+                  <div className={styles.detailItem} style={{ gridColumn: '1 / -1' }}>
+                    <span className={styles.detailItemLabel}>Draft Terakhir</span>
+                    <span className={styles.detailItemValue}>{draftUpdatedAt ? formatIdDateTime(draftUpdatedAt) : 'Sesi masih aktif'}</span>
+                  </div>
+                )}
                 {submittedAt && (
                   <div className={styles.detailItem} style={{ gridColumn: '1 / -1' }}>
                     <span className={styles.detailItemLabel}>Dikumpulkan</span>
@@ -683,13 +701,13 @@ function StudentExamsContent() {
               {/* Action buttons */}
               <div className={styles.detailActions}>
                 {/* Mulai Ujian */}
-                {status === 'available' && (
+                {isActionable && (
                   <button
                     className={`${styles.startBtn} ${styles.startBtnFull}`}
                     onClick={() => { setDetailExam(null); handleStartExam(exam); }}
                     disabled={startingId === exam._id}
                   >
-                    {startingId === exam._id ? 'Memulai...' : '> Mulai Ujian'}
+                    {startingId === exam._id ? 'Membuka...' : status === 'ongoing' ? 'Lanjutkan Ujian' : '> Mulai Ujian'}
                   </button>
                 )}
 

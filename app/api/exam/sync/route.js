@@ -190,8 +190,28 @@ export async function POST(request) {
     });
     safePayload.hashAlgorithm = getAnswerHashAlgorithm();
 
-    const key = buildExamCacheKey(examId, userDoc.studentId);
-    await redis.set(key, JSON.stringify(safePayload), { ex: calculateCacheTtlSeconds({ exam, session }) });
+    if (session?._id) {
+      await db.collection('examSessions').updateOne(
+        { _id: session._id, status: 'in-progress' },
+        {
+          $set: {
+            draftAnswers: safePayload.answers,
+            draftAnswerHash: safePayload.answerHash,
+            draftHashAlgorithm: safePayload.hashAlgorithm,
+            draftViolationCount: safePayload.violationCount,
+            draftUpdatedAt: new Date(),
+            offlineEvents: safeOfflineEvents,
+          },
+        }
+      );
+    }
+
+    try {
+      const key = buildExamCacheKey(examId, userDoc.studentId);
+      await redis.set(key, JSON.stringify(safePayload), { ex: calculateCacheTtlSeconds({ exam, session }) });
+    } catch (err) {
+      console.error('Redis exam sync failed after MongoDB draft save:', err);
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

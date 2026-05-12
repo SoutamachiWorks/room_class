@@ -478,3 +478,122 @@
 .mobileActionDanger:hover {
   background: rgba(239, 68, 68, 0.12);
 }
+
+.historyModal {
+  display: grid;
+  gap: 14px;
+}
+
+.historySummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.historySummary > div {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--bg-app);
+}
+
+.historyLabel {
+  display: block;
+  color: var(--color-subtext);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.historySummary strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-heading);
+  font-size: 1.15rem;
+}
+
+.historyAlert {
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff7f7;
+  color: #b91c1c;
+  font-weight: 700;
+  font-size: 0.86rem;
+}
+
+.historyList {
+  display: grid;
+  gap: 10px;
+  max-height: 55vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.historyItem {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+
+.historyViolation {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.historyItemTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.historyItemTop strong {
+  display: block;
+  color: var(--color-heading);
+}
+
+.historyItemTop span {
+  display: inline-flex;
+  margin-top: 3px;
+  color: var(--color-subtext);
+  font-size: 0.78rem;
+}
+
+.historyMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.historyMetaGrid div {
+  padding: 9px;
+  border-radius: 8px;
+  background: var(--bg-app);
+}
+
+.historyMetaGrid span {
+  display: block;
+  color: var(--color-subtext);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.historyMetaGrid strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-heading);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 760px) {
+  .historySummary,
+  .historyMetaGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

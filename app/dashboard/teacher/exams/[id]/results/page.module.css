@@ -340,13 +340,9 @@
 }
 
 /* ── Violation / Grading ────────────────────────────────── */
-.violationBtn {
-  border: none;
-  background: transparent;
+.violationText {
   color: var(--color-text);
   font-weight: 600;
-  padding: 0;
-  cursor: pointer;
 }
 
 .violationMed  { color: #d97706; }
@@ -464,6 +460,146 @@
 [data-theme="dark"] .tipsCard strong { color: #f4df9c; }
 [data-theme="dark"] .tipsCard p      { color: #c7d2ea; }
 
+.violationModal {
+  display: grid;
+  gap: 14px;
+}
+
+.violationSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.violationSummary > div {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+}
+
+.violationSummary span {
+  display: block;
+  color: var(--color-subtext);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.violationSummary strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-heading);
+  font-size: 1.08rem;
+}
+
+.violationAlert {
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  font-weight: 700;
+  font-size: 0.86rem;
+}
+
+.violationEmpty {
+  margin: 0;
+  color: var(--color-subtext);
+  line-height: 1.5;
+}
+
+.violationTimeline {
+  display: grid;
+  gap: 10px;
+  max-height: 55vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.violationEvent {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+
+.violationEventCounted {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.violationEventHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.violationEventHead strong {
+  display: block;
+  color: var(--color-heading);
+}
+
+.violationEventHead span {
+  display: block;
+  margin-top: 3px;
+  color: var(--color-subtext);
+  font-size: 0.78rem;
+}
+
+.violationAuditBadge,
+.violationCountedBadge {
+  display: inline-flex !important;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.76rem !important;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.violationAuditBadge {
+  color: #15803d !important;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.violationCountedBadge {
+  color: #b91c1c !important;
+  background: rgba(239, 68, 68, 0.14);
+}
+
+.violationEventGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.violationEventGrid div {
+  padding: 9px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+}
+
+.violationEventGrid span {
+  display: block;
+  color: var(--color-subtext);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.violationEventGrid strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-heading);
+  font-size: 0.82rem;
+}
+
 /* ── Mobile participant card list ───────────────────────── */
 .mobileParticipantList {
   display: flex;
@@ -543,6 +679,11 @@
 
 /* ── Mobile data-label pseudo ───────────────────────────── */
 @media (max-width: 768px) {
+  .violationSummary,
+  .violationEventGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .table td::before {
     color: var(--color-subtext);
   }

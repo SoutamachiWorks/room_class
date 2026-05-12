@@ -4,6 +4,8 @@ import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 import redis, { buildExamCacheKey } from '@/lib/redis';
 
+const MAX_EXAM_EVENTS = 120;
+
 /**
  * PATCH /api/student/exams/[id]/violation
  * Increments exitCount on the student's active examSession.
@@ -48,6 +50,17 @@ export async function PATCH(request, { params }) {
 
     const newExitCount = (session.exitCount || 0) + 1;
     const newStatus = newExitCount >= 3 ? 'locked' : 'in-progress';
+    const reason = typeof body?.reason === 'string' && body.reason.trim() ? body.reason.trim().slice(0, 80) : 'violation';
+    const examEvents = [
+      ...(Array.isArray(session.examEvents) ? session.examEvents : []),
+      {
+        type: 'explicit-violation',
+        reason,
+        at: new Date(),
+        countedAsViolation: true,
+        exitCount: newExitCount,
+      },
+    ].slice(-MAX_EXAM_EVENTS);
 
     await db.collection('examSessions').updateOne(
       { _id: new ObjectId(sessionId) },
@@ -55,6 +68,7 @@ export async function PATCH(request, { params }) {
         $set: {
           exitCount: newExitCount,
           status: newStatus,
+          examEvents,
         },
       }
     );

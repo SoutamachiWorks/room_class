@@ -6,8 +6,10 @@ import { uploadToR2 } from '@/lib/s3Client';
 import { createNotification } from '@/lib/notification';
 import redis, { buildExamCacheKey } from '@/lib/redis';
 import { createAnswerHash } from '@/lib/examIntegrity';
+import { validateFiles } from '@/lib/fileValidation';
 
 const SERVER_SUBMIT_GRACE_MS = 60_000;
+const MAX_EXAM_UPLOAD_TOTAL_BYTES = 10 * 1024 * 1024;
 
 /**
  * POST /api/student/exams/[id]/submit
@@ -87,11 +89,13 @@ export async function POST(request, { params }) {
 
     let cachedViolationCount = null;
     let cachedOfflineEvents = [];
+    let hasCachedAnswers = false;
     try {
       const cacheKey = buildExamCacheKey(examId.toString(), studentId);
       const cachedRaw = await redis.get(cacheKey);
       const cached = typeof cachedRaw === 'string' ? JSON.parse(cachedRaw) : cachedRaw;
       if (cached?.answers) {
+        hasCachedAnswers = true;
         if (cached.answerHash) {
           const expectedHash = createAnswerHash({
             examId: examId.toString(),
@@ -128,7 +132,52 @@ export async function POST(request, { params }) {
       console.error('Redis read on submit failed:', err);
     }
 
+    if (!hasCachedAnswers && session.draftAnswers) {
+      if (session.draftAnswerHash) {
+        const expectedHash = createAnswerHash({
+          examId: examId.toString(),
+          sessionId,
+          studentId,
+          answers: session.draftAnswers,
+        });
+        if (expectedHash !== session.draftAnswerHash) {
+          return NextResponse.json(
+            { error: 'Integritas draft jawaban tidak valid. Silakan sinkronkan ulang jawaban sebelum submit.' },
+            { status: 409 }
+          );
+        }
+      }
+      const mc = Array.isArray(session.draftAnswers.multipleChoice) ? session.draftAnswers.multipleChoice : [];
+      const essay = Array.isArray(session.draftAnswers.essay) ? session.draftAnswers.essay : [];
+      answers = answers.map((ans) => {
+        const idx = Math.max(0, (ans.questionOrder || 1) - 1);
+        return {
+          ...ans,
+          mcAnswer: mc[idx] ?? ans.mcAnswer ?? null,
+          essayAnswer: essay[idx] ?? ans.essayAnswer ?? '',
+        };
+      });
+      if (Number.isFinite(Number(session.draftViolationCount))) {
+        cachedViolationCount = Number(session.draftViolationCount);
+      }
+      if (Array.isArray(session.offlineEvents)) {
+        cachedOfflineEvents = session.offlineEvents;
+      }
+    }
+
     let hasManualGradingNeeds = false;
+    const allUploadedFiles = [];
+    for (const ans of answers) {
+      allUploadedFiles.push(...formData.getAll(`file-${ans.questionOrder}`).filter((file) => file && file.name));
+    }
+    const validation = validateFiles(allUploadedFiles);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.errors.join(' ') }, { status: 400 });
+    }
+    const totalUploadSize = allUploadedFiles.reduce((total, file) => total + Number(file.size || 0), 0);
+    if (totalUploadSize > MAX_EXAM_UPLOAD_TOTAL_BYTES) {
+      return NextResponse.json({ error: 'Total lampiran berkas ujian melampaui batas maksimal 10 MB.' }, { status: 400 });
+    }
 
     // Process file uploads & auto-grade per question
     for (let i = 0; i < answers.length; i++) {
@@ -175,7 +224,6 @@ export async function POST(request, { params }) {
     }
 
     const gradingStatus = hasManualGradingNeeds ? 'pending-manual' : 'auto-graded';
-    const isLockout = formData.get('isLockout') === 'true';
 
     // Update session
     await db.collection('examSessions').updateOne(
@@ -188,9 +236,16 @@ export async function POST(request, { params }) {
           subjectNameSnapshot: session.subjectNameSnapshot || exam.subjectNameSnapshot || subject?.subjectName || null,
           ...(cachedViolationCount !== null ? { exitCount: Math.max(session.exitCount || 0, cachedViolationCount) } : {}),
           offlineEvents: cachedOfflineEvents,
-          status: isLockout ? 'locked' : 'submitted',
+          status: 'submitted',
           gradingStatus,
           submittedAt: new Date(),
+        },
+        $unset: {
+          draftAnswers: '',
+          draftAnswerHash: '',
+          draftHashAlgorithm: '',
+          draftViolationCount: '',
+          draftUpdatedAt: '',
         },
       }
     );

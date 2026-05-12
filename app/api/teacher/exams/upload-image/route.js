@@ -4,6 +4,9 @@ import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 import { uploadToR2, generatePresignedUrl } from '@/lib/s3Client';
 
+const MAX_EXAM_IMAGE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_EXAM_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 /**
  * POST /api/teacher/exams/upload-image
  * Handles image uploads for exam questions, saving them to Cloudflare R2.
@@ -30,8 +33,12 @@ export async function POST(request) {
     }
 
     // 3. Basic Image Validation (Client already does this, but server should too)
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'File yang diunggah harus berupa gambar.' }, { status: 400 });
+    if (!ALLOWED_EXAM_IMAGE_TYPES.includes(file.type)) {
+      return NextResponse.json({ error: 'File gambar harus berupa JPG, PNG, atau WebP.' }, { status: 400 });
+    }
+
+    if (Number(file.size || 0) > MAX_EXAM_IMAGE_SIZE) {
+      return NextResponse.json({ error: 'Ukuran gambar soal maksimal 5 MB.' }, { status: 400 });
     }
 
     // 4. Process and Upload to R2

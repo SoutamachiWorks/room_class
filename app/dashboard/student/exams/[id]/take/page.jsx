@@ -9,6 +9,9 @@ import ex from './exam-take.module.css';
 
 const EXAM_DRAFT_DB = 'roomclass-exam-drafts';
 const EXAM_DRAFT_STORE = 'drafts';
+const LOCAL_DRAFT_INTERVAL_MS = 45_000;
+const SERVER_SYNC_INTERVAL_MS = 90_000;
+const HEARTBEAT_INTERVAL_MS = 15_000;
 
 function openExamDraftDb() {
   return new Promise((resolve, reject) => {
@@ -76,6 +79,32 @@ async function deleteExamDraft(examId) {
   } catch (err) {
     console.warn('Gagal menghapus draft lokal ujian:', err);
   }
+}
+
+function buildAnswersFromSyncedDraft(questions, syncedAnswers) {
+  if (!Array.isArray(questions) || !syncedAnswers) return {};
+
+  const multipleChoice = Array.isArray(syncedAnswers.multipleChoice) ? syncedAnswers.multipleChoice : [];
+  const essay = Array.isArray(syncedAnswers.essay) ? syncedAnswers.essay : [];
+
+  return questions.reduce((acc, question, index) => {
+    const questionOrder = question.displayOrder;
+    const answer = { questionOrder };
+    let hasAnswer = false;
+
+    if (question.multipleChoice && multipleChoice[index] !== null && multipleChoice[index] !== undefined) {
+      answer.mcAnswer = multipleChoice[index];
+      hasAnswer = true;
+    }
+
+    if (question.essay && typeof essay[index] === 'string' && essay[index] !== '') {
+      answer.essayAnswer = essay[index];
+      hasAnswer = true;
+    }
+
+    if (hasAnswer) acc[questionOrder] = answer;
+    return acc;
+  }, {});
 }
 
 export default function TakeExamPage() {
@@ -147,6 +176,8 @@ export default function TakeExamPage() {
   const [needsManualSync, setNeedsManualSync] = useState(false);
   const offlineEventsRef = useRef([]);
   const offlineStartedAtRef = useRef(null);
+  const lastWarningAtRef = useRef(null);
+  const exitEventSentRef = useRef(false);
 
   useEffect(() => {
     const checkFullscreen = () => {
@@ -309,11 +340,24 @@ export default function TakeExamPage() {
       ...extra,
     });
   }, [answers, buildRedisAnswers, examId, questions.length, sessionId]);
+  const saveLocalDraftRef = useRef(saveLocalDraft);
+
+  useEffect(() => {
+    saveLocalDraftRef.current = saveLocalDraft;
+  }, [saveLocalDraft]);
 
   const syncExamCache = useCallback(async (force = false, violationOverride = null) => {
     if (!sessionId || !examId) return;
     if (syncTerminatedRef.current || locked) return;
     if (!force && !isDirty) return;
+
+    await saveLocalDraft({ pendingSync: true });
+    const localDraft = await readExamDraft(examId);
+    const answersForSync =
+      localDraft?.sessionId === sessionId && localDraft.redisAnswers
+        ? localDraft.redisAnswers
+        : buildRedisAnswers();
+
     if (!isOnline) {
       await saveLocalDraft({ pendingSync: true });
       setSyncState('offline');
@@ -329,7 +373,7 @@ export default function TakeExamPage() {
         body: JSON.stringify({
           examId,
           sessionId,
-          answers: buildRedisAnswers(),
+          answers: answersForSync,
           violationCount: violationOverride ?? exitCount,
           offlineEvents: offlineEventsRef.current.slice(-20),
         }),
@@ -374,6 +418,32 @@ export default function TakeExamPage() {
       syncInFlightRef.current = false;
     }
   }, [sessionId, examId, locked, isOnline, isDirty, saveLocalDraft, buildRedisAnswers, exitCount, router]);
+  const syncExamCacheRef = useRef(syncExamCache);
+
+  useEffect(() => {
+    syncExamCacheRef.current = syncExamCache;
+  }, [syncExamCache]);
+
+  const recordExamEvent = useCallback(async (type, reason = 'unknown') => {
+    if (!sessionId || !examId || syncTerminatedRef.current) return null;
+
+    try {
+      const res = await fetch(`/api/student/exams/${examId}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          type,
+          reason,
+          clientAt: new Date().toISOString(),
+        }),
+      });
+      return await res.json().catch(() => ({}));
+    } catch (err) {
+      console.error('Gagal mencatat event ujian:', err);
+      return null;
+    }
+  }, [examId, sessionId]);
 
   const startFilePickerMode = useCallback(() => {
     if (violationTimerRef.current) {
@@ -674,16 +744,42 @@ export default function TakeExamPage() {
   }, [handleLeaveTab, handleReturnTab, handleUnsafeShortcut, isMobileClient, locked, fullscreenGranted, showConsentModal, syncExamCache, triggerStrike, verifyFilePickerReturn]);
 
   useEffect(() => {
+    if (!sessionId || questions.length === 0) return;
     const interval = setInterval(() => {
-      syncExamCache(false);
-    }, 90_000);
+      syncExamCacheRef.current(false);
+    }, SERVER_SYNC_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [syncExamCache]);
+  }, [questions.length, sessionId]);
+
+  useEffect(() => {
+    if (!sessionId || questions.length === 0 || locked || showConsentModal) return;
+
+    const sendHeartbeat = async () => {
+      if (syncTerminatedRef.current || !navigator.onLine) return;
+      try {
+        await fetch(`/api/student/exams/${examId}/heartbeat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId }),
+        });
+      } catch (err) {
+        console.error('Heartbeat ujian gagal:', err);
+      }
+    };
+
+    void sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [examId, locked, questions.length, sessionId, showConsentModal]);
 
   useEffect(() => {
     if (!sessionId || questions.length === 0) return;
-    void saveLocalDraft({ pendingSync: isDirty });
-  }, [answers, isDirty, questions.length, saveLocalDraft, sessionId]);
+    const interval = setInterval(() => {
+      if (!isDirty) return;
+      void saveLocalDraftRef.current({ pendingSync: true }).then(() => setLocalDraftStatus('saved'));
+    }, LOCAL_DRAFT_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [isDirty, questions.length, sessionId]);
 
   useEffect(() => {
     if (localDraftStatus === 'restored' && isOnline && sessionId) {
@@ -731,6 +827,111 @@ export default function TakeExamPage() {
     };
   }, [saveLocalDraft, syncExamCache]);
 
+  useEffect(() => {
+    if (!sessionId || questions.length === 0 || locked || showConsentModal) return;
+
+    const timer = setTimeout(async () => {
+      const result = await recordExamEvent('unexpected-exit-return', 'exam-page-resumed');
+      if (!result || result.ignored) return;
+
+      if (result.locked) {
+        setLocked(true);
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        router.replace('/dashboard/student/exams/lockout');
+        return;
+      }
+
+      if (Number.isFinite(Number(result.exitCount))) {
+        setExitCount(Number(result.exitCount));
+      }
+
+      if (result.countedAsViolation) {
+        setStrikeMessage(`Anda sebelumnya keluar dari halaman ujian terlalu lama atau terlalu sering. Pelanggaran tercatat (${result.exitCount}/${MAX_VIOLATIONS}).`);
+        setShowStrikeModal(true);
+      } else if (Number.isFinite(Number(result.unexpectedExitCount))) {
+        setToastMessage('Anda kembali ke ujian. Kejadian keluar sebelumnya tercatat sebagai audit teknis.');
+        setTimeout(() => setToastMessage(''), 6000);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [locked, questions.length, recordExamEvent, router, sessionId, showConsentModal]);
+
+  useEffect(() => {
+    if (!sessionId || locked || showConsentModal) return;
+
+    const pollWarning = async () => {
+      try {
+        const res = await fetch(`/api/student/exams/${examId}/warning`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const warning = data?.warning;
+        if (!warning?.message || warning.sentAt === lastWarningAtRef.current) return;
+
+        lastWarningAtRef.current = warning.sentAt || new Date().toISOString();
+        setStrikeMessage(`${warning.message}${warning.from ? `\n\nDari: ${warning.from}` : ''}`);
+        setShowStrikeModal(true);
+      } catch (err) {
+        console.error('Gagal mengambil peringatan pengawas:', err);
+      }
+    };
+
+    void pollWarning();
+    const interval = setInterval(pollWarning, 5_000);
+    return () => clearInterval(interval);
+  }, [examId, locked, sessionId, showConsentModal]);
+
+  useEffect(() => {
+    if (!sessionId || questions.length === 0) return;
+
+    const persistBeforeExit = () => {
+      if (syncTerminatedRef.current || locked) return;
+      void saveLocalDraftRef.current({
+        pendingSync: true,
+        lastPageExitAt: new Date().toISOString(),
+      });
+
+      if (typeof navigator === 'undefined' || !navigator.onLine || !navigator.sendBeacon) return;
+
+      const payload = JSON.stringify({
+        examId,
+        sessionId,
+        answers: buildRedisAnswers(),
+        violationCount: exitCount,
+        offlineEvents: offlineEventsRef.current.slice(-20),
+      });
+      navigator.sendBeacon('/api/exam/sync', new Blob([payload], { type: 'application/json' }));
+
+      if (!exitEventSentRef.current) {
+        exitEventSentRef.current = true;
+        const eventPayload = JSON.stringify({
+          sessionId,
+          type: 'unexpected-exit-start',
+          reason: document.visibilityState === 'hidden' ? 'page-hidden-or-closed' : 'page-exit',
+          clientAt: new Date().toISOString(),
+        });
+        navigator.sendBeacon(
+          `/api/student/exams/${examId}/events`,
+          new Blob([eventPayload], { type: 'application/json' })
+        );
+      }
+    };
+
+    const handleBeforeUnload = (event) => {
+      if (!isDirty || syncTerminatedRef.current || locked) return;
+      persistBeforeExit();
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('pagehide', persistBeforeExit);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('pagehide', persistBeforeExit);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [buildRedisAnswers, examId, exitCount, isDirty, locked, questions.length, sessionId]);
+
   // Start exam session on mount (fetches questions)
   useEffect(() => {
     const startExam = async () => {
@@ -756,6 +957,7 @@ export default function TakeExamPage() {
         setExamDuration(data.examDuration || null);
         setStartedAt(data.startedAt || null);
 
+        const loadedQuestions = data.questions || [];
         const localDraft = await readExamDraft(examId);
         if (localDraft?.sessionId === data.sessionId && localDraft.answers && typeof localDraft.answers === 'object') {
           setAnswers(localDraft.answers);
@@ -763,6 +965,23 @@ export default function TakeExamPage() {
           setNeedsManualSync(!!localDraft.pendingSync);
           offlineEventsRef.current = Array.isArray(localDraft.offlineEvents) ? localDraft.offlineEvents : [];
           setLocalDraftStatus('restored');
+        } else if (data.draftAnswers) {
+          const restoredAnswers = buildAnswersFromSyncedDraft(loadedQuestions, data.draftAnswers);
+          if (Object.keys(restoredAnswers).length > 0) {
+            setAnswers(restoredAnswers);
+            setIsDirty(false);
+            setLocalDraftStatus('restored');
+            void writeExamDraft({
+              examId,
+              sessionId: data.sessionId,
+              answers: restoredAnswers,
+              redisAnswers: data.draftAnswers,
+              questionCount: loadedQuestions.length,
+              offlineEvents: Array.isArray(data.offlineEvents) ? data.offlineEvents : [],
+              pendingSync: false,
+              updatedAt: data.draftUpdatedAt || new Date().toISOString(),
+            });
+          }
         }
 
         if (data.examDuration && data.startedAt) {

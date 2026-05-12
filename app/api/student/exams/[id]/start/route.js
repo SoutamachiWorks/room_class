@@ -120,13 +120,6 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Ujian ini telah melewati batas waktu (deadline) dan tidak dapat lagi diakses. Silakan hubungi guru Anda.' }, { status: 403 });
     }
 
-    if (exam.isExamOpen !== true) {
-      return NextResponse.json(
-        { error: 'Ujian belum dimulai. Tunggu guru atau pengawas membuka ujian terlebih dahulu.' },
-        { status: 403 }
-      );
-    }
-
     // Check for existing session
     const existingSession = await db.collection('examSessions').findOne({
       examId: examId.toString(),
@@ -149,8 +142,18 @@ export async function POST(request, { params }) {
           examTitle: exam.title,
           examDuration: exam.duration,
           startedAt: existingSession.startedAt,
+          draftAnswers: existingSession.draftAnswers || null,
+          draftUpdatedAt: existingSession.draftUpdatedAt || null,
+          offlineEvents: existingSession.offlineEvents || [],
         });
       }
+    }
+
+    if (exam.isExamOpen !== true) {
+      return NextResponse.json(
+        { error: 'Ujian belum dimulai. Tunggu guru atau pengawas membuka ujian terlebih dahulu.' },
+        { status: 403 }
+      );
     }
 
     // Get all questions

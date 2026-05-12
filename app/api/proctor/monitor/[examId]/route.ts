@@ -5,6 +5,8 @@ import { requireRole, handleAuthError } from '@/lib/auth';
 import redis from '@/lib/redis';
 import { canAccessProctorExam } from '@/lib/proctorAccess';
 
+const ONLINE_HEARTBEAT_WINDOW_MS = 35_000;
+
 function parseCachePayload(raw: unknown) {
   if (!raw) return {};
   if (typeof raw === 'string') {
@@ -24,6 +26,35 @@ function extractAnsweredCount(payload: Record<string, unknown>) {
   const mcCount = Array.isArray(answers?.multipleChoice) ? answers.multipleChoice.filter((v) => v !== null && v !== undefined).length : 0;
   const essayCount = Array.isArray(answers?.essay) ? answers.essay.filter((v) => String(v ?? '').trim() !== '').length : 0;
   return Math.max(mcCount, essayCount);
+}
+
+function extractLastExamEvent(session: any) {
+  const events = Array.isArray(session?.examEvents) ? session.examEvents : [];
+  const last = events[events.length - 1];
+  if (!last) return null;
+  return {
+    type: typeof last.type === 'string' ? last.type : 'unknown',
+    reason: typeof last.reason === 'string' ? last.reason : null,
+    at: last.at ? new Date(last.at).toISOString() : null,
+    durationMs: Number.isFinite(Number(last.durationMs)) ? Number(last.durationMs) : null,
+    countedAsViolation: last.countedAsViolation === true,
+  };
+}
+
+function normalizeExamEvents(session: any) {
+  const events = Array.isArray(session?.examEvents) ? session.examEvents : [];
+  return events.slice(-30).map((event: any) => ({
+    type: typeof event?.type === 'string' ? event.type : 'unknown',
+    reason: typeof event?.reason === 'string' ? event.reason : null,
+    at: event?.at ? new Date(event.at).toISOString() : null,
+    exitAt: event?.exitAt ? new Date(event.exitAt).toISOString() : null,
+    returnedAt: event?.returnedAt ? new Date(event.returnedAt).toISOString() : null,
+    durationMs: Number.isFinite(Number(event?.durationMs)) ? Number(event.durationMs) : null,
+    countedAsViolation: event?.countedAsViolation === true,
+    violationRule: typeof event?.violationRule === 'string' ? event.violationRule : null,
+    exitCount: Number.isFinite(Number(event?.exitCount)) ? Number(event.exitCount) : null,
+    unexpectedExitCount: Number.isFinite(Number(event?.unexpectedExitCount)) ? Number(event.unexpectedExitCount) : null,
+  }));
 }
 
 async function scanExamStudentKeys(examId: string) {
@@ -78,7 +109,22 @@ export async function GET(request: Request, { params }: { params: Promise<{ exam
       .collection('examSessions')
       .find(
         { examId: examId.toString() },
-        { projection: { studentId: 1, status: 1, submittedAt: 1, answers: 1, exitCount: 1 }, sort: { startedAt: -1 } }
+        {
+          projection: {
+            studentId: 1,
+            status: 1,
+            submittedAt: 1,
+            answers: 1,
+            exitCount: 1,
+            examEvents: 1,
+            unexpectedExitCount: 1,
+            draftUpdatedAt: 1,
+            lastHeartbeatAt: 1,
+            lastSeenAt: 1,
+            activeUnexpectedExit: 1,
+          },
+          sort: { startedAt: -1 },
+        }
       )
       .toArray();
 
@@ -112,8 +158,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ exam
       const answeredCount = extractAnsweredCount(payload) || (Array.isArray(session?.answers) ? session.answers.length : 0);
       const submittedAtRaw = payload.submittedAt || session?.submittedAt || null;
       const submittedAt = submittedAtRaw ? new Date(submittedAtRaw as string | Date).toISOString() : null;
+      const lastSeenRaw = session?.lastSeenAt || session?.lastHeartbeatAt || payload.syncedAt || session?.draftUpdatedAt || session?.submittedAt || null;
+      const lastSeenAt = lastSeenRaw ? new Date(lastSeenRaw as string | Date).toISOString() : null;
+      const lastHeartbeatMs = session?.lastHeartbeatAt ? new Date(session.lastHeartbeatAt).getTime() : 0;
+      const hasFreshHeartbeat = lastHeartbeatMs > 0 && Date.now() - lastHeartbeatMs <= ONLINE_HEARTBEAT_WINDOW_MS;
+      const auditEventCount = Array.isArray(session?.examEvents) ? session.examEvents.length : 0;
+      const unexpectedExitCount = Number(session?.unexpectedExitCount || 0);
+      const hasActiveUnexpectedExit = Boolean(session?.activeUnexpectedExit?.at);
 
-      const status = payload.status === 'offline' ? 'offline' : submittedAt ? 'offline' : 'online';
+      const status = !submittedAt && hasFreshHeartbeat ? 'online' : 'offline';
 
       return {
         studentId,
@@ -123,6 +176,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ exam
         violationCount,
         answeredCount,
         submittedAt,
+        lastSeenAt,
+        auditEventCount,
+        unexpectedExitCount,
+        hasActiveUnexpectedExit,
+        lastExamEvent: extractLastExamEvent(session),
+        examEvents: normalizeExamEvents(session),
       };
     });
 

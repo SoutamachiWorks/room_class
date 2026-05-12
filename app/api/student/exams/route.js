@@ -126,6 +126,8 @@ export async function GET(request) {
           gradingStatus: sess.gradingStatus,
           startedAt: sess.startedAt,
           submittedAt: sess.submittedAt,
+          exitCount: sess.exitCount || 0,
+          draftUpdatedAt: sess.draftUpdatedAt || null,
           calculatedScore
         };
       }

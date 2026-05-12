@@ -3,8 +3,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import Modal from '@/components/Modal';
 import PageHeader from '@/components/PageHeader';
 import styles from './monitoring.module.css';
+
+type ExamEvent = {
+  type: string;
+  reason: string | null;
+  at: string | null;
+  exitAt?: string | null;
+  returnedAt?: string | null;
+  durationMs: number | null;
+  countedAsViolation: boolean;
+  violationRule?: string | null;
+  exitCount?: number | null;
+  unexpectedExitCount?: number | null;
+};
 
 function useIsMobile(breakpoint = 640) {
   const [isMobile, setIsMobile] = useState(() => {
@@ -28,6 +42,18 @@ type StudentRow = {
   violationCount: number;
   answeredCount: number;
   submittedAt: string | null;
+  lastSeenAt?: string | null;
+  auditEventCount?: number;
+  unexpectedExitCount?: number;
+  hasActiveUnexpectedExit?: boolean;
+  lastExamEvent?: {
+    type: string;
+    reason: string | null;
+    at: string | null;
+    durationMs: number | null;
+    countedAsViolation: boolean;
+  } | null;
+  examEvents?: ExamEvent[];
 };
 
 type MonitorResponse = {
@@ -47,6 +73,7 @@ export default function MonitoringClient({ examId, examTitle }: { examId: string
   const [toast, setToast] = useState('');
   const [accessLoading, setAccessLoading] = useState(false);
   const [target, setTarget] = useState<StudentRow | null>(null);
+  const [historyTarget, setHistoryTarget] = useState<StudentRow | null>(null);
   const [actionType, setActionType] = useState<'warn' | 'disqualify' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const isMobile = useIsMobile(640);
@@ -87,6 +114,49 @@ export default function MonitoringClient({ examId, examTitle }: { examId: string
   const lastUpdated = data?.fetchedAt ? new Date(data.fetchedAt).toLocaleTimeString('id-ID') : '-';
   const finishedRate = data?.summary.total ? Math.round((data.summary.finished / data.summary.total) * 100) : 0;
   const onlineRate = data?.summary.total ? Math.round((data.summary.online / data.summary.total) * 100) : 0;
+
+  const formatShortDateTime = (value?: string | null) => {
+    if (!value) return '-';
+    return new Date(value).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatFullDateTime = (value?: string | null) => {
+    if (!value) return '-';
+    return new Date(value).toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  };
+
+  const formatDuration = (durationMs?: number | null) => {
+    if (!Number.isFinite(Number(durationMs))) return '-';
+    const totalSeconds = Math.max(0, Math.round(Number(durationMs) / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+  };
+
+  const eventLabel = (type: string) => ({
+    'explicit-violation': 'Pelanggaran eksplisit',
+    'unexpected-exit-start': 'Keluar tak terduga',
+    'unexpected-exit-return': 'Kembali ke ujian',
+  }[type] || type);
+
+  const eventReasonLabel = (reason?: string | null) => ({
+    'visibility-hidden': 'Halaman disembunyikan',
+    'window-blur': 'Fokus browser hilang',
+    'fullscreen-exit': 'Keluar fullscreen',
+    'alt-tab': 'Alt+Tab',
+    'windows-key': 'Tombol Windows',
+    'system-menu-shortcut': 'Shortcut sistem',
+    'blocked-browser-shortcut': 'Shortcut browser/devtools',
+    'page-hidden-or-closed': 'Halaman ditutup/disembunyikan',
+    'page-exit': 'Keluar halaman',
+    'exam-page-resumed': 'Masuk kembali ke ujian',
+  }[reason || ''] || reason || '-');
 
   const handleWarn = async () => {
     if (!target) return;
@@ -263,6 +333,12 @@ export default function MonitoringClient({ examId, examTitle }: { examId: string
                         )}
                       </div>
                       <div>
+                        <span className={styles.mobileMetaLbl}>Audit</span>
+                        <span className={styles.mobileMetaVal}>
+                          {student.auditEventCount || 0} event
+                        </span>
+                      </div>
+                      <div>
                         <span className={styles.mobileMetaLbl}>Jawaban</span>
                         <span className={styles.progressCount}>{student.answeredCount}</span>
                       </div>
@@ -275,6 +351,12 @@ export default function MonitoringClient({ examId, examTitle }: { examId: string
                         onClick={() => { setTarget(student); setActionType('warn'); }}
                       >
                         Tegur
+                      </button>
+                      <button
+                        className={styles.mobileActionBtn}
+                        onClick={() => setHistoryTarget(student)}
+                      >
+                        Riwayat
                       </button>
                       <button
                         className={`${styles.mobileActionBtn} ${styles.mobileActionDanger}`}
@@ -296,6 +378,7 @@ export default function MonitoringClient({ examId, examTitle }: { examId: string
                     <th>NISN</th>
                     <th>Status</th>
                     <th>Pelanggaran</th>
+                    <th>Audit</th>
                     <th>Progress</th>
                     <th>Aksi</th>
                   </tr>
@@ -327,9 +410,23 @@ export default function MonitoringClient({ examId, examTitle }: { examId: string
                           <span className={styles.cleanBadge}>Aman</span>
                         )}
                       </td>
+                      <td>
+                        <span className={student.hasActiveUnexpectedExit ? styles.badge : styles.cleanBadge}>
+                          {student.auditEventCount || 0} event
+                        </span>
+                        <br />
+                        <small>
+                          {student.hasActiveUnexpectedExit
+                            ? 'Keluar belum kembali'
+                            : student.lastExamEvent?.type
+                              ? `${student.lastExamEvent.type} - ${formatShortDateTime(student.lastExamEvent.at)}`
+                              : `Seen ${formatShortDateTime(student.lastSeenAt)}`}
+                        </small>
+                      </td>
                       <td><span className={styles.progressCount}>{student.answeredCount}</span></td>
                       <td className={styles.actions}>
                         <button onClick={() => { setTarget(student); setActionType('warn'); }}>Tegur</button>
+                        <button onClick={() => setHistoryTarget(student)}>Riwayat</button>
                         <button className={styles.danger} onClick={() => { setTarget(student); setActionType('disqualify'); }}>
                           Diskualifikasi
                         </button>
@@ -352,6 +449,95 @@ export default function MonitoringClient({ examId, examTitle }: { examId: string
         loading={actionLoading}
         confirmLabel="Kirim Teguran"
       />
+
+      <Modal
+        isOpen={Boolean(historyTarget)}
+        onClose={() => setHistoryTarget(null)}
+        title={`Riwayat Pelanggaran - ${historyTarget?.namaSiswa || 'Siswa'}`}
+        maxWidth="760px"
+      >
+        {historyTarget && (
+          <div className={styles.historyModal}>
+            <div className={styles.historySummary}>
+              <div>
+                <span className={styles.historyLabel}>Pelanggaran Resmi</span>
+                <strong>{historyTarget.violationCount}</strong>
+              </div>
+              <div>
+                <span className={styles.historyLabel}>Audit Event</span>
+                <strong>{historyTarget.auditEventCount || 0}</strong>
+              </div>
+              <div>
+                <span className={styles.historyLabel}>Keluar Tak Terduga</span>
+                <strong>{historyTarget.unexpectedExitCount || 0}</strong>
+              </div>
+              <div>
+                <span className={styles.historyLabel}>Terakhir Aktif</span>
+                <strong>{formatShortDateTime(historyTarget.lastSeenAt)}</strong>
+              </div>
+            </div>
+
+            {historyTarget.hasActiveUnexpectedExit && (
+              <div className={styles.historyAlert}>
+                Siswa tercatat keluar dari halaman ujian dan belum kembali pada refresh terakhir.
+              </div>
+            )}
+
+            {!historyTarget.examEvents || historyTarget.examEvents.length === 0 ? (
+              <p className={styles.muted}>Belum ada riwayat pelanggaran atau audit teknis untuk siswa ini.</p>
+            ) : (
+              <div className={styles.historyList}>
+                {[...historyTarget.examEvents].reverse().map((event, idx) => (
+                  <article
+                    key={`${event.type}-${event.at || idx}-${idx}`}
+                    className={`${styles.historyItem} ${event.countedAsViolation ? styles.historyViolation : ''}`}
+                  >
+                    <div className={styles.historyItemTop}>
+                      <div>
+                        <strong>{eventLabel(event.type)}</strong>
+                        <span>{formatFullDateTime(event.at || event.returnedAt || event.exitAt)}</span>
+                      </div>
+                      <span className={event.countedAsViolation ? styles.badge : styles.cleanBadge}>
+                        {event.countedAsViolation ? 'Dihitung Pelanggaran' : 'Audit'}
+                      </span>
+                    </div>
+                    <div className={styles.historyMetaGrid}>
+                      <div>
+                        <span>Alasan</span>
+                        <strong>{eventReasonLabel(event.reason)}</strong>
+                      </div>
+                      {event.durationMs !== null && (
+                        <div>
+                          <span>Durasi keluar</span>
+                          <strong>{formatDuration(event.durationMs)}</strong>
+                        </div>
+                      )}
+                      {event.unexpectedExitCount !== null && (
+                        <div>
+                          <span>Total keluar tak terduga</span>
+                          <strong>{event.unexpectedExitCount}</strong>
+                        </div>
+                      )}
+                      {event.exitCount !== null && (
+                        <div>
+                          <span>Exit count saat itu</span>
+                          <strong>{event.exitCount}</strong>
+                        </div>
+                      )}
+                      {event.violationRule && (
+                        <div>
+                          <span>Aturan</span>
+                          <strong>{event.violationRule}</strong>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         isOpen={actionType === 'disqualify'}

@@ -57,6 +57,12 @@ export async function GET(request, { params }) {
           submittedAt: 1,
           answers: 1,
           questions: 1,
+          examEvents: 1,
+          unexpectedExitCount: 1,
+          activeUnexpectedExit: 1,
+          draftUpdatedAt: 1,
+          lastHeartbeatAt: 1,
+          lastSeenAt: 1,
           'studentInfo.fullName': 1,
           'studentInfo.studentId': 1,
           'studentInfo.classCode': 1

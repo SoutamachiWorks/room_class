@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import Modal from '@/components/Modal';
 import PageHeader from '@/components/PageHeader';
 import EmptyState from '@/components/EmptyState';
 import styles from './page.module.css';
@@ -10,10 +11,12 @@ import styles from './page.module.css';
 const PAGE_SIZE = 5;
 
 function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(`(max-width: ${breakpoint}px)`).matches;
+  });
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    setIsMobile(mq.matches);
     const handler = (e) => setIsMobile(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
@@ -45,6 +48,58 @@ function formatTime(value) {
 function formatDateTime(value) {
   if (!value) return '-';
   return new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function formatDateTimeFull(value) {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
+function formatDuration(durationMs) {
+  if (!Number.isFinite(Number(durationMs))) return '-';
+  const totalSeconds = Math.max(0, Math.round(Number(durationMs) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes} menit ${seconds} detik` : `${seconds} detik`;
+}
+
+function getEventLabel(type) {
+  return {
+    'explicit-violation': 'Pelanggaran eksplisit',
+    'unexpected-exit-start': 'Keluar tak terduga',
+    'unexpected-exit-return': 'Kembali ke ujian',
+  }[type] || type || 'Event ujian';
+}
+
+function getReasonLabel(reason) {
+  return {
+    'visibility-hidden': 'Halaman ujian disembunyikan',
+    'window-blur': 'Fokus browser hilang',
+    'fullscreen-exit': 'Keluar dari fullscreen',
+    'alt-tab': 'Alt+Tab',
+    'windows-key': 'Tombol Windows',
+    'system-menu-shortcut': 'Shortcut sistem',
+    'blocked-browser-shortcut': 'Shortcut browser/devtools',
+    'blocked-contextmenu': 'Klik kanan',
+    'blocked-copy': 'Copy',
+    'blocked-cut': 'Cut',
+    'blocked-paste': 'Paste',
+    'blocked-selectstart': 'Seleksi teks',
+    'blocked-dragstart': 'Drag konten',
+    'page-hidden-or-closed': 'Halaman ditutup/disembunyikan',
+    'page-exit': 'Keluar halaman',
+    'exam-page-resumed': 'Masuk kembali ke ujian',
+    'file-picker-open-too-long': 'Pemilih file terbuka terlalu lama',
+    'file-picker-open-too-long-without-file': 'Pemilih file terbuka lama tanpa memilih file',
+    'file-picker-return-lost-focus': 'Fokus hilang setelah pemilih file',
+  }[reason] || reason || '-';
 }
 
 function getStatusLabel(status) {
@@ -86,6 +141,7 @@ export default function ExamResultsPage() {
   const [isEndExamOpen, setIsEndExamOpen] = useState(false);
   const [endExamLoading, setEndExamLoading] = useState(false);
   const [visibilityLoading, setVisibilityLoading] = useState(false);
+  const [violationDetail, setViolationDetail] = useState(null);
 
   const searchTerm = searchInput.trim().toLowerCase();
 
@@ -172,6 +228,10 @@ export default function ExamResultsPage() {
   const requestSessionAction = (sessionId, studentName, type) => {
     setConfirmConfig({ sessionId, studentName, type });
     setIsConfirmOpen(true);
+  };
+
+  const openViolationDetail = (session) => {
+    setViolationDetail(session);
   };
 
   const handleConfirmAction = async () => {
@@ -470,6 +530,11 @@ export default function ExamResultsPage() {
                         Koreksi
                       </button>
                     )}
+                    {sess.status !== 'not-started' && (
+                      <button className={styles.actionSecondary} onClick={() => openViolationDetail(sess)}>
+                        Detail Pelanggaran
+                      </button>
+                    )}
                     {(sess.status === 'locked' || (sess.status === 'in-progress' && (sess.exitCount || 0) > 0)) && (
                       <button className={styles.actionWarning} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'unlock')}>
                         Buka Kunci
@@ -537,13 +602,9 @@ export default function ExamResultsPage() {
                       </div>
                     </td>
                     <td data-label="Pelanggaran">
-                      <button
-                        type="button"
-                        className={`${styles.violationBtn} ${sess.exitCount > 1 ? styles.violationHigh : sess.exitCount === 1 ? styles.violationMed : ''}`}
-                        onClick={() => alert(`Detail pelanggaran ${sess.studentInfo?.fullName || '-'}: ${sess.exitCount || 0} kali perpindahan tab.`)}
-                      >
+                      <span className={`${styles.violationText} ${sess.exitCount > 1 ? styles.violationHigh : sess.exitCount === 1 ? styles.violationMed : ''}`}>
                         {sess.exitCount || 0} kali
-                      </button>
+                      </span>
                     </td>
                     <td data-label="Status Koreksi">
                       <span className={gradingLabel === 'Sudah Dikoreksi' ? styles.gradedDone : styles.gradedPending}>{gradingLabel}</span>
@@ -563,6 +624,11 @@ export default function ExamResultsPage() {
                         {sess.status === 'in-progress' && (
                           <button className={styles.actionPrimary} onClick={() => router.push(`/dashboard/teacher/exams/${examId}/results/${sess._id}`)}>
                             Koreksi
+                          </button>
+                        )}
+                        {sess.status !== 'not-started' && (
+                          <button className={styles.actionSecondary} onClick={() => openViolationDetail(sess)}>
+                            Detail Pelanggaran
                           </button>
                         )}
                         {(sess.status === 'locked' || (sess.status === 'in-progress' && (sess.exitCount || 0) > 0)) && (
@@ -609,6 +675,97 @@ export default function ExamResultsPage() {
         <strong>💡 Tips</strong>
         <p>Pantau progres ujian secara real-time dan pastikan tidak ada kecurangan.</p>
       </section>
+
+      <Modal
+        isOpen={Boolean(violationDetail)}
+        onClose={() => setViolationDetail(null)}
+        title={`Detail Pelanggaran - ${violationDetail?.studentInfo?.fullName || 'Siswa'}`}
+        maxWidth="780px"
+      >
+        {violationDetail && (
+          <div className={styles.violationModal}>
+            <div className={styles.violationSummary}>
+              <div>
+                <span>Pelanggaran Resmi</span>
+                <strong>{violationDetail.exitCount || 0}</strong>
+              </div>
+              <div>
+                <span>Audit Event</span>
+                <strong>{Array.isArray(violationDetail.examEvents) ? violationDetail.examEvents.length : 0}</strong>
+              </div>
+              <div>
+                <span>Keluar Tak Terduga</span>
+                <strong>{violationDetail.unexpectedExitCount || 0}</strong>
+              </div>
+              <div>
+                <span>Draft Terakhir</span>
+                <strong>{formatTime(violationDetail.draftUpdatedAt)}</strong>
+              </div>
+            </div>
+
+            {violationDetail.activeUnexpectedExit?.at && (
+              <div className={styles.violationAlert}>
+                Siswa tercatat keluar dari halaman ujian dan belum kembali.
+              </div>
+            )}
+
+            {!Array.isArray(violationDetail.examEvents) || violationDetail.examEvents.length === 0 ? (
+              <p className={styles.violationEmpty}>
+                Belum ada detail riwayat pelanggaran. Jika angka pelanggaran sudah ada, kemungkinan berasal dari data lama sebelum audit event diaktifkan.
+              </p>
+            ) : (
+              <div className={styles.violationTimeline}>
+                {[...violationDetail.examEvents].reverse().map((event, idx) => (
+                  <article
+                    key={`${event.type || 'event'}-${event.at || idx}-${idx}`}
+                    className={`${styles.violationEvent} ${event.countedAsViolation ? styles.violationEventCounted : ''}`}
+                  >
+                    <div className={styles.violationEventHead}>
+                      <div>
+                        <strong>{getEventLabel(event.type)}</strong>
+                        <span>{formatDateTimeFull(event.at || event.returnedAt || event.exitAt)}</span>
+                      </div>
+                      <span className={event.countedAsViolation ? styles.violationCountedBadge : styles.violationAuditBadge}>
+                        {event.countedAsViolation ? 'Dihitung Pelanggaran' : 'Audit'}
+                      </span>
+                    </div>
+                    <div className={styles.violationEventGrid}>
+                      <div>
+                        <span>Kesalahan / Alasan</span>
+                        <strong>{getReasonLabel(event.reason)}</strong>
+                      </div>
+                      {event.durationMs !== null && event.durationMs !== undefined && (
+                        <div>
+                          <span>Durasi keluar</span>
+                          <strong>{formatDuration(event.durationMs)}</strong>
+                        </div>
+                      )}
+                      {event.unexpectedExitCount !== null && event.unexpectedExitCount !== undefined && (
+                        <div>
+                          <span>Total keluar tak terduga</span>
+                          <strong>{event.unexpectedExitCount}</strong>
+                        </div>
+                      )}
+                      {event.exitCount !== null && event.exitCount !== undefined && (
+                        <div>
+                          <span>Exit count</span>
+                          <strong>{event.exitCount}</strong>
+                        </div>
+                      )}
+                      {event.violationRule && (
+                        <div>
+                          <span>Aturan</span>
+                          <strong>{event.violationRule}</strong>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
 
       <ConfirmDialog
         isOpen={isConfirmOpen}
