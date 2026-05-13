@@ -3,17 +3,23 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 
+function getClassCodes(source) {
+  return Array.isArray(source?.classCodes) && source.classCodes.length
+    ? source.classCodes
+    : [source?.classCode].filter(Boolean);
+}
+
 /**
  * Helper: auto-alpha all students who haven't checked in for this session.
  * Called when a session is closed.
  */
 async function autoAlphaAbsentStudents(db, session) {
-  const classCode = session.classCode;
+  const classCodes = getClassCodes(session);
   const sessionId = session._id.toString();
 
   // Get all enrolled students in this class
   const students = await db.collection('users')
-    .find({ role: 'student', classCode })
+    .find({ role: 'student', classCode: { $in: classCodes } })
     .project({ studentId: 1, fullName: 1 })
     .toArray();
 
@@ -33,7 +39,7 @@ async function autoAlphaAbsentStudents(db, session) {
       sessionId,
       studentId: s.studentId,
       subjectId: session.subjectId,
-      classCode,
+      classCode: s.classCode,
       date: session.date,
       status: 'alpha',
       note: 'Tidak hadir (otomatis)',
@@ -91,9 +97,10 @@ export async function GET(request, { params }) {
       subjectName = subject?.subjectName || '';
     }
 
-    // Get all students in the class
+    // Get all students in the mapped classes
+    const sessionClassCodes = getClassCodes(session);
     const students = await db.collection('users')
-      .find({ role: 'student', classCode: session.classCode })
+      .find({ role: 'student', classCode: { $in: sessionClassCodes } })
       .project({ studentId: 1, fullName: 1, classCode: 1 })
       .sort({ fullName: 1 })
       .toArray();

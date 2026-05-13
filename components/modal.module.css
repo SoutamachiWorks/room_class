@@ -121,6 +121,17 @@
   padding: 0 16px;
 }
 
+.confirmError {
+  margin: -8px 28px 20px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-failed-bg);
+  color: var(--color-failed-text);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
 .confirmActions {
   display: flex;
   gap: 12px;
@@ -227,5 +238,8 @@
   .confirmMessage {
     padding: 0 8px;
   }
-}
 
+  .confirmError {
+    margin: -4px 20px 18px;
+  }
+}

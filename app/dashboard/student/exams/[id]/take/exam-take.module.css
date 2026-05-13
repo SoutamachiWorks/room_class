@@ -199,8 +199,26 @@
   word-break: break-word;
 }
 
+.examQuestionText p,
+.examQuestionText div {
+  margin: 0 0 0.5em;
+}
+
+.examQuestionText ul,
+.examQuestionText ol {
+  margin: 0.4em 0 0.6em 1.25em;
+  padding-left: 1em;
+}
+
 .examQuestionTextSmall {
   margin-bottom: 10px;
+}
+
+.examQuestionHint {
+  margin: -4px 0 12px;
+  color: var(--color-subtext);
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .examQuestionImage {

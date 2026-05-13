@@ -391,6 +391,55 @@
   box-shadow: 0 0 0 3px rgba(120, 163, 255, 0.1);
 }
 
+.classPickerRow {
+  display: block;
+}
+
+.selectedClassList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--bg-surface);
+}
+
+.selectedClassEmpty {
+  align-self: center;
+  color: var(--color-subtext);
+  font-size: 0.82rem;
+}
+
+.selectedClassChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 8px 6px 10px;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-heading);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.selectedClassChip button {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-failed-bg);
+  color: var(--color-failed-text);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .formActions {
   display: flex;
   justify-content: flex-end;

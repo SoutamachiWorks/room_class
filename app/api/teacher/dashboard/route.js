@@ -20,7 +20,15 @@ export async function GET(request) {
     // --- 1. Get all subjects taught by this teacher ---
     const subjects = await db.collection('subjects').find({ teacherId }).toArray();
     const subjectIds = subjects.map(s => s._id.toString());
-    const classCodes = [...new Set(subjects.map(s => s.classCode).filter(Boolean))];
+    const classCodes = [
+      ...new Set(
+        subjects.flatMap((s) => (
+          Array.isArray(s.classCodes) && s.classCodes.length
+            ? s.classCodes
+            : [s.classCode]
+        )).filter(Boolean)
+      ),
+    ];
 
     // --- 2. Count total students ---
     const totalStudents = await db.collection('users').countDocuments({

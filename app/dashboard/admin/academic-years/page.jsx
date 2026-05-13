@@ -7,18 +7,6 @@ import PageHeader from '@/components/PageHeader';
 import ContentCard from '@/components/ContentCard';
 import styles from './academic-years.module.css';
 
-function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    setIsMobile(mq.matches);
-    const handler = (e) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, [breakpoint]);
-  return isMobile;
-}
-
 function CalendarIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -36,7 +24,6 @@ export default function AdminAcademicYearsPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const isMobile = useIsMobile(640);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -105,6 +92,7 @@ export default function AdminAcademicYearsPage() {
 
   const remove = async () => {
     if (!selected) return;
+    setFormError('');
     setFormLoading(true);
     try {
       const res = await fetch(`/api/admin/academic-years/${selected._id}`, { method: 'DELETE' });
@@ -126,6 +114,16 @@ export default function AdminAcademicYearsPage() {
       {isActive ? 'Aktif' : 'Nonaktif'}
     </span>
   );
+
+  const formatUsage = (usage) => {
+    if (!usage?.total) return 'Belum dipakai';
+    const parts = [
+      usage.users ? `${usage.users} user/siswa` : '',
+      usage.exams ? `${usage.exams} ujian` : '',
+      usage.examSessions ? `${usage.examSessions} sesi` : '',
+    ].filter(Boolean);
+    return parts.join(', ');
+  };
 
   return (
     <div>
@@ -156,6 +154,7 @@ export default function AdminAcademicYearsPage() {
                   <tr>
                     <th>Tahun Ajaran</th>
                     <th>Status</th>
+                    <th>Pengguna</th>
                     <th>Diperbarui</th>
                     <th>Aksi</th>
                   </tr>
@@ -163,8 +162,8 @@ export default function AdminAcademicYearsPage() {
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={4} style={{ textAlign: 'center', color: 'var(--color-subtext)', padding: '40px' }}>
-                        Belum ada tahun ajaran. Klik "+ Tambah Tahun Ajaran" untuk memulai.
+                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-subtext)', padding: '40px' }}>
+                        Belum ada tahun ajaran. Klik &quot;+ Tambah Tahun Ajaran&quot; untuk memulai.
                       </td>
                     </tr>
                   ) : rows.map((row) => (
@@ -178,6 +177,9 @@ export default function AdminAcademicYearsPage() {
                         </div>
                       </td>
                       <td><StatusBadge isActive={row.isActive} /></td>
+                      <td style={{ color: 'var(--color-subtext)', fontSize: '0.82rem' }}>
+                        {formatUsage(row.usage)}
+                      </td>
                       <td style={{ color: 'var(--color-subtext)', fontSize: '0.82rem' }}>
                         {row.updatedAt ? new Date(row.updatedAt).toLocaleString('id-ID') : '-'}
                       </td>
@@ -226,6 +228,10 @@ export default function AdminAcademicYearsPage() {
                       <span className={styles.mobileMetaValue}>
                         {row.updatedAt ? new Date(row.updatedAt).toLocaleDateString('id-ID') : '-'}
                       </span>
+                    </div>
+                    <div className={styles.mobileMetaItem}>
+                      <span className={styles.mobileMetaLabel}>Pengguna</span>
+                      <span className={styles.mobileMetaValue}>{formatUsage(row.usage)}</span>
                     </div>
                   </div>
 
@@ -298,6 +304,7 @@ export default function AdminAcademicYearsPage() {
         onConfirm={remove}
         title="Hapus Tahun Ajaran"
         message={`Hapus tahun ajaran "${selected?.label}"? Tindakan ini tidak dapat dibatalkan.`}
+        error={formError}
         loading={formLoading}
       />
     </div>

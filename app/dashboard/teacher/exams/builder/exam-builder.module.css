@@ -300,6 +300,53 @@
   resize: vertical;
 }
 
+.richTextBox {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.richTextToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-secondary) 82%, var(--accent-blue) 18%);
+}
+
+.richTextToolbar button {
+  min-width: 34px;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.richTextEditor {
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  outline: none;
+  word-break: break-word;
+}
+
+.richTextEditor:empty::before {
+  content: 'Tulis teks di sini...';
+  color: var(--text-muted);
+}
+
+.richTextEditor ul,
+.richTextEditor ol {
+  margin: 0.4em 0 0.4em 1.25em;
+  padding-left: 1em;
+}
+
 .formGrid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -489,6 +536,40 @@
   gap: 6px;
 }
 
+.importGuide {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+}
+
+.importGuide summary {
+  color: var(--text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.importGuide p {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+.importGuide pre {
+  overflow-x: auto;
+  margin: 8px 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
 .totalText {
   color: var(--text-secondary);
   margin-top: 10px;
@@ -531,6 +612,51 @@
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;
+}
+
+.multiAnswerSettings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-secondary) 84%, var(--accent-blue) 16%);
+  margin-bottom: 10px;
+}
+
+.checkField {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.checkField input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-blue);
+}
+
+.minSelectField {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.minSelectField input {
+  width: 76px;
+  min-height: 34px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 0 10px;
 }
 
 .optionDeleteBtn {

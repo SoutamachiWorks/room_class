@@ -44,6 +44,12 @@ function getMapelColor(subjectName) {
   return 'mapelSlate';
 }
 
+function getClassCodes(source) {
+  return Array.isArray(source?.classCodes) && source.classCodes.length
+    ? source.classCodes
+    : [source?.classCode].filter(Boolean);
+}
+
 export default function ExamsPage() {
   const isMobile = useIsMobile(640);
   const router = useRouter();
@@ -62,6 +68,7 @@ export default function ExamsPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   const fetchExams = useCallback(async () => {
     setLoading(true);
@@ -87,12 +94,32 @@ export default function ExamsPage() {
     return () => clearTimeout(timer);
   }, [fetchExams]);
 
+  useEffect(() => {
+    if (!openMenuId) return;
+
+    const closeMenu = (event) => {
+      if (event.target?.closest?.('[data-exam-more-menu="true"]')) return;
+      setOpenMenuId(null);
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setOpenMenuId(null);
+    };
+
+    document.addEventListener('pointerdown', closeMenu);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeMenu);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [openMenuId]);
+
   const normalizedRows = useMemo(
     () =>
       exams.map((exam) => ({
         ...exam,
         subjectName: exam.subjectDetails?.subjectName || '-',
-        classCode: exam.subjectDetails?.classCode || '-',
+        classCodes: getClassCodes(exam.subjectDetails),
+        classCode: getClassCodes(exam.subjectDetails).join(', ') || '-',
         typeLabel: getQuestionTypeLabel(exam),
         examCategory: exam.examCategory === 'semester' ? 'semester' : 'ulangan',
       })),
@@ -112,7 +139,7 @@ export default function ExamsPage() {
     [normalizedRows]
   );
   const classOptions = useMemo(
-    () => Array.from(new Set(normalizedRows.map((row) => row.classCode))).filter((v) => v && v !== '-'),
+    () => Array.from(new Set(normalizedRows.flatMap((row) => row.classCodes || []))).filter(Boolean),
     [normalizedRows]
   );
 
@@ -125,7 +152,7 @@ export default function ExamsPage() {
         row.subjectName?.toLowerCase().includes(q) ||
         row.classCode?.toLowerCase().includes(q);
       const matchedSubject = !subjectFilter || row.subjectName === subjectFilter;
-      const matchedClass = !classFilter || row.classCode === classFilter;
+      const matchedClass = !classFilter || (row.classCodes || []).includes(classFilter);
       const matchedType = !typeFilter || row.typeLabel === typeFilter;
       const matchedStatus = !statusFilter || row.status === statusFilter;
       return matchedSearch && matchedSubject && matchedClass && matchedType && matchedStatus;
@@ -147,6 +174,7 @@ export default function ExamsPage() {
   };
 
   const handleTogglePublish = async (exam) => {
+    setOpenMenuId(null);
     setPublishLoading(exam._id);
     try {
       const res = await fetch(`/api/teacher/exams/${exam._id}/publish`, { method: 'PUT' });
@@ -343,7 +371,12 @@ export default function ExamsPage() {
                         >
                           E
                         </button>
-                        <details className={styles.moreMenu}>
+                        <details
+                          className={styles.moreMenu}
+                          data-exam-more-menu="true"
+                          open={openMenuId === `desktop-${row._id}`}
+                          onToggle={(e) => setOpenMenuId(e.currentTarget.open ? `desktop-${row._id}` : null)}
+                        >
                           <summary className={styles.iconBtn}>...</summary>
                           <div className={styles.moreMenuContent}>
                             <button onClick={() => handleTogglePublish(row)} disabled={publishLoading === row._id}>
@@ -352,6 +385,7 @@ export default function ExamsPage() {
                             <button
                               className={styles.dangerMenu}
                               onClick={() => {
+                                setOpenMenuId(null);
                                 setSelectedExam(row);
                                 setIsDeleteOpen(true);
                               }}
@@ -394,7 +428,12 @@ export default function ExamsPage() {
                       >
                         E
                       </button>
-                      <details className={styles.moreMenu}>
+                      <details
+                        className={styles.moreMenu}
+                        data-exam-more-menu="true"
+                        open={openMenuId === `mobile-${row._id}`}
+                        onToggle={(e) => setOpenMenuId(e.currentTarget.open ? `mobile-${row._id}` : null)}
+                      >
                         <summary className={styles.iconBtn}>...</summary>
                         <div className={styles.moreMenuContent}>
                           <button onClick={() => handleTogglePublish(row)} disabled={publishLoading === row._id}>
@@ -403,6 +442,7 @@ export default function ExamsPage() {
                           <button
                             className={styles.dangerMenu}
                             onClick={() => {
+                              setOpenMenuId(null);
                               setSelectedExam(row);
                               setIsDeleteOpen(true);
                             }}

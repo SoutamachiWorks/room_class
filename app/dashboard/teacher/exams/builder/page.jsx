@@ -1,19 +1,356 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import styles from './exam-builder.module.css';
 
-function createEmptyQuestion(type = 'multipleChoice') {
+function createEmptyQuestion(type = 'multipleChoice', config = {}) {
+  const multipleAnswers = !!config.multipleAnswers;
+  const minSelections = Math.max(1, Number(config.minSelections || 1));
   return {
     type,
     required: true,
     imageUrl: null,
     imageSize: 0,
-    multipleChoice: type === 'multipleChoice' ? { questionText: '', options: ['', ''], correctAnswer: null, explanation: '' } : null,
+    multipleChoice: type === 'multipleChoice'
+      ? { questionText: '', options: ['', ''], correctAnswer: multipleAnswers ? [] : null, multipleAnswers, minSelections, explanation: '' }
+      : null,
     essay: type === 'essay' ? { questionText: '', explanation: '' } : null,
     fileUpload: null,
   };
+}
+
+function hasCorrectAnswer(multipleChoice) {
+  const correctAnswer = multipleChoice?.correctAnswer;
+  return Array.isArray(correctAnswer) ? correctAnswer.length > 0 : correctAnswer !== null && correctAnswer !== undefined;
+}
+
+function normalizeCorrectAnswerForMode(correctAnswer, multipleAnswers) {
+  if (multipleAnswers) {
+    if (Array.isArray(correctAnswer)) return correctAnswer;
+    return correctAnswer === null || correctAnswer === undefined ? [] : [correctAnswer];
+  }
+  return Array.isArray(correctAnswer) ? (correctAnswer[0] ?? null) : (correctAnswer ?? null);
+}
+
+function stripHtml(value = '') {
+  if (!value) return '';
+  const div = document.createElement('div');
+  div.innerHTML = value;
+  return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim();
+}
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function removeLeadingPattern(html, text, pattern) {
+  const match = text.match(pattern);
+  if (!match) return html;
+  return escapeHtml(text.slice(match[0].length).trim());
+}
+
+function normalizeOptionHtml(html, text) {
+  return removeLeadingPattern(html, text, /^(?:[A-Z][.)]|[□☐☑☒])\s+/i);
+}
+
+function getWordBlocks(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html || '', 'text/html');
+  const nodes = Array.from(doc.body.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6'));
+  return nodes
+    .map((node) => ({
+      text: (node.textContent || '').replace(/\s+/g, ' ').trim(),
+      html: node.innerHTML || '',
+    }))
+    .filter((block) => block.text);
+}
+
+function getDirectListItems(list) {
+  return Array.from(list.children).filter((child) => child.tagName?.toLowerCase() === 'li');
+}
+
+function getCleanListItemContent(item) {
+  const clone = item.cloneNode(true);
+  clone.querySelectorAll('ol, ul').forEach((list) => list.remove());
+  const html = clone.innerHTML.trim();
+  const text = (clone.textContent || '').replace(/\s+/g, ' ').trim();
+  return { html, text };
+}
+
+function getNestedOptions(item) {
+  const nestedList = Array.from(item.children).find((child) => ['ol', 'ul'].includes(child.tagName?.toLowerCase()));
+  if (!nestedList) return [];
+  return getDirectListItems(nestedList)
+    .map((option) => getCleanListItemContent(option))
+    .filter((option) => option.text)
+    .map((option) => normalizeOptionHtml(option.html || escapeHtml(option.text), option.text));
+}
+
+function getListOptions(list) {
+  return getDirectListItems(list)
+    .map((option) => getCleanListItemContent(option))
+    .filter((option) => option.text)
+    .map((option) => normalizeOptionHtml(option.html || escapeHtml(option.text), option.text));
+}
+
+function parseAnswerLetters(value = '') {
+  return String(value)
+    .split(/[,\s;]+/)
+    .map((part) => part.trim().toUpperCase())
+    .filter((part) => /^[A-Z]$/.test(part))
+    .map((letter) => letter.charCodeAt(0) - 65);
+}
+
+function buildImportedQuestion(source) {
+  const questionText = source.questionHtml.join('<br>').trim();
+  const explanation = source.explanationHtml.join('<br>').trim();
+  if (!questionText) return null;
+
+  if (source.options.length > 0) {
+    const validKeys = source.correctAnswer.filter((idx) => idx >= 0 && idx < source.options.length);
+    const multipleAnswers = validKeys.length > 1;
+    return {
+      ...createEmptyQuestion('multipleChoice', {
+        multipleAnswers,
+        minSelections: multipleAnswers ? validKeys.length : 1,
+      }),
+      type: 'multipleChoice',
+      multipleChoice: {
+        questionText,
+        options: source.options.map((option) => stripHtml(option) || option),
+        correctAnswer: multipleAnswers ? validKeys : (validKeys[0] ?? null),
+        multipleAnswers,
+        minSelections: multipleAnswers ? validKeys.length : 1,
+        explanation,
+      },
+    };
+  }
+
+  return {
+    ...createEmptyQuestion('essay'),
+    type: 'essay',
+    essay: {
+      questionText,
+      explanation,
+    },
+  };
+}
+
+function parseStructuredWordQuestions(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html || '', 'text/html');
+  const parsed = [];
+  let current = null;
+  let explanationMode = false;
+
+  const pushCurrent = () => {
+    const question = current ? buildImportedQuestion(current) : null;
+    if (question) parsed.push(question);
+    current = null;
+    explanationMode = false;
+  };
+
+  const pushListQuestions = (list) => {
+    const items = getDirectListItems(list);
+
+    if (items.length > 1) {
+      const first = getCleanListItemContent(items[0]);
+      const rest = items.slice(1).map((item) => getCleanListItemContent(item)).filter((item) => item.text);
+      const restLooksLikeOptions = rest.length >= 2 && rest.every((item) => !/^(?:soal\s*)?\d+[.)]\s+/i.test(item.text));
+      if (first.text && restLooksLikeOptions) {
+        pushCurrent();
+        current = {
+          questionHtml: [first.html || escapeHtml(first.text)],
+          options: rest.map((option) => normalizeOptionHtml(option.html || escapeHtml(option.text), option.text)),
+          correctAnswer: [],
+          explanationHtml: [],
+        };
+        return;
+      }
+    }
+
+    for (const item of items) {
+      const content = getCleanListItemContent(item);
+      const options = getNestedOptions(item);
+      if (!content.text) continue;
+      pushCurrent();
+      current = {
+        questionHtml: [content.html || escapeHtml(content.text)],
+        options,
+        correctAnswer: [],
+        explanationHtml: [],
+      };
+    }
+  };
+
+  for (const node of Array.from(doc.body.children)) {
+    const tag = node.tagName?.toLowerCase();
+    const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text) continue;
+
+    if (tag === 'ul' && current && current.options.length === 0) {
+      current.options = getListOptions(node);
+      continue;
+    }
+
+    if (tag === 'ol' || tag === 'ul') {
+      pushListQuestions(node);
+      continue;
+    }
+
+    const keyMatch = text.match(/^(?:kunci|jawaban|answer)\s*:\s*(.+)$/i);
+    const explanationMatch = text.match(/^(?:pembahasan|penjelasan|explanation)\s*:\s*(.*)$/i);
+
+    if (keyMatch && current) {
+      current.correctAnswer = parseAnswerLetters(keyMatch[1]);
+      explanationMode = false;
+      continue;
+    }
+
+    if (explanationMatch && current) {
+      explanationMode = true;
+      const explanationText = explanationMatch[1]?.trim();
+      if (explanationText) {
+        current.explanationHtml.push(removeLeadingPattern(node.innerHTML, text, /^(?:pembahasan|penjelasan|explanation)\s*:\s*/i));
+      }
+      continue;
+    }
+
+    if (explanationMode && current) {
+      current.explanationHtml.push(node.innerHTML || escapeHtml(text));
+    }
+  }
+
+  pushCurrent();
+  return parsed;
+}
+
+function parseLineBasedWordQuestions(html) {
+  const blocks = getWordBlocks(html);
+  const questions = [];
+  let current = null;
+  let explanationMode = false;
+
+  const pushCurrent = () => {
+    const question = current ? buildImportedQuestion(current) : null;
+    if (question) questions.push(question);
+  };
+
+  for (const block of blocks) {
+    const questionMatch = block.text.match(/^(?:soal\s*)?(\d+)[.)]\s+(.+)$/i);
+    const optionMatch = block.text.match(/^(?:[A-Z][.)]|[□☐☑☒])\s+(.+)$/i);
+    const keyMatch = block.text.match(/^(?:kunci|jawaban|answer)\s*:\s*(.+)$/i);
+    const explanationMatch = block.text.match(/^(?:pembahasan|penjelasan|explanation)\s*:\s*(.*)$/i);
+
+    if (questionMatch) {
+      pushCurrent();
+      current = {
+        questionHtml: [removeLeadingPattern(block.html, block.text, /^(?:soal\s*)?\d+[.)]\s+/i)],
+        options: [],
+        correctAnswer: [],
+        explanationHtml: [],
+      };
+      explanationMode = false;
+      continue;
+    }
+
+    if (!current) continue;
+
+    if (keyMatch) {
+      current.correctAnswer = parseAnswerLetters(keyMatch[1]);
+      explanationMode = false;
+      continue;
+    }
+
+    if (explanationMatch) {
+      explanationMode = true;
+      const explanationText = explanationMatch[1]?.trim();
+      if (explanationText) {
+        current.explanationHtml.push(removeLeadingPattern(block.html, block.text, /^(?:pembahasan|penjelasan|explanation)\s*:\s*/i));
+      }
+      continue;
+    }
+
+    if (!explanationMode && optionMatch) {
+      current.options.push(normalizeOptionHtml(block.html, block.text));
+      continue;
+    }
+
+    if (explanationMode) {
+      current.explanationHtml.push(block.html);
+    } else {
+      current.questionHtml.push(block.html);
+    }
+  }
+
+  pushCurrent();
+  return questions;
+}
+
+function parseWordQuestions(html) {
+  const structuredQuestions = parseStructuredWordQuestions(html);
+  if (structuredQuestions.length) return structuredQuestions;
+  return parseLineBasedWordQuestions(html);
+}
+
+function isBlankQuestion(question) {
+  if (!question) return true;
+  if (question.type === 'multipleChoice') {
+    const mc = question.multipleChoice || {};
+    return !mc.questionText?.trim() &&
+      (mc.options || []).every((option) => !option.trim()) &&
+      !hasCorrectAnswer(mc);
+  }
+  return !question.essay?.questionText?.trim();
+}
+
+function getClassCodes(source) {
+  return Array.isArray(source?.classCodes) && source.classCodes.length
+    ? source.classCodes
+    : [source?.classCode].filter(Boolean);
+}
+
+function RichTextEditor({ value, onChange, minHeight = 120 }) {
+  const editorRef = useRef(null);
+
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== (value || '')) {
+      editorRef.current.innerHTML = value || '';
+    }
+  }, [value]);
+
+  const runCommand = (command, commandValue = null) => {
+    editorRef.current?.focus();
+    document.execCommand(command, false, commandValue);
+    onChange(editorRef.current?.innerHTML || '');
+  };
+
+  return (
+    <div className={styles.richTextBox}>
+      <div className={styles.richTextToolbar}>
+        <button type="button" onClick={() => runCommand('bold')}>B</button>
+        <button type="button" onClick={() => runCommand('italic')}>I</button>
+        <button type="button" onClick={() => runCommand('underline')}>U</button>
+        <button type="button" onClick={() => runCommand('insertOrderedList')}>1.</button>
+        <button type="button" onClick={() => runCommand('insertUnorderedList')}>•</button>
+        <button type="button" onClick={() => runCommand('removeFormat')}>Clear</button>
+      </div>
+      <div
+        ref={editorRef}
+        className={styles.richTextEditor}
+        contentEditable
+        suppressContentEditableWarning
+        style={{ minHeight }}
+        onInput={(e) => onChange(e.currentTarget.innerHTML)}
+      />
+    </div>
+  );
 }
 
 const STEP_META = [
@@ -39,6 +376,8 @@ export default function ExamBuilderPage() {
   const [initialLoading, setInitialLoading] = useState(!!editId);
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(0);
   const [uploadingImageIndex, setUploadingImageIndex] = useState(null);
+  const [importingWord, setImportingWord] = useState(false);
+  const wordImportRef = useRef(null);
 
   const [title, setTitle] = useState('');
   const [subjectId, setSubjectId] = useState('');
@@ -53,6 +392,8 @@ export default function ExamBuilderPage() {
   const [teacherSubjects, setTeacherSubjects] = useState([]);
   const [questions, setQuestions] = useState([createEmptyQuestion('multipleChoice')]);
   const [typeSettings, setTypeSettings] = useState(DEFAULT_TYPE_SETTINGS);
+  const [defaultMultipleAnswers, setDefaultMultipleAnswers] = useState(false);
+  const [defaultMinSelections, setDefaultMinSelections] = useState(3);
 
   useEffect(() => {
     async function loadDependencies() {
@@ -101,6 +442,8 @@ export default function ExamBuilderPage() {
                 questionText: q.multipleChoice.questionText || '',
                 options: q.multipleChoice.options?.length ? q.multipleChoice.options : ['', ''],
                 correctAnswer: q.multipleChoice.correctAnswer ?? null,
+                multipleAnswers: Array.isArray(q.multipleChoice.correctAnswer) || !!q.multipleChoice.multipleAnswers,
+                minSelections: Math.max(1, Number(q.multipleChoice.minSelections || (Array.isArray(q.multipleChoice.correctAnswer) ? q.multipleChoice.correctAnswer.length : 1))),
                 explanation: q.multipleChoice.explanation || '',
               },
             };
@@ -128,7 +471,14 @@ export default function ExamBuilderPage() {
             },
           };
         });
-        if (mapped.length) setQuestions(mapped);
+        if (mapped.length) {
+          setQuestions(mapped);
+          const firstMultiAnswer = mapped.find((q) => q.type === 'multipleChoice' && q.multipleChoice?.multipleAnswers);
+          setDefaultMultipleAnswers(!!firstMultiAnswer);
+          if (firstMultiAnswer) {
+            setDefaultMinSelections(Math.max(1, Number(firstMultiAnswer.multipleChoice?.minSelections || 1)));
+          }
+        }
         const savedTypeSettings = exam.typeSettings;
         if (savedTypeSettings && typeof savedTypeSettings === 'object') {
           setTypeSettings((prev) =>
@@ -161,10 +511,11 @@ export default function ExamBuilderPage() {
     loadExam();
   }, [editId]);
 
-  const classCode = useMemo(
-    () => teacherSubjects.find((s) => s._id === subjectId)?.classCode || '',
+  const classCodes = useMemo(
+    () => getClassCodes(teacherSubjects.find((s) => s._id === subjectId)),
     [subjectId, teacherSubjects]
   );
+  const classCode = classCodes.join(', ');
 
   const selectedQuestion = questions[selectedQuestionIndex] || null;
   const enabledQuestionTypes = typeSettings.filter((t) => t.enabled);
@@ -177,7 +528,7 @@ export default function ExamBuilderPage() {
   const canGoStep2 = title.trim() && subjectId;
   const canGoStep3 = questions.length > 0 && questions.every((q) => {
     if (q.type === 'multipleChoice') {
-      return q.multipleChoice?.questionText?.trim() && (q.multipleChoice.options || []).every((o) => o.trim()) && q.multipleChoice.correctAnswer !== null;
+      return q.multipleChoice?.questionText?.trim() && (q.multipleChoice.options || []).every((o) => o.trim()) && hasCorrectAnswer(q.multipleChoice);
     }
     if (q.type === 'essay') return q.essay?.questionText?.trim();
     return false;
@@ -232,6 +583,39 @@ export default function ExamBuilderPage() {
     setTypeSettings((prev) => prev.map((t) => (t.id === typeId ? { ...t, enabled: checked } : t)));
   }
 
+  function applyMultipleAnswerMode(enabled) {
+    setDefaultMultipleAnswers(enabled);
+    setQuestions((prev) => prev.map((q) => {
+      if (q.type !== 'multipleChoice') return q;
+      const optionsLength = q.multipleChoice?.options?.length || 1;
+      return {
+        ...q,
+        multipleChoice: {
+          ...q.multipleChoice,
+          multipleAnswers: enabled,
+          correctAnswer: normalizeCorrectAnswerForMode(q.multipleChoice?.correctAnswer, enabled),
+          minSelections: enabled ? Math.max(1, Math.min(optionsLength, Number(q.multipleChoice?.minSelections || defaultMinSelections || 1))) : 1,
+        },
+      };
+    }));
+  }
+
+  function updateDefaultMinSelections(value) {
+    const next = Math.max(1, Number(value || 1));
+    setDefaultMinSelections(next);
+    if (!defaultMultipleAnswers) return;
+    setQuestions((prev) => prev.map((q) => {
+      if (q.type !== 'multipleChoice') return q;
+      return {
+        ...q,
+        multipleChoice: {
+          ...q.multipleChoice,
+          minSelections: Math.max(1, Math.min(q.multipleChoice?.options?.length || 1, next)),
+        },
+      };
+    }));
+  }
+
   function goToNextStep() {
     if (currentStep === 1) {
       if (!title.trim()) {
@@ -263,7 +647,10 @@ export default function ExamBuilderPage() {
   }
 
   function addQuestionByType(type) {
-    setQuestions((prev) => [...prev, createEmptyQuestion(type)]);
+    setQuestions((prev) => [...prev, createEmptyQuestion(type, {
+      multipleAnswers: defaultMultipleAnswers,
+      minSelections: defaultMinSelections,
+    })]);
     setSelectedQuestionIndex(questions.length);
     setCurrentStep(2);
   }
@@ -301,6 +688,57 @@ export default function ExamBuilderPage() {
     setSelectedQuestionIndex(index + 1);
   }
 
+  async function handleWordImport(file) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.docx')) {
+      alert('File harus berformat .docx.');
+      return;
+    }
+
+    setImportingWord(true);
+    setError('');
+    setStatusMessage('');
+    try {
+      const mammothModule = await import('mammoth/mammoth.browser.js');
+      const mammoth = mammothModule.default || mammothModule;
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.convertToHtml({ arrayBuffer });
+      const importedQuestions = parseWordQuestions(result.value);
+
+      if (!importedQuestions.length) {
+        const msg = 'Tidak ada soal yang terbaca. Gunakan format: 1. Teks soal, A. Opsi, B. Opsi, Kunci: A.';
+        setError(msg);
+        alert(msg);
+        return;
+      }
+
+      setTypeSettings((prev) => prev.map((type) => ({
+        ...type,
+        enabled: type.id === 'multipleChoice'
+          ? importedQuestions.some((q) => q.type === 'multipleChoice') || type.enabled
+          : importedQuestions.some((q) => q.type === 'essay') || type.enabled,
+      })));
+      setQuestions((prev) => (
+        prev.length === 1 && isBlankQuestion(prev[0])
+          ? importedQuestions
+          : [...prev, ...importedQuestions]
+      ));
+      setSelectedQuestionIndex((prev) => (
+        questions.length === 1 && isBlankQuestion(questions[0])
+          ? 0
+          : prev
+      ));
+      setCurrentStep(2);
+      setStatusMessage(`Berhasil import ${importedQuestions.length} soal dari Word.`);
+    } catch (err) {
+      console.error('Word import failed:', err);
+      setError('Gagal membaca file Word. Pastikan file berformat .docx dan tidak rusak.');
+    } finally {
+      setImportingWord(false);
+      if (wordImportRef.current) wordImportRef.current.value = '';
+    }
+  }
+
   function mapToPayload() {
     const cleanQuestions = questions.map((q, idx) => ({
       order: idx + 1,
@@ -309,7 +747,12 @@ export default function ExamBuilderPage() {
       multipleChoice: q.type === 'multipleChoice' ? {
         questionText: q.multipleChoice?.questionText || '',
         options: q.multipleChoice?.options || [],
-        correctAnswer: q.multipleChoice?.correctAnswer ?? null,
+        correctAnswer: normalizeCorrectAnswerForMode(q.multipleChoice?.correctAnswer, !!q.multipleChoice?.multipleAnswers),
+        multipleAnswers: !!q.multipleChoice?.multipleAnswers,
+        minSelections: Math.max(1, Math.min(
+          q.multipleChoice?.options?.length || 1,
+          Number(q.multipleChoice?.minSelections || 1)
+        )),
         explanation: q.multipleChoice?.explanation || '',
       } : null,
       essay: q.type === 'essay' ? {
@@ -376,11 +819,20 @@ export default function ExamBuilderPage() {
           alert(msg);
           return { ok: false };
         }
-        if (q.multipleChoice?.correctAnswer === null || q.multipleChoice?.correctAnswer === undefined) {
-          const msg = `Soal #${i + 1}: Pilih satu jawaban benar.`;
+        if (!hasCorrectAnswer(q.multipleChoice)) {
+          const msg = `Soal #${i + 1}: Pilih minimal satu jawaban benar.`;
           setError(msg);
           alert(msg);
           return { ok: false };
+        }
+        if (q.multipleChoice?.multipleAnswers) {
+          const minSelections = Number(q.multipleChoice?.minSelections || 1);
+          if (!Number.isFinite(minSelections) || minSelections < 1 || minSelections > opts.length) {
+            const msg = `Soal #${i + 1}: Minimal pilihan siswa harus antara 1 sampai jumlah opsi jawaban.`;
+            setError(msg);
+            alert(msg);
+            return { ok: false };
+          }
         }
       }
       if (q.type === 'essay' && !q.essay?.questionText?.trim()) {
@@ -472,6 +924,21 @@ export default function ExamBuilderPage() {
         </button>
       </div>
         <div className={styles.topActions}>
+          <button
+            type="button"
+            className={styles.btnGhost}
+            onClick={() => wordImportRef.current?.click()}
+            disabled={importingWord || savingState === 'saving'}
+          >
+            {importingWord ? 'Mengimpor...' : 'Import Word'}
+          </button>
+          <input
+            ref={wordImportRef}
+            type="file"
+            accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            hidden
+            onChange={(e) => handleWordImport(e.target.files?.[0])}
+          />
           <button className={styles.btnGhost} onClick={handleSaveDraft} disabled={savingState === 'saving'}>Simpan Draft</button>
           <button className={styles.btnPrimary} onClick={handlePublishExam} disabled={savingState === 'saving'}>
             Publikasikan Ujian
@@ -638,12 +1105,36 @@ export default function ExamBuilderPage() {
             </div>
             <div className={styles.inlineButtons}>
               <button
+                type="button"
+                className={styles.btnGhost}
+                onClick={() => wordImportRef.current?.click()}
+                disabled={importingWord}
+              >
+                {importingWord ? 'Mengimpor...' : 'Import Word'}
+              </button>
+              <button
                 className={styles.btnDashed}
                 onClick={() => addQuestionByType(getNextQuestionType())}
               >
                 + Tambah Soal
               </button>
             </div>
+            <details className={styles.importGuide}>
+              <summary>Panduan format Word</summary>
+              <div>
+                <p>Gunakan nomor soal, opsi, lalu baris kunci.</p>
+                <pre>{`1. Teks soal
+A. Opsi pertama
+B. Opsi kedua
+C. Opsi ketiga
+Kunci: B
+Pembahasan: Opsional`}</pre>
+                <p>Multi-jawaban bisa memakai <strong>Kunci: A,C,E</strong>. Opsi checkbox dari Word juga didukung.</p>
+                <pre>{`2. Jelaskan dampak teknologi digital terhadap interaksi sosial.
+Pembahasan: Opsional`}</pre>
+                <p>Untuk esai, cukup tulis nomor dan teks soal tanpa opsi A/B/C dan tanpa kunci.</p>
+              </div>
+            </details>
             <div className={styles.totalText}>Total: {questions.length} soal</div>
 
             <div className={styles.cardSubBlock}>
@@ -699,17 +1190,17 @@ export default function ExamBuilderPage() {
                     <div className={styles.imageInfo}>Gambar terpasang untuk soal ini.</div>
                   )}
                   {selectedQuestion.type === 'multipleChoice' && (
-                    <textarea
+                    <RichTextEditor
                       value={selectedQuestion.multipleChoice?.questionText || ''}
-                      onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, multipleChoice: { ...q.multipleChoice, questionText: e.target.value } }))}
-                      rows={5}
+                      onChange={(value) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, multipleChoice: { ...q.multipleChoice, questionText: value } }))}
+                      minHeight={120}
                     />
                   )}
                   {selectedQuestion.type === 'essay' && (
-                    <textarea
+                    <RichTextEditor
                       value={selectedQuestion.essay?.questionText || ''}
-                      onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, essay: { ...q.essay, questionText: e.target.value } }))}
-                      rows={5}
+                      onChange={(value) => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, essay: { ...q.essay, questionText: value } }))}
+                      minHeight={120}
                     />
                   )}
                 </div>
@@ -719,11 +1210,25 @@ export default function ExamBuilderPage() {
                     <label>Opsi Jawaban *</label>
                     {(selectedQuestion.multipleChoice?.options || []).map((opt, optIdx) => (
                       <div key={optIdx} className={styles.optionRow}>
-                        <input
-                          type="radio"
-                          checked={selectedQuestion.multipleChoice?.correctAnswer === optIdx}
-                          onChange={() => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, multipleChoice: { ...q.multipleChoice, correctAnswer: optIdx } }))}
-                        />
+                        {selectedQuestion.multipleChoice?.multipleAnswers ? (
+                          <input
+                            type="checkbox"
+                            checked={(selectedQuestion.multipleChoice?.correctAnswer || []).includes(optIdx)}
+                            onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => {
+                              const selected = Array.isArray(q.multipleChoice?.correctAnswer) ? [...q.multipleChoice.correctAnswer] : [];
+                              const next = e.target.checked
+                                ? [...selected, optIdx].sort((a, b) => a - b)
+                                : selected.filter((idx) => idx !== optIdx);
+                              return { ...q, multipleChoice: { ...q.multipleChoice, correctAnswer: next } };
+                            })}
+                          />
+                        ) : (
+                          <input
+                            type="radio"
+                            checked={selectedQuestion.multipleChoice?.correctAnswer === optIdx}
+                            onChange={() => updateQuestion(selectedQuestionIndex, (q) => ({ ...q, multipleChoice: { ...q.multipleChoice, correctAnswer: optIdx } }))}
+                          />
+                        )}
                         <input
                           value={opt}
                           onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => {
@@ -741,9 +1246,14 @@ export default function ExamBuilderPage() {
                               const options = [...(q.multipleChoice?.options || [])];
                               options.splice(optIdx, 1);
                               let correctAnswer = q.multipleChoice?.correctAnswer;
-                              if (correctAnswer === optIdx) correctAnswer = null;
+                              if (Array.isArray(correctAnswer)) {
+                                correctAnswer = correctAnswer
+                                  .filter((idx) => idx !== optIdx)
+                                  .map((idx) => (idx > optIdx ? idx - 1 : idx));
+                              } else if (correctAnswer === optIdx) correctAnswer = null;
                               else if (correctAnswer > optIdx) correctAnswer = correctAnswer - 1;
-                              return { ...q, multipleChoice: { ...q.multipleChoice, options, correctAnswer } };
+                              const minSelections = Math.min(Number(q.multipleChoice?.minSelections || 1), options.length);
+                              return { ...q, multipleChoice: { ...q.multipleChoice, options, correctAnswer, minSelections } };
                             })}
                           >
                             Hapus
@@ -769,21 +1279,20 @@ export default function ExamBuilderPage() {
 
                 <div className={styles.formGroup}>
                   <label>Pembahasan (Opsional)</label>
-                  <textarea
+                  <RichTextEditor
                     value={
                       selectedQuestion.type === 'multipleChoice'
                         ? (selectedQuestion.multipleChoice?.explanation || '')
                         : (selectedQuestion.essay?.explanation || '')
                     }
-                    onChange={(e) => {
-                      const val = e.target.value;
+                    onChange={(val) => {
                       if (selectedQuestion.type === 'multipleChoice') {
                         updateQuestion(selectedQuestionIndex, (q) => ({ ...q, multipleChoice: { ...q.multipleChoice, explanation: val } }));
                       } else {
                         updateQuestion(selectedQuestionIndex, (q) => ({ ...q, essay: { ...q.essay, explanation: val } }));
                       }
                     }}
-                    rows={4}
+                    minHeight={100}
                   />
                 </div>
               </>
@@ -805,7 +1314,10 @@ export default function ExamBuilderPage() {
                   ) : (
                     <select
                       value={selectedQuestion.type}
-                      onChange={(e) => updateQuestion(selectedQuestionIndex, () => createEmptyQuestion(e.target.value))}
+                      onChange={(e) => updateQuestion(selectedQuestionIndex, () => createEmptyQuestion(e.target.value, {
+                        multipleAnswers: defaultMultipleAnswers,
+                        minSelections: defaultMinSelections,
+                      }))}
                     >
                       {enabledQuestionTypes.map((type) => (
                         <option key={type.id} value={type.id}>{type.label}</option>
@@ -820,6 +1332,44 @@ export default function ExamBuilderPage() {
                     <span />
                   </label>
                 </div>
+                {selectedQuestion.type === 'multipleChoice' && (
+                  <div className={styles.multiAnswerSettings}>
+                    <label className={styles.checkField}>
+                      <input
+                        type="checkbox"
+                        checked={!!selectedQuestion.multipleChoice?.multipleAnswers}
+                        onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({
+                          ...q,
+                          multipleChoice: {
+                            ...q.multipleChoice,
+                            multipleAnswers: e.target.checked,
+                            correctAnswer: normalizeCorrectAnswerForMode(q.multipleChoice?.correctAnswer, e.target.checked),
+                            minSelections: e.target.checked ? Math.max(1, Number(q.multipleChoice?.minSelections || 1)) : 1,
+                          },
+                        }))}
+                      />
+                      <span>Jawaban benar lebih dari satu</span>
+                    </label>
+                    {selectedQuestion.multipleChoice?.multipleAnswers && (
+                      <label className={styles.minSelectField}>
+                        Minimal pilihan siswa
+                        <input
+                          type="number"
+                          min="1"
+                          max={(selectedQuestion.multipleChoice?.options || []).length}
+                          value={selectedQuestion.multipleChoice?.minSelections || 1}
+                          onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({
+                            ...q,
+                            multipleChoice: {
+                              ...q.multipleChoice,
+                              minSelections: Math.max(1, Math.min((q.multipleChoice?.options || []).length, Number(e.target.value || 1))),
+                            },
+                          }))}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </section>

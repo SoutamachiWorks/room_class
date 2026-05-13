@@ -86,7 +86,11 @@ export async function PUT(request, { params }) {
           text: text || '',
           files: resolvedFiles,
           updatedAt: now,
-          isLate
+          isLate,
+          status: 'revised',
+          requiresRevision: false,
+          score: null,
+          feedback: existing.requiresRevision ? existing.feedback : (existing.feedback || '')
         },
       }
     );

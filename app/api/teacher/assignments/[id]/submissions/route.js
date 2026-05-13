@@ -31,10 +31,12 @@ export async function GET(request, { params }) {
       }
 
       // Find all students mapped natively to the mapped classCode
-      const classCode = subject.classCode;
+      const classCodes = Array.isArray(subject.classCodes) && subject.classCodes.length
+         ? subject.classCodes
+         : [subject.classCode].filter(Boolean);
       const enrolledStudents = await db.collection('users').find({
          role: 'student',
-         classCode: classCode
+         classCode: { $in: classCodes }
       }).toArray();
 
       // Find all submissions bounded to this exact assignment
@@ -69,6 +71,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ 
          assignment: {
             text: assignment.text,
+            rubricText: assignment.rubricText || '',
             deadline: assignment.deadline || null,
             subjectDetails: subject
          },

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import * as XLSX from 'xlsx';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import Modal from '@/components/Modal';
 import PageHeader from '@/components/PageHeader';
@@ -60,6 +61,17 @@ function formatDateTimeFull(value) {
     minute: '2-digit',
     second: '2-digit',
   });
+}
+
+function stripHtml(value = '') {
+  if (!value) return '';
+  const html = String(value);
+  if (typeof window === 'undefined') {
+    return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim();
 }
 
 function formatDuration(durationMs) {
@@ -297,33 +309,43 @@ export default function ExamResultsPage() {
     }
   };
 
-  const exportCsv = () => {
-    const header = ['Nama Siswa', 'NIS', 'Waktu Mulai', 'Status Ujian', 'Progres', 'Pelanggaran', 'Status Koreksi', 'Nilai'];
-    const rows = filteredSessions.map((sess) => {
+  const exportResults = () => {
+    const rows = filteredSessions.map((sess, index) => {
       const total = sess.questionCount || 0;
       const answered = sess.answeredCount || 0;
       const progress = total > 0 ? Math.round((answered / total) * 100) : 0;
-      return [
-        sess.studentInfo?.fullName || '-',
-        sess.studentInfo?.studentId || '-',
-        formatTime(sess.startedAt),
-        getStatusLabel(sess.status),
-        `${answered} / ${total} (${progress}%)`,
-        `${sess.exitCount || 0} kali`,
-        getGradingLabel(sess),
-        sess.calculatedScore ?? '-',
-      ];
+      return {
+        NO: index + 1,
+        'NAMA SISWA': sess.studentInfo?.fullName || '-',
+        NIS: sess.studentInfo?.studentId || '-',
+        KELAS: sess.studentInfo?.classCode || '-',
+        'WAKTU MULAI': formatDateTime(sess.startedAt),
+        'WAKTU SUBMIT': formatDateTime(sess.submittedAt),
+        'STATUS UJIAN': getStatusLabel(sess.status),
+        PROGRES: `${answered} / ${total} (${progress}%)`,
+        PELANGGARAN: `${sess.exitCount || 0} kali`,
+        'STATUS KOREKSI': getGradingLabel(sess),
+        NILAI: sess.calculatedScore ?? '-',
+      };
     });
-    const csv = [header, ...rows]
-      .map((row) => row.map((val) => `"${String(val).replaceAll('"', '""')}"`).join(','))
-      .join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `monitor-ujian-${examId}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet['!cols'] = [
+      { wch: 6 },
+      { wch: 28 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 10 },
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Hasil Ujian');
+    XLSX.writeFile(workbook, `hasil-ujian-${examId}.xlsx`);
   };
 
   return (
@@ -436,8 +458,8 @@ export default function ExamResultsPage() {
             <option value="locked">Terkunci</option>
             <option value="not-started">Belum Mulai</option>
           </select>
-          <button className={styles.exportBtn} onClick={exportCsv}>
-            ⬇ Export
+          <button className={styles.exportBtn} onClick={exportResults}>
+            ⬇ Export Excel
           </button>
         </div>
       </section>

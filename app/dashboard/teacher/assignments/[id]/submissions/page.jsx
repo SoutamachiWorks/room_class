@@ -2,12 +2,35 @@
 
 import { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
+import * as XLSX from 'xlsx';
 import PageHeader from '@/components/PageHeader';
 import ContentCard from '@/components/ContentCard';
 import StatusBadge from '@/components/StatusBadge';
 import EmptyState from '@/components/EmptyState';
 import Modal from '@/components/Modal';
 import styles from '../../../../admin/admin.module.css';
+
+function getClassCodes(source) {
+  return Array.isArray(source?.classCodes) && source.classCodes.length
+    ? source.classCodes
+    : [source?.classCode].filter(Boolean);
+}
+
+function formatClassCodes(source) {
+  const codes = getClassCodes(source);
+  return codes.length ? codes.join(', ') : '-';
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function formatSubmissionStatus(student) {
+  if (!student.submission) return 'Belum Mengumpulkan';
+  if (student.submission.requiresRevision || student.submission.status === 'revision-required') return 'Perlu Revisi';
+  return student.submission.isLate ? 'Terlambat' : 'Tepat Waktu';
+}
 
 export default function TeacherSubmissionPage({ params }) {
   const router = useRouter();
@@ -30,6 +53,7 @@ export default function TeacherSubmissionPage({ params }) {
   const [isGradingInModal, setIsGradingInModal] = useState(false);
   const [modalGradeInput, setModalGradeInput] = useState('');
   const [modalFeedbackInput, setModalFeedbackInput] = useState('');
+  const [modalRequiresRevision, setModalRequiresRevision] = useState(false);
   const [modalGradeLoading, setModalGradeLoading] = useState(false);
   
   // Search and Pagination states
@@ -37,6 +61,7 @@ export default function TeacherSubmissionPage({ params }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStudentDetail, setSelectedStudentDetail] = useState(null);
   const itemsPerPage = 10;
+  const mappedClassLabel = formatClassCodes(assignmentMeta?.subjectDetails);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -57,7 +82,9 @@ export default function TeacherSubmissionPage({ params }) {
   }, [assignmentId]);
 
   useEffect(() => {
-    fetchData();
+    queueMicrotask(() => {
+      fetchData();
+    });
   }, [fetchData]);
 
   const submitGrade = async (studentId) => {
@@ -94,7 +121,7 @@ export default function TeacherSubmissionPage({ params }) {
   };
 
   const submitGradeInModal = async () => {
-    if (modalGradeInput === '' || isNaN(modalGradeInput)) {
+    if (!modalRequiresRevision && (modalGradeInput === '' || isNaN(modalGradeInput))) {
       alert('Nilai harus berupa angka.');
       return;
     }
@@ -103,13 +130,23 @@ export default function TeacherSubmissionPage({ params }) {
       const res = await fetch(`/api/teacher/assignments/${assignmentId}/submissions/${selectedStudentDetail.studentId}/grade`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ score: Number(modalGradeInput), feedback: modalFeedbackInput })
+        body: JSON.stringify({
+          score: modalGradeInput === '' ? null : Number(modalGradeInput),
+          feedback: modalFeedbackInput,
+          requiresRevision: modalRequiresRevision,
+        })
       });
       if (res.ok) {
         // Update local state so modal reflects new values immediately
         setSelectedStudentDetail(prev => ({
           ...prev,
-          submission: { ...prev.submission, score: Number(modalGradeInput), feedback: modalFeedbackInput }
+          submission: {
+            ...prev.submission,
+            score: modalGradeInput === '' ? null : Number(modalGradeInput),
+            feedback: modalFeedbackInput,
+            requiresRevision: modalRequiresRevision,
+            status: modalRequiresRevision ? 'revision-required' : 'graded',
+          }
         }));
         setIsGradingInModal(false);
         fetchData();
@@ -181,34 +218,43 @@ export default function TeacherSubmissionPage({ params }) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const handleExportCSV = () => {
-    if (students.length === 0) return;
-    
-    const headers = ['NO', 'NAMA SISWA', 'NIM/ID', 'STATUS', 'WAKTU', 'NILAI', 'FEEDBACK'];
-    const rows = students.map((s, i) => [
-      i + 1,
-      s.name || '-',
-      s.studentId || '-',
-      s.submission ? (s.submission.isLate ? 'Terlambat' : 'Tepat Waktu') : 'Belum Mengumpulkan',
-      s.submission ? new Date(s.submission.submittedAt).toLocaleString('id-ID') : '-',
-      s.submission?.score || '-',
-      s.submission?.feedback || '-'
-    ]);
+  const handleExportResults = () => {
+    if (filteredStudents.length === 0) return;
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(r => r.join(','))
-    ].join('\n');
+    const rows = filteredStudents.map((student, index) => {
+      const files = Array.isArray(student.submission?.files) ? student.submission.files : [];
+      return {
+        NO: index + 1,
+        'NAMA SISWA': student.name || '-',
+        'NIS/ID': student.studentId || '-',
+        KELAS: student.classCode || '-',
+        STATUS: formatSubmissionStatus(student),
+        'WAKTU SUBMIT': student.submission ? formatDateTime(student.submission.submittedAt) : '-',
+        NILAI: student.submission?.score ?? '-',
+        FEEDBACK: student.submission?.feedback || '-',
+        'PESAN SISWA': student.submission?.text || '-',
+        'JUMLAH FILE': files.length,
+        'NAMA FILE': files.map((file) => file.originalName).filter(Boolean).join('; ') || '-',
+      };
+    });
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `submissions_${assignmentId}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    worksheet['!cols'] = [
+      { wch: 6 },
+      { wch: 28 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 20 },
+      { wch: 22 },
+      { wch: 10 },
+      { wch: 36 },
+      { wch: 36 },
+      { wch: 12 },
+      { wch: 42 },
+    ];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Hasil Penugasan');
+    XLSX.writeFile(workbook, `hasil-penugasan-${assignmentId}.xlsx`);
   };
 
   const getInitials = (name) => {
@@ -256,7 +302,7 @@ export default function TeacherSubmissionPage({ params }) {
           </div>
           <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--color-subtext)', marginBottom: '16px', marginLeft: '48px' }}>
             <span>Tugas: <span style={{ color: 'var(--color-heading)', fontWeight: 500 }}>{assignmentMeta?.title || 'Test Modul'}</span></span>
-            <span>Kelas: <span style={{ color: '#3B82F6', fontWeight: 600 }}>{assignmentMeta?.subjectDetails?.classCode || '-'}</span></span>
+            <span>Kelas: <span style={{ color: '#3B82F6', fontWeight: 600 }}>{mappedClassLabel}</span></span>
           </div>
           <div style={{ marginLeft: '48px' }}>
             <StatusBadge variant={assignmentMeta?.deadline ? 'danger' : 'success'}>
@@ -299,7 +345,7 @@ export default function TeacherSubmissionPage({ params }) {
         marginBottom: '32px' 
       }}>
         {[
-          { label: 'Total Siswa', value: totalStudents, sub: `Semua siswa di kelas ${assignmentMeta?.subjectDetails?.classCode || '-'}`, color: '#3B82F6', icon: 'users' },
+          { label: 'Total Siswa', value: totalStudents, sub: `Semua siswa di kelas ${mappedClassLabel}`, color: '#3B82F6', icon: 'users' },
           { label: 'Sudah Mengumpulkan', value: submittedCount, sub: `${progressPercentage}% dari total siswa`, color: '#10B981', icon: 'check' },
           { label: 'Belum Mengumpulkan', value: notSubmittedCount, sub: `${Math.round((notSubmittedCount/totalStudents)*100) || 0}% dari total siswa`, color: '#F59E0B', icon: 'clock' },
           { label: 'Terlambat', value: lateCount, sub: `${Math.round((lateCount/totalStudents)*100) || 0}% dari total siswa`, color: '#EF4444', icon: 'alert' },
@@ -379,7 +425,7 @@ export default function TeacherSubmissionPage({ params }) {
           </div>
           <button 
             className={styles.submissionExportButton}
-            onClick={handleExportCSV}
+            onClick={handleExportResults}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -397,7 +443,7 @@ export default function TeacherSubmissionPage({ params }) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            Export
+            Export Excel
           </button>
         </div>
 
@@ -576,7 +622,7 @@ export default function TeacherSubmissionPage({ params }) {
                       <td data-label="NILAI" style={{ textAlign: 'center' }}>
                         {sub?.score !== undefined && sub?.score !== null ? (
                           <button
-                            onClick={() => setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode })}
+                            onClick={() => setSelectedStudentDetail(student)}
                             title="Klik untuk lihat detail & edit nilai"
                             style={{
                               display: 'inline-flex', minWidth: '36px', height: '36px',
@@ -597,7 +643,7 @@ export default function TeacherSubmissionPage({ params }) {
                       </td>
                       <td data-label="FEEDBACK" style={{ textAlign: 'center' }}>
                         <button
-                          onClick={() => setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode })}
+                          onClick={() => setSelectedStudentDetail(student)}
                           style={{
                             width: '32px', height: '32px', borderRadius: '8px',
                             background: sub?.feedback ? 'rgba(59,130,246,0.1)' : 'var(--bg-app)',
@@ -616,7 +662,7 @@ export default function TeacherSubmissionPage({ params }) {
                       <td data-label="AKSI">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
                           <button
-                            onClick={() => setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode })}
+                            onClick={() => setSelectedStudentDetail(student)}
                             style={{
                               display: 'flex', alignItems: 'center', gap: '6px',
                               padding: '8px 14px',
@@ -630,11 +676,12 @@ export default function TeacherSubmissionPage({ params }) {
                           {sub && (
                             <button
                               onClick={() => {
-                                setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode });
+                                setSelectedStudentDetail(student);
                                 // Pre-open grading form inside modal after state settles
                                 setTimeout(() => {
                                   setModalGradeInput(sub.score ?? '');
                                   setModalFeedbackInput(sub.feedback || '');
+                                  setModalRequiresRevision(!!sub.requiresRevision || sub.status === 'revision-required');
                                   setIsGradingInModal(true);
                                 }, 0);
                               }}
@@ -730,7 +777,7 @@ export default function TeacherSubmissionPage({ params }) {
                             ) : (
                               /* Nilai badge — clickable, opens detail modal */
                               <button
-                                onClick={() => setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode })}
+                                onClick={() => setSelectedStudentDetail(student)}
                                 title="Klik untuk lihat detail & edit nilai"
                                 style={{
                                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -774,7 +821,7 @@ export default function TeacherSubmissionPage({ params }) {
                       {/* Actions — both open detail modal */}
                       <div className={styles.mobileSubmissionActions}>
                         <button
-                          onClick={() => setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode })}
+                          onClick={() => setSelectedStudentDetail(student)}
                           style={{
                             flex: 1, padding: '10px', background: 'rgba(59,130,246,0.1)',
                             border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px',
@@ -786,10 +833,11 @@ export default function TeacherSubmissionPage({ params }) {
                         {sub && (
                           <button
                             onClick={() => {
-                              setSelectedStudentDetail({ ...student, classCode: assignmentMeta?.subjectDetails?.classCode });
+                              setSelectedStudentDetail(student);
                               setTimeout(() => {
                                 setModalGradeInput(sub.score ?? '');
                                 setModalFeedbackInput(sub.feedback || '');
+                                setModalRequiresRevision(!!sub.requiresRevision || sub.status === 'revision-required');
                                 setIsGradingInModal(true);
                               }, 0);
                             }}
@@ -1026,6 +1074,14 @@ export default function TeacherSubmissionPage({ params }) {
                         />
                       </div>
                     </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--color-text)' }}>
+                      <input
+                        type="checkbox"
+                        checked={modalRequiresRevision}
+                        onChange={(e) => setModalRequiresRevision(e.target.checked)}
+                      />
+                      Minta revisi dari siswa
+                    </label>
                     <div style={{ display: 'flex', gap: '10px' }}>
                       <button
                         onClick={submitGradeInModal}
@@ -1033,7 +1089,7 @@ export default function TeacherSubmissionPage({ params }) {
                         style={{ flex: 1, padding: '11px', background: '#10B981', border: 'none', borderRadius: '8px', color: 'white', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                        {modalGradeLoading ? 'Menyimpan...' : 'Simpan Nilai & Feedback'}
+                        {modalGradeLoading ? 'Menyimpan...' : (modalRequiresRevision ? 'Kirim Permintaan Revisi' : 'Simpan Nilai & Feedback')}
                       </button>
                       <button
                         onClick={() => setIsGradingInModal(false)}
@@ -1048,6 +1104,11 @@ export default function TeacherSubmissionPage({ params }) {
                   <div style={{ padding: '16px', background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: selectedStudentDetail.submission.feedback ? '12px' : 0 }}>
                       <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#3B82F6', margin: 0 }}>Hasil Penilaian</h4>
+                      {(selectedStudentDetail.submission.requiresRevision || selectedStudentDetail.submission.status === 'revision-required') && (
+                        <span style={{ padding: '4px 10px', background: 'rgba(245,158,11,0.15)', color: '#F59E0B', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}>
+                          Perlu Revisi
+                        </span>
+                      )}
                       {selectedStudentDetail.submission.score !== null && selectedStudentDetail.submission.score !== undefined ? (
                         <div style={{ padding: '4px 14px', background: '#3B82F6', color: 'white', borderRadius: '20px', fontSize: '16px', fontWeight: 800 }}>
                           {selectedStudentDetail.submission.score}
@@ -1088,6 +1149,7 @@ export default function TeacherSubmissionPage({ params }) {
                   onClick={() => {
                     setModalGradeInput(selectedStudentDetail.submission.score ?? '');
                     setModalFeedbackInput(selectedStudentDetail.submission.feedback || '');
+                    setModalRequiresRevision(!!selectedStudentDetail.submission.requiresRevision || selectedStudentDetail.submission.status === 'revision-required');
                     setIsGradingInModal(true);
                   }}
                   style={{ flex: 1, padding: '12px', background: '#3B82F6', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, color: 'white', cursor: 'pointer' }}

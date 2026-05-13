@@ -50,6 +50,44 @@ const teacherScenario = [
   'Guru membuka monitoring ujian untuk memantau status pengerjaan dan catatan aktivitas anti-cheat.',
 ];
 
+const importFormats = [
+  {
+    title: 'Pilihan ganda biasa',
+    sample: `1. Teks soal
+A. Opsi pertama
+B. Opsi kedua
+C. Opsi ketiga
+D. Opsi keempat
+E. Opsi kelima
+Kunci: C
+Pembahasan: Penjelasan opsional`,
+  },
+  {
+    title: 'Multi-jawaban',
+    sample: `11. Teks soal multi-jawaban
+□ Opsi pertama
+□ Opsi kedua
+□ Opsi ketiga
+□ Opsi keempat
+□ Opsi kelima
+Kunci: A,C,E
+Pembahasan: Penjelasan opsional`,
+  },
+  {
+    title: 'Benar/Salah',
+    sample: `21. Pernyataan benar atau salah. (B/S)
+A. Benar (B)
+B. Salah (S)
+Kunci: A
+Pembahasan: Penjelasan opsional`,
+  },
+  {
+    title: 'Esai',
+    sample: `26. Jelaskan dampak penggunaan teknologi digital terhadap interaksi sosial manusia.
+Pembahasan: Penjelasan atau pedoman koreksi opsional`,
+  },
+];
+
 function GuideCards() {
   return (
     <section className={styles.roleSection}>
@@ -67,6 +105,33 @@ function GuideCards() {
             </ol>
           </article>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function ImportWordGuide() {
+  return (
+    <section className={styles.roleSection}>
+      <div className={styles.sectionHeading}>
+        <span className={`${styles.eyebrow} ${styles.teacherTone}`}>Import Word</span>
+        <h2>Format dokumen Word untuk import soal</h2>
+        <p>
+          Fitur Import Word membaca file .docx menjadi soal ujian. Gunakan format yang konsisten:
+          nomor soal, daftar opsi, baris kunci, lalu pembahasan jika diperlukan.
+        </p>
+      </div>
+      <div className={styles.importGuideGrid}>
+        {importFormats.map((format) => (
+          <article key={format.title} className={styles.importGuideCard}>
+            <h3>{format.title}</h3>
+            <pre>{format.sample}</pre>
+          </article>
+        ))}
+      </div>
+      <div className={styles.importNote}>
+        <strong>Catatan:</strong> Jika kunci berisi lebih dari satu huruf seperti <code>A,C,E</code>,
+        sistem otomatis membuat soal multi-jawaban. Opsi boleh memakai A/B/C atau checkbox Word.
       </div>
     </section>
   );
@@ -127,6 +192,7 @@ export default function TeacherDocumentationPage() {
       </header>
 
       <GuideCards />
+      <ImportWordGuide />
       <TeacherScenario />
       <AntiCheatNotes />
 

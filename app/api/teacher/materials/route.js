@@ -52,7 +52,34 @@ export async function GET(request) {
                url: await generatePresignedUrl(f.fileKey, f.originalName)
            })));
        }
-       return mat;
+       const classCodes = Array.isArray(mat.subjectDetails?.classCodes) && mat.subjectDetails.classCodes.length
+         ? mat.subjectDetails.classCodes
+         : [mat.subjectDetails?.classCode].filter(Boolean);
+       const [totalStudents, completedCount, viewedCount] = classCodes.length
+         ? await Promise.all([
+             db.collection('users').countDocuments({ role: 'student', classCode: { $in: classCodes } }),
+             db.collection('materialProgress').countDocuments({
+               materialId: mat._id.toString(),
+               classCode: { $in: classCodes },
+               completed: true,
+             }),
+             db.collection('materialProgress').countDocuments({
+               materialId: mat._id.toString(),
+               classCode: { $in: classCodes },
+               viewedAt: { $ne: null },
+             }),
+           ])
+         : [0, 0, 0];
+       return {
+         ...mat,
+         completionStats: {
+           totalStudents,
+           completedCount,
+           inProgressCount: Math.max(0, viewedCount - completedCount),
+           notStartedCount: Math.max(0, totalStudents - viewedCount),
+           percentage: totalStudents ? Math.round((completedCount / totalStudents) * 100) : 0,
+         },
+       };
     }));
 
     return NextResponse.json({ materials });

@@ -3,6 +3,12 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 
+function getClassCodes(source) {
+  return Array.isArray(source?.classCodes) && source.classCodes.length
+    ? source.classCodes
+    : [source?.classCode].filter(Boolean);
+}
+
 /**
  * POST /api/student/attendance/check-in
  * Marks the student as present for the given session.
@@ -40,7 +46,7 @@ export async function POST(request) {
     }
 
     // Verify student's class matches session's class
-    if (session.classCode !== classCode) {
+    if (!getClassCodes(session).includes(classCode)) {
       return NextResponse.json({ error: 'Anda tidak terdaftar di kelas ini.' }, { status: 403 });
     }
 

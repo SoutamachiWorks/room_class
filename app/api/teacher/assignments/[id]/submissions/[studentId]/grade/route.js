@@ -27,11 +27,12 @@ export async function PUT(request, { params }) {
       }
 
       const body = await request.json();
-      const { score, feedback } = body;
+      const { score, feedback, requiresRevision } = body;
 
-      if (score === undefined || score === null) {
+      if (!requiresRevision && (score === undefined || score === null)) {
           return NextResponse.json({ error: 'Nilai tidak boleh kosong' }, { status: 400 });
       }
+      const numericScore = score === '' || score === undefined || score === null ? null : Number(score);
 
       // Safe update
       const updateResult = await db.collection('submissions').updateOne(
@@ -41,8 +42,10 @@ export async function PUT(request, { params }) {
          },
          {
             $set: {
-               score: Number(score),
+               score: numericScore,
                feedback: feedback || '',
+               status: requiresRevision ? 'revision-required' : 'graded',
+               requiresRevision: !!requiresRevision,
                gradedAt: new Date()
             }
          }
@@ -58,9 +61,11 @@ export async function PUT(request, { params }) {
         const subject = await db.collection('subjects').findOne({ _id: new ObjectId(mapping.subjectId) });
         await createNotification(db, {
           userId: studentUser._id,
-          title: 'Nilai Tugas',
-          message: `Nilai untuk tugas pada mata pelajaran ${subject?.subjectName || 'terkait'} telah diberikan oleh guru.`,
-          type: 'success',
+          title: requiresRevision ? 'Revisi Tugas' : 'Nilai Tugas',
+          message: requiresRevision
+            ? `Tugas pada mata pelajaran ${subject?.subjectName || 'terkait'} perlu direvisi.`
+            : `Nilai untuk tugas pada mata pelajaran ${subject?.subjectName || 'terkait'} telah diberikan oleh guru.`,
+          type: requiresRevision ? 'warning' : 'success',
           actionUrl: `/dashboard/student/assignments`
         });
       }

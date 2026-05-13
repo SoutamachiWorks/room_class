@@ -25,17 +25,13 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'Ujian tidak ditemukan.' }, { status: 404 });
     }
 
-    if (existing.requiresCurriculumApproval && existing.validationStatus !== 'Approved') {
-      return NextResponse.json(
-        { error: 'Ujian semester wajib disetujui Kepala Kurikulum sebelum dipublikasikan.' },
-        { status: 400 }
-      );
-    }
-
     const newStatus = existing.status === 'published' ? 'draft' : 'published';
 
     const subject = await db.collection('subjects').findOne({ _id: new ObjectId(existing.subjectId) });
     const activeAcademicYear = await db.collection('academicYears').findOne({ isActive: true });
+    const subjectClassCodes = Array.isArray(subject?.classCodes) && subject.classCodes.length
+      ? subject.classCodes
+      : [subject?.classCode].filter(Boolean);
 
     await db.collection('exams').updateOne(
       { _id: new ObjectId(id) },
@@ -43,7 +39,8 @@ export async function PUT(request, { params }) {
         $set: {
           status: newStatus,
           academicYearId: activeAcademicYear?.label || existing.academicYearId || null,
-          classCodeSnapshot: subject?.classCode || existing.classCodeSnapshot || null,
+          classCodeSnapshot: subjectClassCodes[0] || existing.classCodeSnapshot || null,
+          classCodesSnapshot: subjectClassCodes,
           subjectNameSnapshot: subject?.subjectName || existing.subjectNameSnapshot || null,
           ...(newStatus === 'published' ? { isExamOpen: false } : {}),
           updatedAt: new Date(),
@@ -53,13 +50,13 @@ export async function PUT(request, { params }) {
 
     // Kirim notifikasi jika statusnya adalah 'published'
     if (newStatus === 'published') {
-      if (subject && subject.classCode) {
-        await createNotificationsForClass(db, subject.classCode, {
+      if (subjectClassCodes.length > 0) {
+        await Promise.all(subjectClassCodes.map((classCode) => createNotificationsForClass(db, classCode, {
           title: 'Ujian Baru',
           message: `Ujian "${existing.title}" telah dipublikasikan pada mata pelajaran ${subject.subjectName}.`,
           type: 'info',
           actionUrl: `/dashboard/student/exams`
-        });
+        })));
       }
     }
 

@@ -86,7 +86,10 @@ export async function PUT(request, { params }) {
 
       // 2. Cross reference: Subject Map Links (Teacher handling class references)
       const isMappedToSubject = await db.collection('subjects').findOne({
-         classCode: targetDocument.code
+         $or: [
+            { classCode: targetDocument.code },
+            { classCodes: targetDocument.code },
+         ]
       });
 
       if (isMappedToSubject) {

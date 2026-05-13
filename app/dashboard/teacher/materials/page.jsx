@@ -12,15 +12,28 @@ import { ACCEPT_STR, validateFiles } from '@/lib/fileValidation';
 import styles from '../../admin/admin.module.css';
 
 function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(`(max-width: ${breakpoint}px)`).matches;
+  });
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    setIsMobile(mq.matches);
     const handler = (e) => setIsMobile(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, [breakpoint]);
   return isMobile;
+}
+
+function getClassCodes(source) {
+  return Array.isArray(source?.classCodes) && source.classCodes.length
+    ? source.classCodes
+    : [source?.classCode].filter(Boolean);
+}
+
+function formatClassCodes(source) {
+  const codes = getClassCodes(source);
+  return codes.length ? codes.join(', ') : '-';
 }
 
 export default function MaterialsPage() {
@@ -41,7 +54,7 @@ export default function MaterialsPage() {
   const [formTitle, setFormTitle] = useState('');
   const [formText, setFormText] = useState('');
   const [formSubjectId, setFormSubjectId] = useState('');
-  const [formClassCode, setFormClassCode] = useState('');
+  const [formClassCodes, setFormClassCodes] = useState([]);
 
   // File Array management (Native arrays)
   const [attachedFiles, setAttachedFiles] = useState([]);
@@ -84,7 +97,9 @@ export default function MaterialsPage() {
   }, []);
 
   useEffect(() => {
-    fetchMaterials();
+    queueMicrotask(() => {
+      fetchMaterials();
+    });
   }, [fetchMaterials]);
 
   // Handle Dropdown Subject Changing (Auto mapping Class Codes safely!)
@@ -95,9 +110,9 @@ export default function MaterialsPage() {
     // Reverse lookup to inject class code automatically into UI
     const targetSub = teacherSubjects.find(sub => sub._id === sId);
     if (targetSub) {
-      setFormClassCode(targetSub.classCode);
+      setFormClassCodes(getClassCodes(targetSub));
     } else {
-      setFormClassCode('');
+      setFormClassCodes([]);
     }
   };
 
@@ -113,7 +128,7 @@ export default function MaterialsPage() {
       setFormSubjectId(existingConfig.subjectId || '');
 
       const targetSub = teacherSubjects.find(sub => sub._id === existingConfig.subjectId);
-      setFormClassCode(targetSub ? targetSub.classCode : existingConfig.subjectDetails?.classCode || '');
+      setFormClassCodes(targetSub ? getClassCodes(targetSub) : getClassCodes(existingConfig.subjectDetails));
 
       setRetainedOldFiles(existingConfig.files || []);
       setAttachedFiles([]);
@@ -121,7 +136,7 @@ export default function MaterialsPage() {
       setFormTitle('');
       setFormText('');
       setFormSubjectId('');
-      setFormClassCode('');
+      setFormClassCodes([]);
       setRetainedOldFiles([]);
       setAttachedFiles([]);
     }
@@ -264,6 +279,7 @@ export default function MaterialsPage() {
                   <th>Lokus Mapel</th>
                   <th>Judul Materi</th>
                   <th>Deskripsi / Berkas</th>
+                  <th>Progress</th>
                   <th className={styles.thCenter}>Operasional</th>
                 </tr>
               </thead>
@@ -277,7 +293,7 @@ export default function MaterialsPage() {
                     <td data-label="Mapel">
                       <div className={styles.cellAccent}>{mat.subjectDetails?.subjectName || 'Subjek Sinkronisasi Fail'}</div>
                       <div className={styles.cellChipWrap}>
-                        <StatusBadge variant="student">{mat.subjectDetails?.classCode || 'NO-REF-CODE'}</StatusBadge>
+                        <StatusBadge variant="student">{formatClassCodes(mat.subjectDetails)}</StatusBadge>
                       </div>
                     </td>
                     <td data-label="Judul">
@@ -292,6 +308,15 @@ export default function MaterialsPage() {
                           </a>
                         ))}
                         {(!mat.files || mat.files.length === 0) && <span className={styles.cellSecondary}>-</span>}
+                      </div>
+                    </td>
+                    <td data-label="Progress">
+                      <div className={styles.cellBold}>{mat.completionStats?.percentage || 0}% selesai</div>
+                      <div className={styles.cellSecondary}>
+                        {mat.completionStats?.completedCount || 0} / {mat.completionStats?.totalStudents || 0} siswa
+                      </div>
+                      <div className={styles.cellSecondary}>
+                        Dipelajari: {mat.completionStats?.inProgressCount || 0} · Belum dibuka: {mat.completionStats?.notStartedCount || 0}
                       </div>
                     </td>
                     <td data-label="Aksi" className={styles.tdCenter}>
@@ -331,10 +356,16 @@ export default function MaterialsPage() {
                   </div>
                 </div>
                 <div className={styles.mobileMaterialMeta}>
-                  <StatusBadge variant="student">{mat.subjectDetails?.classCode || '-'}</StatusBadge>
+                  <StatusBadge variant="student">{formatClassCodes(mat.subjectDetails)}</StatusBadge>
                   <span className={styles.mobileMaterialDate}>{new Date(mat.createdAt).toLocaleDateString('id-ID')}</span>
                 </div>
                 <div className={styles.mobileMaterialDesc}>{(mat.text || '').substring(0, 100)}{(mat.text || '').length > 100 ? '...' : ''}</div>
+                <div className={styles.cellSecondary}>
+                  Progress: {mat.completionStats?.completedCount || 0} / {mat.completionStats?.totalStudents || 0} siswa ({mat.completionStats?.percentage || 0}%)
+                </div>
+                <div className={styles.cellSecondary}>
+                  Dipelajari: {mat.completionStats?.inProgressCount || 0} · Belum dibuka: {mat.completionStats?.notStartedCount || 0}
+                </div>
                 {(mat.files || []).length > 0 && (
                   <div className={styles.fileChipList}>
                     {mat.files.slice(0, 2).map((f, i) => (
@@ -379,7 +410,7 @@ export default function MaterialsPage() {
               <label className={styles.fieldLabel}>Mapping Kode Kelas Tertutup</label>
               <input
                 type="text"
-                value={formClassCode ? `Terkunci: Kelas [${formClassCode}]` : 'Harap Setel Subjek'}
+                value={formClassCodes.length ? `Terkunci: Kelas [${formClassCodes.join(', ')}]` : 'Harap Setel Subjek'}
                 disabled
                 className={`${styles.input} ${styles.inputLocked}`}
               />

@@ -12,15 +12,28 @@ import { ACCEPT_STR, validateFiles } from '@/lib/fileValidation';
 import styles from '../../admin/admin.module.css';
 
 function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(`(max-width: ${breakpoint}px)`).matches;
+  });
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    setIsMobile(mq.matches);
     const handler = (e) => setIsMobile(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, [breakpoint]);
   return isMobile;
+}
+
+function getClassCodes(source) {
+  return Array.isArray(source?.classCodes) && source.classCodes.length
+    ? source.classCodes
+    : [source?.classCode].filter(Boolean);
+}
+
+function formatClassCodes(source) {
+  const codes = getClassCodes(source);
+  return codes.length ? codes.join(', ') : '-';
 }
 
 export default function AssignmentPage() {
@@ -39,8 +52,9 @@ export default function AssignmentPage() {
 
   // Form State Configurations -> native FormData extraction
   const [formText, setFormText] = useState('');
+  const [formRubricText, setFormRubricText] = useState('');
   const [formSubjectId, setFormSubjectId] = useState('');
-  const [formClassCode, setFormClassCode] = useState('');
+  const [formClassCodes, setFormClassCodes] = useState([]);
   const [formDeadline, setFormDeadline] = useState('');
 
   // File Arrays tracking
@@ -81,7 +95,9 @@ export default function AssignmentPage() {
   }, []);
 
   useEffect(() => {
-    fetchAssignments();
+    queueMicrotask(() => {
+      fetchAssignments();
+    });
   }, [fetchAssignments]);
 
   const handleSubjectChange = (e) => {
@@ -91,9 +107,9 @@ export default function AssignmentPage() {
     // Auto-locking mechanisms
     const targetSub = teacherSubjects.find(sub => sub._id === sId);
     if (targetSub) {
-      setFormClassCode(targetSub.classCode);
+      setFormClassCodes(getClassCodes(targetSub));
     } else {
-      setFormClassCode('');
+      setFormClassCodes([]);
     }
   };
 
@@ -104,10 +120,11 @@ export default function AssignmentPage() {
 
     if (existingConfig) {
       setFormText(existingConfig.text || '');
+      setFormRubricText(existingConfig.rubricText || '');
       setFormSubjectId(existingConfig.subjectId || '');
 
       const targetSub = teacherSubjects.find(sub => sub._id === existingConfig.subjectId);
-      setFormClassCode(targetSub ? targetSub.classCode : existingConfig.subjectDetails?.classCode || '');
+      setFormClassCodes(targetSub ? getClassCodes(targetSub) : getClassCodes(existingConfig.subjectDetails));
 
       setFormDeadline(existingConfig.deadline ? new Date(existingConfig.deadline).toISOString().slice(0, 16) : '');
 
@@ -115,8 +132,9 @@ export default function AssignmentPage() {
       setAttachedFiles([]);
     } else {
       setFormText('');
+      setFormRubricText('');
       setFormSubjectId('');
-      setFormClassCode('');
+      setFormClassCodes([]);
       setFormDeadline('');
       setRetainedOldFiles([]);
       setAttachedFiles([]);
@@ -157,6 +175,7 @@ export default function AssignmentPage() {
 
       const formData = new FormData();
       formData.append('text', formText);
+      formData.append('rubricText', formRubricText);
       if (formDeadline) {
         formData.append('deadline', formDeadline);
       }
@@ -270,7 +289,7 @@ export default function AssignmentPage() {
                     <td data-label="Mapel / Kelas">
                       <div className={styles.cellAccent}>{asm.subjectDetails?.subjectName || 'Subjek FailSync'}</div>
                       <div className={styles.cellChipWrap}>
-                        <StatusBadge variant="student">{asm.subjectDetails?.classCode || 'NO-REF'}</StatusBadge>
+                        <StatusBadge variant="student">{formatClassCodes(asm.subjectDetails)}</StatusBadge>
                       </div>
                       <div className={styles.deadlineText}>
                         {asm.deadline ? `Batas Akhir: ${new Date(asm.deadline).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}` : 'Tidak Ada Batas Waktu'}
@@ -322,7 +341,7 @@ export default function AssignmentPage() {
                 <div className={styles.mobileAssignmentTop}>
                   <div>
                     <div className={styles.mobileAssignmentTitle}>{asm.subjectDetails?.subjectName || 'Subjek FailSync'}</div>
-                    <div className={styles.mobileAssignmentSubject}>{asm.subjectDetails?.classCode || 'NO-REF'}</div>
+                    <div className={styles.mobileAssignmentSubject}>{formatClassCodes(asm.subjectDetails)}</div>
                   </div>
                   <div className={styles.mobileAssignmentActions}>
                     <button
@@ -341,7 +360,7 @@ export default function AssignmentPage() {
                   </div>
                 </div>
                 <div className={styles.mobileAssignmentMeta}>
-                  <StatusBadge variant="student">{asm.subjectDetails?.classCode || 'NO-REF'}</StatusBadge>
+                  <StatusBadge variant="student">{formatClassCodes(asm.subjectDetails)}</StatusBadge>
                   <span className={styles.mobileAssignmentDate}>{new Date(asm.createdAt).toLocaleDateString('id-ID')}</span>
                   {asm.deadline && (
                     <span className={styles.mobileAssignmentDeadline}>
@@ -397,7 +416,7 @@ export default function AssignmentPage() {
               <label className={styles.fieldLabel}>Target Kelas</label>
               <input
                 type="text"
-                value={formClassCode ? `Terkunci: Kelas [${formClassCode}]` : 'Harap Setel Subjek'}
+                value={formClassCodes.length ? `Terkunci: Kelas [${formClassCodes.join(', ')}]` : 'Harap Setel Subjek'}
                 disabled
                 className={`${styles.input} ${styles.inputLocked}`}
               />
@@ -425,6 +444,16 @@ export default function AssignmentPage() {
               className={`${styles.input} ${styles.textarea}`}
               required
               placeholder="Cth: Kerjakan LKS halaman 24. Bagi siswa daring harap unggah file PDF..."
+            />
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <label className={styles.fieldLabel}>Rubrik Penilaian (Opsional)</label>
+            <textarea
+              value={formRubricText}
+              onChange={e => setFormRubricText(e.target.value)}
+              className={`${styles.input} ${styles.textarea}`}
+              placeholder="Contoh: Ketepatan isi 40%, analisis 40%, kerapian 20%."
             />
           </div>
 

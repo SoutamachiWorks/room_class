@@ -40,7 +40,7 @@ export async function GET(request) {
     const openSessions = isArchiveMode
       ? []
       : await db.collection('attendanceSessions')
-          .find({ classCode, status: 'open' })
+          .find({ status: 'open', $or: [{ classCode }, { classCodes: classCode }] })
           .toArray();
 
     let activeSession = null;
@@ -73,7 +73,7 @@ export async function GET(request) {
         sessionId: session._id.toString(),
         subjectId: session.subjectId,
         subjectName,
-        classCode: session.classCode,
+        classCode,
         openedAt: session.openedAt,
         expiresAt: expiresAt.toISOString(),
         durationMinutes: session.durationMinutes,

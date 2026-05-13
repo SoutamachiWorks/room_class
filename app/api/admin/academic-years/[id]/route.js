@@ -20,6 +20,31 @@ function validateAcademicYearLabel(label) {
   return { valid: true, startYear: start, endYear: end };
 }
 
+async function getAcademicYearUsage(db, label) {
+  const [users, exams, examSessions] = await Promise.all([
+    db.collection('users').countDocuments({ academicYearId: label }),
+    db.collection('exams').countDocuments({ academicYearId: label }),
+    db.collection('examSessions').countDocuments({ academicYearId: label }),
+  ]);
+
+  return {
+    users,
+    exams,
+    examSessions,
+    total: users + exams + examSessions,
+  };
+}
+
+function formatUsageMessage(label, usage) {
+  const parts = [
+    usage.users ? `${usage.users} user/siswa` : '',
+    usage.exams ? `${usage.exams} ujian` : '',
+    usage.examSessions ? `${usage.examSessions} sesi ujian` : '',
+  ].filter(Boolean);
+
+  return `Tahun ajaran "${label}" masih dipakai oleh ${parts.join(', ')}. Pindahkan atau hapus data terkait terlebih dahulu.`;
+}
+
 export async function PUT(request, { params }) {
   try {
     await requireRole(request, 'admin');
@@ -55,7 +80,7 @@ export async function PUT(request, { params }) {
       );
     }
 
-    await db.collection('academicYears').updateOne(
+    const result = await db.collection('academicYears').updateOne(
       { _id: new ObjectId(id) },
       {
         $set: {
@@ -67,6 +92,10 @@ export async function PUT(request, { params }) {
         },
       }
     );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: 'Tahun ajaran tidak ditemukan.' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {
@@ -90,9 +119,15 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Tahun ajaran tidak ditemukan.' }, { status: 404 });
     }
 
-    const inUse = await db.collection('users').countDocuments({ academicYearId: target.label });
-    if (inUse > 0) {
-      return NextResponse.json({ error: 'Tahun ajaran sedang dipakai data siswa dan tidak bisa dihapus.' }, { status: 400 });
+    const usage = await getAcademicYearUsage(db, target.label);
+    if (usage.total > 0) {
+      return NextResponse.json(
+        {
+          error: formatUsageMessage(target.label, usage),
+          usage,
+        },
+        { status: 409 }
+      );
     }
 
     await db.collection('academicYears').deleteOne({ _id: new ObjectId(id) });
@@ -103,4 +138,3 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error }, { status });
   }
 }
-

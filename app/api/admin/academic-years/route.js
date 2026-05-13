@@ -19,6 +19,41 @@ function validateAcademicYearLabel(label) {
   return { valid: true, startYear: start, endYear: end };
 }
 
+async function buildUsageMap(db, labels) {
+  if (!labels.length) return new Map();
+
+  const [users, exams, examSessions] = await Promise.all([
+    db.collection('users').aggregate([
+      { $match: { academicYearId: { $in: labels } } },
+      { $group: { _id: '$academicYearId', count: { $sum: 1 } } },
+    ]).toArray(),
+    db.collection('exams').aggregate([
+      { $match: { academicYearId: { $in: labels } } },
+      { $group: { _id: '$academicYearId', count: { $sum: 1 } } },
+    ]).toArray(),
+    db.collection('examSessions').aggregate([
+      { $match: { academicYearId: { $in: labels } } },
+      { $group: { _id: '$academicYearId', count: { $sum: 1 } } },
+    ]).toArray(),
+  ]);
+
+  const map = new Map(labels.map((label) => [label, { users: 0, exams: 0, examSessions: 0, total: 0 }]));
+  const addCounts = (docs, key) => {
+    docs.forEach((doc) => {
+      const current = map.get(doc._id);
+      if (!current) return;
+      current[key] = doc.count;
+      current.total += doc.count;
+    });
+  };
+
+  addCounts(users, 'users');
+  addCounts(exams, 'exams');
+  addCounts(examSessions, 'examSessions');
+
+  return map;
+}
+
 export async function GET(request) {
   try {
     await requireRole(request, 'admin');
@@ -28,6 +63,7 @@ export async function GET(request) {
       .find({})
       .sort({ startYear: -1, createdAt: -1 })
       .toArray();
+    const usageMap = await buildUsageMap(db, rows.map((row) => row.label).filter(Boolean));
 
     return NextResponse.json({
       academicYears: rows.map((row) => ({
@@ -38,6 +74,7 @@ export async function GET(request) {
         isActive: Boolean(row.isActive),
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
+        usage: usageMap.get(row.label) || { users: 0, exams: 0, examSessions: 0, total: 0 },
       })),
     });
   } catch (err) {
@@ -84,4 +121,3 @@ export async function POST(request) {
     return NextResponse.json({ error }, { status });
   }
 }
-

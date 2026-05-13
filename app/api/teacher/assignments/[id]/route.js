@@ -27,6 +27,7 @@ export async function PUT(request, { params }) {
 
       const formData = await request.formData();
       const text = formData.get('text');
+      const rubricText = formData.get('rubricText') || '';
       const deadlineRaw = formData.get('deadline');
       const retainedFilesJSON = formData.get('retainedFiles'); 
       const files = formData.getAll('files'); 
@@ -73,6 +74,7 @@ export async function PUT(request, { params }) {
         {
            $set: {
               text,
+              rubricText,
               deadline: deadlineRaw ? new Date(deadlineRaw) : null,
               files: resolvedAttachments,
               updatedAt: new Date()

@@ -77,7 +77,8 @@ export default function AdminDashboardPage() {
   }, [page, limit, roleFilter, search]);
 
   useEffect(() => {
-    fetchUsers();
+    const timer = setTimeout(() => fetchUsers(), 0);
+    return () => clearTimeout(timer);
   }, [fetchUsers]);
 
   useEffect(() => {
@@ -285,6 +286,14 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleExport = () => {
+    const query = new URLSearchParams({
+      role: roleFilter,
+      search,
+    });
+    window.location.href = `/api/admin/users/export?${query}`;
+  };
+
   // Role badge variant mapping
   const roleBadgeVariant = (role) => {
     if (role === 'admin') return 'admin';
@@ -348,6 +357,13 @@ export default function AdminDashboardPage() {
       >
         <span className={styles.mobileActionTitle}>Import CSV</span>
         <span className={styles.mobileActionDesc}>Import guru/siswa dari CSV</span>
+      </button>
+      <button
+        className={styles.mobileActionCardTeal}
+        onClick={handleExport}
+      >
+        <span className={styles.mobileActionTitle}>Export CSV</span>
+        <span className={styles.mobileActionDesc}>Download data pengguna</span>
       </button>
     </div>
   );
@@ -421,6 +437,13 @@ export default function AdminDashboardPage() {
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Import CSV
+        </button>
+        <button
+          className={`${styles.btnPrimary} ${styles.btnOutline} ${styles.headerActionBtn}`}
+          onClick={handleExport}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
         </button>
       </PageHeader>
 
@@ -812,6 +835,19 @@ export default function AdminDashboardPage() {
              <div className={`${styles.alert} ${styles.alertError}`}>
                 <h3 className={styles.alertTitle}>❌ Gagal Import</h3>
                 <p className={styles.alertText}>{importResult.message}</p>
+                {importResult.data?.errors?.length > 0 && (
+                   <div className={styles.alertDetail}>
+                      <div className={styles.alertDetailTitle}>
+                         Detail baris gagal:
+                      </div>
+                      <ul className={styles.alertDetailList}>
+                         {importResult.data.errors.slice(0, 10).map((err, i) => (
+                            <li key={i}>Baris {err.row}: {err.reason}</li>
+                         ))}
+                         {importResult.data.errors.length > 10 && <li>...dan {importResult.data.errors.length - 10} lainnya</li>}
+                      </ul>
+                   </div>
+                )}
              </div>
           )}
 

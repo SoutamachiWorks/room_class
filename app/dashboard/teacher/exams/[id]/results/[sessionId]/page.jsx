@@ -4,6 +4,25 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import styles from '../../../../../admin/admin.module.css';
 
+function normalizeAnswerSet(value) {
+  if (Array.isArray(value)) return value.map((item) => Number(item)).sort((a, b) => a - b);
+  return value === null || value === undefined ? [] : [Number(value)];
+}
+
+function isSameAnswerSet(answer, correctAnswer) {
+  const selected = normalizeAnswerSet(answer);
+  const correct = normalizeAnswerSet(correctAnswer);
+  return selected.length === correct.length && selected.every((value, index) => value === correct[index]);
+}
+
+function formatOptions(value, options = []) {
+  const selected = normalizeAnswerSet(value);
+  if (!selected.length) return 'Tidak Menjawab';
+  return selected
+    .map((idx) => `Opsi ${String.fromCharCode(65 + idx)}${options[idx] ? ` - ${options[idx]}` : ''}`)
+    .join(', ');
+}
+
 export default function GradingPage() {
   const { id: examId, sessionId } = useParams();
   const router = useRouter();
@@ -36,7 +55,9 @@ export default function GradingPage() {
   }, [examId, sessionId]);
 
   useEffect(() => {
-    fetchData();
+    queueMicrotask(() => {
+      fetchData();
+    });
   }, [fetchData]);
 
   const handleScoreChange = (order, val) => {
@@ -127,17 +148,12 @@ export default function GradingPage() {
                 
                 {qd.multipleChoice && (
                   <div>
-                    <div className={ans.mcAnswer === qd.multipleChoice.correctAnswer ? styles.answerCorrect : styles.answerWrong}>
-                      {ans.mcAnswer !== null && ans.mcAnswer !== undefined
-                        ? `Opsi ${String.fromCharCode(65 + Number(ans.mcAnswer))}${qd.multipleChoice?.options?.[ans.mcAnswer] ? ` - ${qd.multipleChoice.options[ans.mcAnswer]}` : ''}`
-                        : 'Tidak Menjawab'}
+                    <div className={isSameAnswerSet(ans.mcAnswer, qd.multipleChoice.correctAnswer) ? styles.answerCorrect : styles.answerWrong}>
+                      {formatOptions(ans.mcAnswer, qd.multipleChoice?.options || [])}
                     </div>
-                    {ans.mcAnswer !== qd.multipleChoice.correctAnswer && qd.multipleChoice.correctAnswer !== null && qd.multipleChoice.correctAnswer !== undefined && (
+                    {!isSameAnswerSet(ans.mcAnswer, qd.multipleChoice.correctAnswer) && qd.multipleChoice.correctAnswer !== null && qd.multipleChoice.correctAnswer !== undefined && (
                       <div className={styles.correctKey}>
-                        Kunci Jawaban Benar: Opsi {String.fromCharCode(65 + Number(qd.multipleChoice.correctAnswer))}
-                        {qd.multipleChoice?.options?.[qd.multipleChoice.correctAnswer]
-                          ? ` - ${qd.multipleChoice.options[qd.multipleChoice.correctAnswer]}`
-                          : ''}
+                        Kunci Jawaban Benar: {formatOptions(qd.multipleChoice.correctAnswer, qd.multipleChoice?.options || [])}
                       </div>
                     )}
                   </div>

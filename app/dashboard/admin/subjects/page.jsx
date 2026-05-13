@@ -35,7 +35,7 @@ export default function SubjectManagementPage() {
   const [formData, setFormData] = useState({
     subjectName: '',
     teacherId: '',
-    classCode: '',
+    classCodes: [],
   });
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
@@ -92,7 +92,8 @@ export default function SubjectManagementPage() {
   }, [page, limit, search]);
 
   useEffect(() => {
-    fetchSubjects();
+    const timer = setTimeout(() => fetchSubjects(), 0);
+    return () => clearTimeout(timer);
   }, [fetchSubjects]);
 
   // Debouncing logic preventing request spam
@@ -112,13 +113,15 @@ export default function SubjectManagementPage() {
       setFormData({
         subjectName: existingConfig.subjectName || '',
         teacherId: existingConfig.teacherId || '',
-        classCode: existingConfig.classCode || '',
+        classCodes: Array.isArray(existingConfig.classCodes)
+          ? existingConfig.classCodes.filter(Boolean)
+          : [existingConfig.classCode].filter(Boolean),
       });
     } else {
       setFormData({
         subjectName: '',
         teacherId: '',
-        classCode: '',
+        classCodes: [],
       });
     }
     setFormError('');
@@ -134,6 +137,26 @@ export default function SubjectManagementPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const addClassCode = (classCode) => {
+    if (!classCode || formData.classCodes.includes(classCode)) return;
+    setFormData((prev) => ({
+      ...prev,
+      classCodes: [...prev.classCodes, classCode],
+    }));
+  };
+
+  const removeClassCode = (classCode) => {
+    setFormData((prev) => ({
+      ...prev,
+      classCodes: prev.classCodes.filter((code) => code !== classCode),
+    }));
+  };
+
+  const getClassLabel = (classCode) => {
+    const found = classCodesRef.find((item) => item.code === classCode);
+    return found ? `${found.label} (${found.code})` : classCode;
+  };
+
   // Execution Protocol
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -142,7 +165,7 @@ export default function SubjectManagementPage() {
 
     const isEdit = !!selectedSubject;
 
-    if (!formData.subjectName || !formData.teacherId || !formData.classCode) {
+    if (!formData.subjectName || !formData.teacherId || formData.classCodes.length === 0) {
       setFormError('Sistem mendeteksi array parameter yang kosong. Harap lengkapi semua kolom.');
       setFormLoading(false);
       return;
@@ -198,6 +221,13 @@ export default function SubjectManagementPage() {
     } finally {
       setFormLoading(false);
     }
+  };
+
+  const formatClassCodes = (subject) => {
+    const codes = Array.isArray(subject?.classCodes) && subject.classCodes.length
+      ? subject.classCodes
+      : [subject?.classCode].filter(Boolean);
+    return codes.join(', ');
   };
 
   // ── Filter bar ────────────────────────────────────────────────────────
@@ -292,7 +322,7 @@ export default function SubjectManagementPage() {
                       <div className={styles.cellSecondary}>ID Induk: {sub.teacherId}</div>
                     </td>
                     <td data-label="Kelas">
-                       <StatusBadge variant="student">{sub.classCode}</StatusBadge>
+                       <StatusBadge variant="student">{formatClassCodes(sub)}</StatusBadge>
                     </td>
                     <td data-label="Aksi" className={styles.tdCenter}>
                        <div className={`${styles.actionBtns} ${styles.actionBtnsCenter}`}>
@@ -336,7 +366,7 @@ export default function SubjectManagementPage() {
                   </div>
                   <div>
                     <div className={styles.mobileMetaLabel}>Kelas</div>
-                    <div className={styles.cellPrimary}>{sub.classCode}</div>
+                    <div className={styles.cellPrimary}>{formatClassCodes(sub)}</div>
                   </div>
                 </div>
 
@@ -398,18 +428,33 @@ export default function SubjectManagementPage() {
 
               <div className={styles.fieldGroup}>
                  <label className={styles.fieldLabel}>Relasi Kode Kelas*</label>
-                 <select 
-                    name="classCode" 
-                    value={formData.classCode} 
-                    onChange={handleFormChange} 
-                    className={`${styles.input} ${styles.selectInput}`}
-                    required 
-                 >
-                    <option value="" disabled>Pilih Skema Kelas...</option>
-                    {classCodesRef.map(c => (
-                       <option key={c.code} value={c.code}>{c.label} ({c.code})</option>
+                 <div className={styles.classPickerRow}>
+                    <select
+                       value=""
+                       onChange={(e) => addClassCode(e.target.value)}
+                       className={`${styles.input} ${styles.selectInput}`}
+                    >
+                       <option value="" disabled>Pilih kelas...</option>
+                       {classCodesRef
+                         .filter((c) => !formData.classCodes.includes(c.code))
+                         .map(c => (
+                           <option key={c.code} value={c.code}>{c.label} ({c.code})</option>
+                         ))}
+                    </select>
+                 </div>
+
+                 <div className={styles.selectedClassList}>
+                    {formData.classCodes.length === 0 ? (
+                       <span className={styles.selectedClassEmpty}>Belum ada kelas dipilih.</span>
+                    ) : formData.classCodes.map((code) => (
+                       <span key={code} className={styles.selectedClassChip}>
+                          {getClassLabel(code)}
+                          <button type="button" onClick={() => removeClassCode(code)} aria-label={`Hapus ${code}`}>
+                             ×
+                          </button>
+                       </span>
                     ))}
-                 </select>
+                 </div>
               </div>
            </div>
 

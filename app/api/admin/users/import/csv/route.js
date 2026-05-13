@@ -6,7 +6,17 @@ import bcrypt from 'bcryptjs';
 
 const ALLOWED_ROLES = ['teacher', 'student', 'principal', 'curriculum'];
 
+function detectDelimiter(text) {
+  const firstLine = String(text || '').split(/\r?\n/).find((line) => line.trim()) || '';
+  const delimiters = [',', ';', '\t'];
+
+  return delimiters
+    .map((delimiter) => ({ delimiter, count: firstLine.split(delimiter).length }))
+    .sort((a, b) => b.count - a.count)[0]?.delimiter || ',';
+}
+
 function parseCsv(text) {
+  const delimiter = detectDelimiter(text);
   const rows = [];
   let current = '';
   let row = [];
@@ -26,7 +36,7 @@ function parseCsv(text) {
       continue;
     }
 
-    if (ch === ',' && !inQuotes) {
+    if (ch === delimiter && !inQuotes) {
       row.push(current.trim());
       current = '';
       continue;
@@ -71,7 +81,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'CSV kosong atau tidak sesuai format' }, { status: 400 });
     }
 
-    const headers = rows[0].map((h) => h.toLowerCase());
+    const headers = rows[0].map((h) => h.replace(/^\uFEFF/, '').trim().toLowerCase());
     const idx = {
       role: headers.indexOf('role'),
       fullName: headers.indexOf('fullname'),
@@ -219,6 +229,18 @@ export async function POST(request) {
         ...(d.studentId ? { studentId: d.studentId } : {}),
         ...(d.classCode ? { classCode: d.classCode } : {}),
         ...(d.academicYearId ? { academicYearId: d.academicYearId } : {}),
+        ...(d.role === 'student' && d.classCode && d.academicYearId ? {
+          enrolledYears: [
+            {
+              yearId: `${d.classCode}_${String(d.academicYearId).replace(/\//g, '-')}`,
+              classCode: d.classCode,
+              academicYear: d.academicYearId,
+              label: `${d.academicYearId} (${d.classCode})`,
+              status: 'active',
+              archivedAt: null,
+            },
+          ],
+        } : {}),
         ...(d.role === 'teacher' ? { isProctor: Boolean(d.isProctor) } : {}),
         status: 'active',
         createdAt: new Date(),

@@ -17,6 +17,13 @@ function Skeleton({ h = 20, w = '100%', radius = 8 }) {
   return <div className={styles.skeleton} style={{ height: h, width: w, borderRadius: radius }} />;
 }
 
+function formatClassCodes(source) {
+  const codes = Array.isArray(source?.classCodes) && source.classCodes.length
+    ? source.classCodes
+    : [source?.classCode].filter(Boolean);
+  return codes.length ? codes.join(', ') : '-';
+}
+
 // ── Recap Tab ─────────────────────────────────────────────────────────────────
 function RecapTab({ subjectId }) {
   const [recap, setRecap] = useState(null);
@@ -26,12 +33,14 @@ function RecapTab({ subjectId }) {
 
   useEffect(() => {
     if (!subjectId) return;
-    setLoading(true);
-    fetch(`/api/teacher/attendance/recap?subjectId=${subjectId}`)
-      .then(r => r.json())
-      .then(d => setRecap(d))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    queueMicrotask(() => {
+      setLoading(true);
+      fetch(`/api/teacher/attendance/recap?subjectId=${subjectId}`)
+        .then(r => r.json())
+        .then(d => setRecap(d))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    });
   }, [subjectId]);
 
   if (!subjectId) return (
@@ -168,9 +177,13 @@ export default function TeacherAttendancePage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedSubject]);
+  }, [selectedSubject, subjects.length]);
 
-  useEffect(() => { fetchSessions(); }, [fetchSessions]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchSessions();
+    });
+  }, [fetchSessions]);
 
   const handleOpenSession = async () => {
     if (!selectedSubject) { setError('Pilih mata pelajaran terlebih dahulu.'); return; }
@@ -233,7 +246,7 @@ export default function TeacherAttendancePage() {
           >
             <option value="">Semua Mata Pelajaran</option>
             {subjects.map(s => (
-              <option key={s._id} value={s._id.toString()}>{s.subjectName} ({s.classCode})</option>
+              <option key={s._id} value={s._id.toString()}>{s.subjectName} ({formatClassCodes(s)})</option>
             ))}
           </select>
         </div>

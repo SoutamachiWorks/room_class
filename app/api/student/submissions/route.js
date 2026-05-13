@@ -46,7 +46,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Data mata pelajaran pada tugas tidak valid.' }, { status: 400 });
     }
     const subject = await db.collection('subjects').findOne({ _id: new ObjectId(assignment.subjectId) });
-    if (!subject || subject.classCode !== classCode) {
+    const subjectClassCodes = Array.isArray(subject?.classCodes) && subject.classCodes.length
+      ? subject.classCodes
+      : [subject?.classCode].filter(Boolean);
+    if (!subject || !subjectClassCodes.includes(classCode)) {
       return NextResponse.json({ error: 'Anda tidak memiliki akses ke tugas ini.' }, { status: 403 });
     }
 
@@ -87,6 +90,8 @@ export async function POST(request) {
       submittedAt: now,
       updatedAt: now,
       isLate,
+      status: 'submitted',
+      requiresRevision: false,
       score: null // initially ungraded
     };
 

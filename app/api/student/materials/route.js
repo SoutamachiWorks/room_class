@@ -19,6 +19,7 @@ export async function GET(request) {
     const db = await getDb();
 
     const userDoc = await db.collection('users').findOne({ _id: new ObjectId(student.userId) });
+    const studentId = userDoc?.studentId;
     const rawEnrolledYears = Array.isArray(userDoc?.enrolledYears) ? userDoc.enrolledYears : [];
     const currentYear = (userDoc?.academicYearId && userDoc?.classCode)
       ? {
@@ -51,7 +52,9 @@ export async function GET(request) {
     }
 
     // Find subjects matching this student's classCode
-    const matchingSubjects = await db.collection('subjects').find({ classCode }).toArray();
+    const matchingSubjects = await db.collection('subjects')
+      .find({ $or: [{ classCode }, { classCodes: classCode }] })
+      .toArray();
     const subjectIds = matchingSubjects.map(s => s._id.toString());
 
     let materials = [];
@@ -82,6 +85,13 @@ export async function GET(request) {
       ];
 
       materials = await db.collection('materials').aggregate(pipeline).toArray();
+      const materialIds = materials.map((mat) => mat._id.toString());
+      const progressDocs = materialIds.length
+        ? await db.collection('materialProgress')
+          .find({ studentId, materialId: { $in: materialIds } })
+          .toArray()
+        : [];
+      const progressByMaterial = new Map(progressDocs.map((doc) => [doc.materialId, doc]));
 
       materials = await Promise.all(materials.map(async (mat) => {
         if (mat.files && mat.files.length > 0) {
@@ -90,7 +100,16 @@ export async function GET(request) {
                 url: await generatePresignedUrl(f.fileKey, f.originalName)
             })));
         }
-        return mat;
+        const progress = progressByMaterial.get(mat._id.toString());
+        return {
+          ...mat,
+          progress: {
+            status: progress?.status || (progress?.completed ? 'completed' : (progress?.viewedAt ? 'in-progress' : 'not-started')),
+            viewedAt: progress?.viewedAt || null,
+            completed: !!progress?.completed,
+            completedAt: progress?.completedAt || null,
+          },
+        };
       }));
     }
 

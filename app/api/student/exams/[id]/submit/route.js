@@ -11,6 +11,22 @@ import { validateFiles } from '@/lib/fileValidation';
 const SERVER_SUBMIT_GRACE_MS = 60_000;
 const MAX_EXAM_UPLOAD_TOTAL_BYTES = 10 * 1024 * 1024;
 
+function normalizeAnswerSet(value) {
+  if (Array.isArray(value)) {
+    return value.filter((item) => Number.isInteger(Number(item))).map((item) => Number(item)).sort((a, b) => a - b);
+  }
+  return value === null || value === undefined ? [] : [Number(value)];
+}
+
+function isCorrectMultipleChoiceAnswer(answer, correctAnswer) {
+  if (Array.isArray(correctAnswer)) {
+    const selected = normalizeAnswerSet(answer);
+    const correct = normalizeAnswerSet(correctAnswer);
+    return selected.length === correct.length && selected.every((value, index) => value === correct[index]);
+  }
+  return answer === correctAnswer;
+}
+
 /**
  * POST /api/student/exams/[id]/submit
  * Submits answers for an exam session.
@@ -189,7 +205,7 @@ export async function POST(request, { params }) {
         : null;
       if (sessionQuestion) {
         if (sessionQuestion.multipleChoice) {
-          if (ans.mcAnswer === sessionQuestion.multipleChoice.correctAnswer) {
+          if (isCorrectMultipleChoiceAnswer(ans.mcAnswer, sessionQuestion.multipleChoice.correctAnswer)) {
             ans.score = 100;
           } else {
             ans.score = 0;

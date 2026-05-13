@@ -38,8 +38,55 @@ export default function StudentMaterialsPage() {
   }, [yearId]);
 
   useEffect(() => {
-    fetchMaterials();
+    queueMicrotask(() => {
+      fetchMaterials();
+    });
   }, [fetchMaterials]);
+
+  const patchMaterialProgress = async (material, payload, optimisticProgress) => {
+    setMaterials((prev) => prev.map((item) => (
+      item._id === material._id
+        ? { ...item, progress: { ...(item.progress || {}), ...optimisticProgress } }
+        : item
+    )));
+    try {
+      const res = await fetch(`/api/student/materials/${material._id}/progress`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        fetchMaterials();
+      }
+    } catch {
+      fetchMaterials();
+    }
+  };
+
+  const markMaterialViewed = (material) => {
+    if (!material || material.progress?.viewedAt || material.progress?.completed) return;
+    const now = new Date().toISOString();
+    patchMaterialProgress(
+      material,
+      { status: 'viewed' },
+      { status: 'in-progress', viewedAt: now, completed: false }
+    );
+  };
+
+  const toggleMaterialCompleted = async (material) => {
+    const nextCompleted = !material.progress?.completed;
+    const now = new Date().toISOString();
+    patchMaterialProgress(
+      material,
+      { completed: nextCompleted },
+      {
+        status: nextCompleted ? 'completed' : 'in-progress',
+        viewedAt: material.progress?.viewedAt || now,
+        completed: nextCompleted,
+        completedAt: nextCompleted ? now : null,
+      }
+    );
+  };
 
   const currentYearId = currentYear?.yearId || null;
   const isArchiveMode = Boolean(yearId && currentYearId && yearId !== currentYearId);
@@ -79,14 +126,16 @@ export default function StudentMaterialsPage() {
             }, {})).map((subjectName, idx) => {
                const groupItems = materials.filter(m => (m.subjectDetails?.subjectName || 'Aset Lepas / Mata Pelajaran Lainnya') === subjectName);
                const classCode = groupItems[0]?.subjectDetails?.classCode || '-';
+               const completedCount = groupItems.filter((m) => m.progress?.completed).length;
 
                return (
                  <div 
                    key={idx} 
-                   onClick={() => {
+                  onClick={() => {
                      setSelectedSubject(subjectName);
                      setExpandedMaterialId(null);
                      setIsMobileDetailView(false);
+                     markMaterialViewed(groupItems[0]);
                    }}
                    className={localStyles.subjectCard}
                  >
@@ -97,7 +146,7 @@ export default function StudentMaterialsPage() {
                      <h3 className={localStyles.subjectCardTitle}>{subjectName}</h3>
                      <span className={localStyles.subjectCardClass}>Kelas: <span className={localStyles.subjectCardClassCode}>{classCode}</span></span>
                      <div className={localStyles.subjectCardFooter}>
-                        <span className={localStyles.subjectCardCount}>{groupItems.length} Materi Tersedia</span>
+                        <span className={localStyles.subjectCardCount}>{completedCount}/{groupItems.length} selesai</span>
                         <div className={localStyles.subjectCardBtn}>Akses</div>
                      </div>
                    </div>
@@ -142,6 +191,7 @@ export default function StudentMaterialsPage() {
                                  onClick={() => {
                                     setExpandedMaterialId(mat._id);
                                     setIsMobileDetailView(true);
+                                    markMaterialViewed(mat);
                                  }}
                                  className={`${localStyles.sidebarItem} ${isSelected ? localStyles.sidebarItemActive : ''}`}
                               >
@@ -151,6 +201,12 @@ export default function StudentMaterialsPage() {
                                  <div className={localStyles.sidebarItemDate}>
                                     {new Date(mat.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                                  </div>
+                                 {mat.progress?.completed && (
+                                    <div className={localStyles.sidebarItemDate}>Selesai dipelajari</div>
+                                 )}
+                                 {!mat.progress?.completed && mat.progress?.viewedAt && (
+                                    <div className={localStyles.sidebarItemDate}>Sedang dipelajari</div>
+                                 )}
                               </div>
                            );
                         })}
@@ -173,6 +229,16 @@ export default function StudentMaterialsPage() {
                               <h2 className={localStyles.materialTitle}>
                                  {selectedMat.title || 'Materi Pembelajaran'}
                               </h2>
+                              <button
+                                type="button"
+                                onClick={() => toggleMaterialCompleted(selectedMat)}
+                                className={localStyles.completeButton}
+                              >
+                                {selectedMat.progress?.completed ? 'Tandai Belum Selesai' : 'Tandai Selesai Dipelajari'}
+                              </button>
+                              <div className={localStyles.materialDate}>
+                                 Status: {selectedMat.progress?.completed ? 'Selesai dipelajari' : (selectedMat.progress?.viewedAt ? 'Sedang dipelajari' : 'Belum dibuka')}
+                              </div>
                               
                               <div className={localStyles.materialBody}>
                                  {selectedMat.text}

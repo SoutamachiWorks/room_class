@@ -4,6 +4,11 @@ import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 import { logActivity } from '@/lib/activityLog';
 
+function normalizeClassCodes(value) {
+   const raw = Array.isArray(value) ? value : [value];
+   return [...new Set(raw.map((item) => String(item || '').trim()).filter(Boolean))];
+}
+
 /**
  * PUT /api/admin/subjects/[id]
  * Edits subject metadata.
@@ -26,11 +31,13 @@ export async function PUT(request, { params }) {
        return NextResponse.json({ error: 'Referensi Subjek tidak terdeteksi pada database' }, { status: 404 });
      }
  
-     const { teacherId, subjectName, classCode } = body;
+     const { teacherId, subjectName } = body;
+     const classCodes = normalizeClassCodes(body.classCodes || body.classCode);
+     const classCode = classCodes[0] || '';
      
      // Quick block if someone attempts malicious clearance
-     if (!teacherId || !subjectName || !classCode) {
-        return NextResponse.json({ error: 'Tiga variabel utama struktural ClassCode diwajibkan!' }, { status: 400 });
+     if (!teacherId || !subjectName || classCodes.length === 0) {
+        return NextResponse.json({ error: 'Teacher ID, Subject Name, dan minimal satu ClassCode diwajibkan!' }, { status: 400 });
      }
  
      // Verify the newly nominated dependencies (if different)
@@ -39,9 +46,27 @@ export async function PUT(request, { params }) {
          if (!verifTeacher) return NextResponse.json({ error: 'ID Guru Referensi Gagal Melakukan Kompilasi (Tidak Ditemukan)' }, { status: 404 });
      }
  
-     if (classCode !== rootSubject.classCode) {
-         const verifClass = await db.collection('classCodes').findOne({ code: classCode });
-         if (!verifClass) return NextResponse.json({ error: 'Kode Kelas Referensi Gagal Melakukan Kompilasi (Tidak Ditemukan)' }, { status: 404 });
+     const validClasses = await db.collection('classCodes')
+       .find({ code: { $in: classCodes } }, { projection: { code: 1 } })
+       .toArray();
+     const validClassSet = new Set(validClasses.map((item) => item.code));
+     const invalidClasses = classCodes.filter((code) => !validClassSet.has(code));
+     if (invalidClasses.length > 0) {
+         return NextResponse.json({ error: `Kode Kelas Referensi tidak ditemukan: ${invalidClasses.join(', ')}` }, { status: 404 });
+     }
+
+     const duplicate = await db.collection('subjects').findOne({
+        _id: { $ne: new ObjectId(id) },
+        teacherId,
+        subjectName: { $regex: `^${subjectName}$`, $options: 'i' },
+        $or: [
+          { classCode: { $in: classCodes } },
+          { classCodes: { $in: classCodes } },
+        ],
+     });
+
+     if (duplicate) {
+        return NextResponse.json({ error: 'Duplikasi Terdeteksi: Guru terkait sudah disetel untuk mengajar mata pelajaran ini pada salah satu kelas yang dipilih.' }, { status: 409 });
      }
      
      // Update logical core Subject properties structurally
@@ -51,7 +76,8 @@ export async function PUT(request, { params }) {
            $set: { 
              teacherId, 
              subjectName, 
-             classCode, 
+             classCode,
+             classCodes,
              updatedAt: new Date() 
            } 
         }
@@ -78,10 +104,11 @@ export async function PUT(request, { params }) {
          userId: admin.userId,
          userName: admin.fullName,
          action: 'update',
-         target: `Sinkronisasi Pembaruan Subjek: ${subjectName} [${classCode}]`,
+         target: `Sinkronisasi Pembaruan Subjek: ${subjectName} [${classCodes.join(', ')}]`,
          details: { 
             oldTeacher: rootSubject.teacherId, 
             newTeacher: teacherId,
+            classCodes,
             cascadedSyncToFilesTriggered: teacherId !== rootSubject.teacherId 
          }
      });
@@ -137,7 +164,7 @@ export async function PUT(request, { params }) {
          userName: admin.fullName,
          action: 'delete',
          target: `Eradikasi Modul: ${documentMap.subjectName}`,
-         details: { boundClassCodeScrubbed: documentMap.classCode }
+         details: { boundClassCodeScrubbed: documentMap.classCodes || [documentMap.classCode].filter(Boolean) }
       });
 
       return NextResponse.json({ success: true });

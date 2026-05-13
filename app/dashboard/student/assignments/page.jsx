@@ -3,10 +3,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(`(max-width: ${breakpoint}px)`).matches;
+  });
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    setIsMobile(mq.matches);
     const handler = (e) => setIsMobile(e.matches);
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
@@ -35,6 +37,7 @@ function getStatus(asm) {
     if (dl && new Date() > dl) return 'late';
     return 'pending';
   }
+  if (asm.submission.requiresRevision || asm.submission.status === 'revision-required') return 'revision';
   return asm.submission.isLate ? 'submitted-late' : 'submitted';
 }
 
@@ -44,6 +47,7 @@ function StatusPill({ status }) {
     late: [s.statusLate, 'Terlambat'],
     'submitted-late': [s.statusLate, 'Terlambat Dikumpulkan'],
     submitted: [s.statusSubmitted, 'Sudah Dikumpulkan'],
+    revision: [s.statusLate, 'Perlu Revisi'],
   };
   const [cls, label] = map[status] || [s.statusPending, status];
   return <span className={s.statusBadge + ' ' + cls}>{label}</span>;
@@ -171,6 +175,7 @@ export default function StudentAssignmentsPage() {
     done: assignments.filter(a=>getStatus(a)==='submitted').length,
     pending: assignments.filter(a=>getStatus(a)==='pending').length,
     late: assignments.filter(a=>['late','submitted-late'].includes(getStatus(a))).length,
+    revision: assignments.filter(a=>getStatus(a)==='revision').length,
   };
 
   return (
@@ -256,6 +261,7 @@ export default function StudentAssignmentsPage() {
                           <div className={s.taskBody}>
                             <div className={s.taskTitle}>{asm.subjectDetails?.subjectName||'Tugas'}</div>
                             <div className={s.taskSubtitle}>{(asm.text||'').substring(0,60)||'-'}</div>
+                            {asm.rubricText && <div className={s.taskSubtitle}>Rubrik tersedia</div>}
                             {(asm.files||[]).slice(0,1).map((f,i)=>(
                               <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" className={s.attachmentChip}>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
@@ -295,6 +301,11 @@ export default function StudentAssignmentsPage() {
                                 💬 {asm.submission.feedback.length > 40 ? asm.submission.feedback.substring(0, 40) + '...' : asm.submission.feedback}
                               </span>
                             )}
+                          </div>
+                        )}
+                        {(asm.submission?.requiresRevision || asm.submission?.status === 'revision-required') && asm.submission?.feedback && (
+                          <div className={s.feedbackText} style={{ marginTop: '6px' }}>
+                            Revisi: {asm.submission.feedback}
                           </div>
                         )}
                       </td>
@@ -421,6 +432,11 @@ export default function StudentAssignmentsPage() {
           <div className={s.contextBox}>
             <div className={s.contextLabel}>{selectedAsm?.subjectDetails?.subjectName}</div>
             <div className={s.contextText}>{selectedAsm?.text}</div>
+            {selectedAsm?.rubricText && (
+              <div className={s.contextText} style={{ marginTop: '10px', color: 'var(--color-subtext)' }}>
+                Rubrik: {selectedAsm.rubricText}
+              </div>
+            )}
           </div>
           <div className={s.fieldGroup}>
             <label className={s.fieldLabel}>Jawaban / Catatan</label>

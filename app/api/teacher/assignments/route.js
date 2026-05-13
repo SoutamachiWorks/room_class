@@ -80,6 +80,7 @@ export async function POST(request) {
      const formData = await request.formData();
      const subjectId = formData.get('subjectId');
      const text = formData.get('text');
+     const rubricText = formData.get('rubricText') || '';
      const deadlineRaw = formData.get('deadline');
      const files = formData.getAll('files');
  
@@ -113,6 +114,7 @@ export async function POST(request) {
          teacherId,
          subjectId,
          text,
+         rubricText,
          deadline: deadlineRaw ? new Date(deadlineRaw) : null,
          files: processedFiles,
          createdAt: new Date(),
@@ -122,13 +124,16 @@ export async function POST(request) {
      const result = await db.collection('assignments').insertOne(newDocument);
 
      // Notifikasi ke siswa
-     if (verifySubject && verifySubject.classCode) {
-       await createNotificationsForClass(db, verifySubject.classCode, {
+     const subjectClassCodes = Array.isArray(verifySubject?.classCodes) && verifySubject.classCodes.length
+       ? verifySubject.classCodes
+       : [verifySubject?.classCode].filter(Boolean);
+     if (subjectClassCodes.length > 0) {
+       await Promise.all(subjectClassCodes.map((classCode) => createNotificationsForClass(db, classCode, {
          title: 'Tugas Baru',
-         message: `Tugas baru telah ditambahkan pada mata pelajaran ${verifySubject.name}.`,
+         message: `Tugas baru telah ditambahkan pada mata pelajaran ${verifySubject.subjectName}.`,
          type: 'info',
          actionUrl: `/dashboard/student/assignments`
-       });
+       })));
      }
 
      return NextResponse.json({ success: true, id: result.insertedId }, { status: 201 });

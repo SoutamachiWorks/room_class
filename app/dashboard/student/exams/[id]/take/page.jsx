@@ -107,6 +107,13 @@ function buildAnswersFromSyncedDraft(questions, syncedAnswers) {
   }, {});
 }
 
+function normalizeSelectedAnswers(value) {
+  if (Array.isArray(value)) {
+    return value.filter((item) => Number.isInteger(Number(item))).map((item) => Number(item)).sort((a, b) => a - b);
+  }
+  return value === null || value === undefined ? [] : [Number(value)];
+}
+
 export default function TakeExamPage() {
   const MAX_VIOLATIONS = 3;
   const FILE_UPLOAD_EXAMS_ENABLED = false;
@@ -1053,6 +1060,21 @@ export default function TakeExamPage() {
     setIsDirty(true);
   };
 
+  const toggleMultipleChoiceAnswer = (questionOrder, optionIndex) => {
+    setAnswers(prev => {
+      const current = normalizeSelectedAnswers(prev[questionOrder]?.mcAnswer);
+      const exists = current.includes(optionIndex);
+      const next = exists
+        ? current.filter((idx) => idx !== optionIndex)
+        : [...current, optionIndex].sort((a, b) => a - b);
+      return {
+        ...prev,
+        [questionOrder]: { ...prev[questionOrder], questionOrder, mcAnswer: next },
+      };
+    });
+    setIsDirty(true);
+  };
+
   const updateFileAnswer = useCallback((questionOrder, files) => {
     setFileAnswers(prev => ({ ...prev, [questionOrder]: files }));
     setIsDirty(true);
@@ -1083,6 +1105,18 @@ export default function TakeExamPage() {
     if (!isOnline) {
       await saveLocalDraft({ pendingSync: true });
       setError('Tidak bisa mengumpulkan jawaban saat offline. Sambungkan internet terlebih dahulu, lalu coba kumpulkan lagi.');
+      return;
+    }
+
+    const incompleteMultiAnswer = questions.find((q) => {
+      if (!q.multipleChoice?.multipleAnswers) return false;
+      const minSelections = Math.max(1, Number(q.multipleChoice.minSelections || 1));
+      return normalizeSelectedAnswers(answers[q.displayOrder]?.mcAnswer).length < minSelections;
+    });
+    if (incompleteMultiAnswer) {
+      const minSelections = Math.max(1, Number(incompleteMultiAnswer.multipleChoice.minSelections || 1));
+      setError(`Soal ${incompleteMultiAnswer.displayOrder}: pilih minimal ${minSelections} jawaban.`);
+      setCurrentQuestionIndex(Math.max(0, incompleteMultiAnswer.displayOrder - 1));
       return;
     }
 
@@ -1317,13 +1351,33 @@ export default function TakeExamPage() {
 
               {q.multipleChoice && (
                 <div className={q.essay ? ex.examSectionSpaced : undefined}>
-                  <p className={ex.examQuestionText}>{q.multipleChoice.questionText}</p>
+                  <div
+                    className={ex.examQuestionText}
+                    dangerouslySetInnerHTML={{ __html: q.multipleChoice.questionText }}
+                  />
+                  {q.multipleChoice.multipleAnswers && (
+                    <p className={ex.examQuestionHint}>
+                      Pilih minimal {q.multipleChoice.minSelections || 1} jawaban yang paling tepat.
+                    </p>
+                  )}
                   <div className={ex.examOptionsList}>
                     {q.multipleChoice.options.map((opt, idx) => {
-                      const isSelected = answers[q.displayOrder]?.mcAnswer === idx;
+                      const isMulti = !!q.multipleChoice.multipleAnswers;
+                      const isSelected = isMulti
+                        ? normalizeSelectedAnswers(answers[q.displayOrder]?.mcAnswer).includes(idx)
+                        : answers[q.displayOrder]?.mcAnswer === idx;
                       return (
                         <label key={idx} className={`${ex.examOption} ${isSelected ? ex.examOptionSelected : ''}`}>
-                          <input type="radio" name={`mc-${q.displayOrder}`} checked={isSelected} onChange={() => updateAnswer(q.displayOrder, 'mcAnswer', idx)} className={ex.examOptionRadio} />
+                          <input
+                            type={isMulti ? 'checkbox' : 'radio'}
+                            name={`mc-${q.displayOrder}`}
+                            checked={isSelected}
+                            onChange={() => {
+                              if (isMulti) toggleMultipleChoiceAnswer(q.displayOrder, idx);
+                              else updateAnswer(q.displayOrder, 'mcAnswer', idx);
+                            }}
+                            className={ex.examOptionRadio}
+                          />
                           {opt}
                         </label>
                       );
@@ -1334,7 +1388,10 @@ export default function TakeExamPage() {
 
               {q.essay && (
                 <div>
-                  <p className={`${ex.examQuestionText} ${ex.examQuestionTextSmall}`}>{q.essay.questionText}</p>
+                  <div
+                    className={`${ex.examQuestionText} ${ex.examQuestionTextSmall}`}
+                    dangerouslySetInnerHTML={{ __html: q.essay.questionText }}
+                  />
                   <textarea className={`${styles.input} ${ex.examEssayInput}`} placeholder="Tuliskan jawaban Anda di sini..." value={answers[q.displayOrder]?.essayAnswer || ''} onChange={(e) => updateAnswer(q.displayOrder, 'essayAnswer', e.target.value)} />
                 </div>
               )}

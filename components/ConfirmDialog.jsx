@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import styles from './modal.module.css';
 
-export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, loading, confirmLabel = 'Hapus' }) {
+export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, error = '', loading, confirmLabel = 'Hapus' }) {
   useEffect(() => {
     if (!isOpen) return;
     const handleEsc = (e) => {
@@ -44,6 +44,7 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
         </div>
         <h3 className={styles.confirmTitle}>{title}</h3>
         <p className={styles.confirmMessage}>{message}</p>
+        {error && <p className={styles.confirmError}>{error}</p>}
         <div className={styles.confirmActions}>
           <button className={styles.btnCancel} onClick={onClose} disabled={loading}>
             Batal

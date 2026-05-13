@@ -3,6 +3,15 @@ import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 import { logActivity } from '@/lib/activityLog';
 
+function normalizeClassCodes(value) {
+   const raw = Array.isArray(value) ? value : [value];
+   return [...new Set(raw.map((item) => String(item || '').trim()).filter(Boolean))];
+}
+
+function subjectClassMatch(classCode) {
+   return { $or: [{ classCode }, { classCodes: classCode }] };
+}
+
 /**
  * GET /api/admin/subjects
  * Retrieves subjects mapped directly to Teacher details via Aggegation pipeline ensuring UI gets display names.
@@ -21,17 +30,19 @@ export async function GET(request) {
     const skip = (page - 1) * limit;
 
     // Build the primary match stage
-    const matchStage = {};
+    const filters = [];
     if (classCodeFilter) {
-       matchStage.classCode = classCodeFilter;
+       filters.push(subjectClassMatch(classCodeFilter));
     }
     if (search) {
-       matchStage.$or = [
+       filters.push({ $or: [
           { subjectName: { $regex: search, $options: 'i' } },
           { teacherId: { $regex: search, $options: 'i' } },
-          { classCode: { $regex: search, $options: 'i' } }
-       ];
+          { classCode: { $regex: search, $options: 'i' } },
+          { classCodes: { $regex: search, $options: 'i' } }
+       ] });
     }
+    const matchStage = filters.length ? { $and: filters } : {};
 
     const aggregationPipeline = [
        { $match: matchStage },
@@ -56,6 +67,7 @@ export async function GET(request) {
              teacherId: 1,
              subjectName: 1,
              classCode: 1,
+             classCodes: { $ifNull: ['$classCodes', ['$classCode']] },
              // Extract specifically just what we need safely mapped
              teacherName: { $ifNull: ['$teacherInfo.fullName', 'Unknown/Unlinked'] }
           }
@@ -103,11 +115,13 @@ export async function POST(request) {
      const db = await getDb();
      const body = await request.json();
  
-     const { teacherId, subjectName, classCode } = body;
+     const { teacherId, subjectName } = body;
+     const classCodes = normalizeClassCodes(body.classCodes || body.classCode);
+     const classCode = classCodes[0] || '';
  
-     if (!teacherId || !subjectName || !classCode) {
+     if (!teacherId || !subjectName || classCodes.length === 0) {
         return NextResponse.json(
-          { error: 'Seluruh Parameter relasi (Teacher ID, Subject Name, Class Code) wajib diisi' },
+          { error: 'Seluruh Parameter relasi (Teacher ID, Subject Name, minimal satu Class Code) wajib diisi' },
           { status: 400 }
         );
      }
@@ -119,20 +133,27 @@ export async function POST(request) {
      }
  
      // Double check validation: Does the class configuration exist?
-     const verifClass = await db.collection('classCodes').findOne({ code: classCode });
-     if (!verifClass) {
-        return NextResponse.json({ error: 'Terdeteksi kegagalan relasi: Kode Kelas referensi tidak ditemukan dalam struktur data kelas.' }, { status: 404 });
+     const validClasses = await db.collection('classCodes')
+       .find({ code: { $in: classCodes } }, { projection: { code: 1 } })
+       .toArray();
+     const validClassSet = new Set(validClasses.map((item) => item.code));
+     const invalidClasses = classCodes.filter((code) => !validClassSet.has(code));
+     if (invalidClasses.length > 0) {
+        return NextResponse.json({ error: `Kode Kelas referensi tidak ditemukan: ${invalidClasses.join(', ')}` }, { status: 404 });
      }
  
-     // Check for exact duplication mapping (Teacher X teaching Subject Y on Class Z structurally overlaps)
+     // Check for overlap duplication mapping (Teacher X teaching Subject Y on any selected class)
      const existingMap = await db.collection('subjects').findOne({
         teacherId,
         subjectName: { $regex: `^${subjectName}$`, $options: 'i' },
-        classCode
+        $or: [
+          { classCode: { $in: classCodes } },
+          { classCodes: { $in: classCodes } },
+        ],
      });
  
      if (existingMap) {
-        return NextResponse.json({ error: 'Duplikasi Terdeteksi: Guru terkait sudah disetel untuk mengajar mata pelajaran ini pada kelas spesifik yang sama.' }, { status: 409 });
+        return NextResponse.json({ error: 'Duplikasi Terdeteksi: Guru terkait sudah disetel untuk mengajar mata pelajaran ini pada salah satu kelas yang dipilih.' }, { status: 409 });
      }
  
      // Safe deployment
@@ -140,6 +161,7 @@ export async function POST(request) {
         teacherId,
         subjectName,
         classCode,
+        classCodes,
         createdAt: new Date(),
         updatedAt: new Date()
      };
@@ -150,8 +172,8 @@ export async function POST(request) {
         userId: admin.userId,
         userName: admin.fullName,
         action: 'create',
-        target: `Subjek: ${subjectName} [${classCode}]`,
-        details: { teacherId }
+        target: `Subjek: ${subjectName} [${classCodes.join(', ')}]`,
+        details: { teacherId, classCodes }
      });
  
      return NextResponse.json({ success: true, id: result.insertedId }, { status: 201 });

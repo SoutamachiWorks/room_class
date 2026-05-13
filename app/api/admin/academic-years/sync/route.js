@@ -28,7 +28,8 @@ export async function POST(request) {
         exam.academicYearId ||
         deriveAcademicYearFromDate(exam.updatedAt) ||
         deriveAcademicYearFromDate(exam.createdAt);
-      const nextClassCode = exam.classCodeSnapshot || subject?.classCode || null;
+      const subjectClassCodes = Array.isArray(subject?.classCodes) && subject.classCodes.length ? subject.classCodes : [subject?.classCode].filter(Boolean);
+      const nextClassCode = exam.classCodeSnapshot || subjectClassCodes[0] || null;
       const nextSubjectName = exam.subjectNameSnapshot || subject?.subjectName || null;
 
       const needsUpdate =

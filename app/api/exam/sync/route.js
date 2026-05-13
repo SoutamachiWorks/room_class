@@ -11,6 +11,22 @@ const CACHE_GRACE_SECONDS = 60;
 const MAX_CACHE_TTL_SECONDS = 24 * 60 * 60;
 const MAX_OFFLINE_AUDIT_EVENTS = 20;
 
+function normalizeAnswerSet(value) {
+  if (Array.isArray(value)) {
+    return value.filter((item) => Number.isInteger(Number(item))).map((item) => Number(item)).sort((a, b) => a - b);
+  }
+  return value === null || value === undefined ? [] : [Number(value)];
+}
+
+function isCorrectMultipleChoiceAnswer(answer, correctAnswer) {
+  if (Array.isArray(correctAnswer)) {
+    const selected = normalizeAnswerSet(answer);
+    const correct = normalizeAnswerSet(correctAnswer);
+    return selected.length === correct.length && selected.every((value, index) => value === correct[index]);
+  }
+  return answer === correctAnswer;
+}
+
 function calculateCacheTtlSeconds({ exam, session }) {
   const now = Date.now();
   const candidates = [];
@@ -57,7 +73,7 @@ function buildFinalAnswers({ session, answers }) {
     };
 
     if (question.multipleChoice) {
-      answer.score = answer.mcAnswer === question.multipleChoice.correctAnswer ? 100 : 0;
+      answer.score = isCorrectMultipleChoiceAnswer(answer.mcAnswer, question.multipleChoice.correctAnswer) ? 100 : 0;
     }
 
     if (question.essay || question.fileUpload) {

@@ -552,6 +552,57 @@
   font-weight: 900;
 }
 
+.importGuideGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.importGuideCard {
+  padding: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+}
+
+.importGuideCard h3 {
+  margin: 0 0 12px;
+  color: #132033;
+  font-size: 1rem;
+}
+
+.importGuideCard pre {
+  overflow-x: auto;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 14px;
+  color: #132033;
+  background: #f8fafc;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.importNote {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-radius: 18px;
+  color: #475569;
+  background: rgba(245, 158, 11, 0.1);
+  line-height: 1.7;
+}
+
+.importNote code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: #132033;
+  background: rgba(255, 255, 255, 0.8);
+  font-weight: 800;
+}
+
 .linkRow {
   display: flex;
   flex-wrap: wrap;
@@ -847,6 +898,7 @@
   .noticeGrid,
   .rolePortalGrid,
   .guideGrid,
+  .importGuideGrid,
   .screenshotGrid,
   .antiCheatSection {
     grid-template-columns: 1fr;
@@ -981,13 +1033,15 @@
   .rolePortalGrid,
   .noticeGrid,
   .guideGrid,
+  .importGuideGrid,
   .timeline {
     gap: 12px;
   }
 
   .rolePortalCard,
   .noticeCard,
-  .guideCard {
+  .guideCard,
+  .importGuideCard {
     min-height: 0;
     padding: 18px;
   }

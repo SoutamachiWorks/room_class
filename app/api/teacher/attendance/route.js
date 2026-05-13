@@ -3,6 +3,12 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 
+function getClassCodes(source) {
+  return Array.isArray(source?.classCodes) && source.classCodes.length
+    ? source.classCodes
+    : [source?.classCode].filter(Boolean);
+}
+
 /**
  * GET /api/teacher/attendance
  * Returns all attendance sessions for this teacher, optionally filtered by subjectId.
@@ -128,10 +134,12 @@ export async function POST(request) {
     }
 
     const now = new Date();
+    const subjectClassCodes = getClassCodes(subject);
     const newSession = {
       teacherId,
       subjectId,
-      classCode: subject.classCode,
+      classCode: subjectClassCodes[0] || null,
+      classCodes: subjectClassCodes,
       date: now,
       openedAt: now,
       closedAt: null,

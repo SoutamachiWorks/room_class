@@ -105,7 +105,7 @@ export default function QuestionsClient({ examId }: { examId: string }) {
 
                     {q.multipleChoice && (
                       <section className={styles.questionBlock}>
-                        <p className={styles.questionText}>{q.multipleChoice.questionText}</p>
+                        <div className={styles.questionText} dangerouslySetInnerHTML={{ __html: q.multipleChoice.questionText }} />
                         <ol className={styles.options}>
                           {q.multipleChoice.options.map((opt, idx) => (
                             <li key={idx}>{opt}</li>
@@ -117,7 +117,7 @@ export default function QuestionsClient({ examId }: { examId: string }) {
                     {q.essay && (
                       <section className={styles.questionBlock}>
                         <span className={styles.label}>Esai</span>
-                        <p className={styles.questionText}>{q.essay.questionText}</p>
+                        <div className={styles.questionText} dangerouslySetInnerHTML={{ __html: q.essay.questionText }} />
                       </section>
                     )}
 

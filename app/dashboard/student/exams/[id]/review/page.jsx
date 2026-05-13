@@ -4,6 +4,16 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import styles from './review.module.css';
 
+function normalizeAnswerSet(value) {
+  if (Array.isArray(value)) return value.map((item) => Number(item)).sort((a, b) => a - b);
+  return value === null || value === undefined ? [] : [Number(value)];
+}
+
+function formatOptionKeys(value) {
+  const selected = normalizeAnswerSet(value);
+  return selected.length ? selected.map((idx) => String.fromCharCode(65 + idx)).join(', ') : '-';
+}
+
 export default function StudentExamReviewPage() {
   const params = useParams();
   const router = useRouter();
@@ -63,7 +73,7 @@ export default function StudentExamReviewPage() {
           const mc = row.multipleChoice;
           const yourMc = row.answer?.mcAnswer;
           const correctMc = mc?.correctAnswer;
-          const isCorrect = mc && yourMc !== null && yourMc !== undefined && yourMc === correctMc;
+          const isCorrect = mc && normalizeAnswerSet(yourMc).join(',') === normalizeAnswerSet(correctMc).join(',');
 
           return (
             <section key={row.questionOrder} className={styles.card}>
@@ -72,11 +82,11 @@ export default function StudentExamReviewPage() {
 
               {mc && (
                 <>
-                  <p className={styles.questionText}>{mc.questionText}</p>
+                  <div className={styles.questionText} dangerouslySetInnerHTML={{ __html: mc.questionText }} />
                   <ul className={styles.options}>
                     {(mc.options || []).map((opt, idx) => {
-                      const isYourAnswer = yourMc === idx;
-                      const isRightAnswer = correctMc === idx;
+                      const isYourAnswer = normalizeAnswerSet(yourMc).includes(idx);
+                      const isRightAnswer = normalizeAnswerSet(correctMc).includes(idx);
                       return (
                         <li key={idx} className={`${styles.option} ${isRightAnswer ? styles.correct : ''} ${isYourAnswer && !isRightAnswer ? styles.wrong : ''}`}>
                           <span className={styles.optionKey}>{String.fromCharCode(65 + idx)}</span>
@@ -86,15 +96,16 @@ export default function StudentExamReviewPage() {
                     })}
                   </ul>
                   <p className={styles.meta}>
-                    Jawaban Anda: {yourMc === null || yourMc === undefined ? '-' : String.fromCharCode(65 + yourMc)}
+                    Jawaban Anda: {formatOptionKeys(yourMc)}
                     {' | '}
-                    Kunci benar: {correctMc === null || correctMc === undefined ? '-' : String.fromCharCode(65 + correctMc)}
+                    Kunci benar: {formatOptionKeys(correctMc)}
                     {' | '}
                     Hasil: {isCorrect ? 'Benar' : 'Salah'}
                   </p>
                   {mc.explanation && (
                     <div className={styles.explanation}>
-                      <strong>Pembahasan:</strong> {mc.explanation}
+                      <strong>Pembahasan:</strong>
+                      <div dangerouslySetInnerHTML={{ __html: mc.explanation }} />
                     </div>
                   )}
                 </>
@@ -102,14 +113,15 @@ export default function StudentExamReviewPage() {
 
               {row.essay && (
                 <>
-                  <p className={styles.questionText}>{row.essay.questionText}</p>
+                  <div className={styles.questionText} dangerouslySetInnerHTML={{ __html: row.essay.questionText }} />
                   <div className={styles.answerBox}>
                     <strong>Jawaban Anda:</strong>
                     <p>{row.answer?.essayAnswer || '-'}</p>
                   </div>
                   {row.essay.explanation && (
                     <div className={styles.explanation}>
-                      <strong>Pembahasan:</strong> {row.essay.explanation}
+                      <strong>Pembahasan:</strong>
+                      <div dangerouslySetInnerHTML={{ __html: row.essay.explanation }} />
                     </div>
                   )}
                 </>

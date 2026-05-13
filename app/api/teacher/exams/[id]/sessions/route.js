@@ -99,10 +99,14 @@ export async function GET(request, { params }) {
       };
     });
 
-    const classStudents = subject?.classCode
+    const subjectClassCodes = Array.isArray(subject?.classCodes) && subject.classCodes.length
+      ? subject.classCodes
+      : [subject?.classCode].filter(Boolean);
+
+    const classStudents = subjectClassCodes.length
       ? await db.collection('users')
         .find(
-          { role: 'student', classCode: subject.classCode },
+          { role: 'student', classCode: { $in: subjectClassCodes } },
           { projection: { fullName: 1, studentId: 1, classCode: 1 } }
         )
         .toArray()
@@ -144,7 +148,8 @@ export async function GET(request, { params }) {
       sessions: completeSessions,
       examTitle: exam.title,
       examMeta: {
-        classCode: subject?.classCode || '-',
+        classCode: subjectClassCodes.join(', ') || '-',
+        classCodes: subjectClassCodes,
         duration: exam.duration || null,
         deadline: exam.deadline || null,
         showResults: !!exam.showResults,

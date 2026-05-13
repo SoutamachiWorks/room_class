@@ -51,7 +51,9 @@ export async function GET(request) {
     }
 
     // --- Get all subjects in this student's class ---
-    const matchingSubjects = await db.collection('subjects').find({ classCode }).toArray();
+    const matchingSubjects = await db.collection('subjects')
+      .find({ $or: [{ classCode }, { classCodes: classCode }] })
+      .toArray();
     const subjectIds = matchingSubjects.map(s => s._id.toString());
     const subjectLookup = {};
     for (const s of matchingSubjects) subjectLookup[s._id.toString()] = s;

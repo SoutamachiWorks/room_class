@@ -29,7 +29,14 @@ export async function GET(request) {
       .sort({ classCode: 1, subjectName: 1 })
       .toArray();
 
-    return NextResponse.json({ subjects });
+    return NextResponse.json({
+      subjects: subjects.map((subject) => ({
+        ...subject,
+        classCodes: Array.isArray(subject.classCodes) && subject.classCodes.length
+          ? subject.classCodes
+          : [subject.classCode].filter(Boolean),
+      })),
+    });
 
   } catch (err) {
     const { status, error } = handleAuthError(err);

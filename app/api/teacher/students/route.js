@@ -23,7 +23,9 @@ export async function GET(request) {
       .toArray();
 
     // 2. Extract unique class codes
-    const classCodesSet = new Set(subjects.map(s => s.classCode));
+    const classCodesSet = new Set(
+      subjects.flatMap((s) => (Array.isArray(s.classCodes) && s.classCodes.length ? s.classCodes : [s.classCode]))
+    );
     const classCodes = Array.from(classCodesSet).filter(Boolean);
 
     if (classCodes.length === 0) {
@@ -40,7 +42,10 @@ export async function GET(request) {
     // Map students with the subjects they are taking from this teacher
     const result = students.map(student => {
       const studentSubjects = subjects
-        .filter(s => s.classCode === student.classCode)
+        .filter((s) => {
+          const classCodes = Array.isArray(s.classCodes) && s.classCodes.length ? s.classCodes : [s.classCode];
+          return classCodes.includes(student.classCode);
+        })
         .map(s => s.subjectName);
 
       return {

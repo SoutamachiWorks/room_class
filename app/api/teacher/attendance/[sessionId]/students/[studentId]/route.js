@@ -3,6 +3,12 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 
+function getClassCodes(source) {
+  return Array.isArray(source?.classCodes) && source.classCodes.length
+    ? source.classCodes
+    : [source?.classCode].filter(Boolean);
+}
+
 /**
  * PATCH /api/teacher/attendance/[sessionId]/students/[studentId]
  * Manually corrects a student's attendance status.
@@ -37,6 +43,15 @@ export async function PATCH(request, { params }) {
     }
 
     const now = new Date();
+    const studentDoc = await db.collection('users').findOne(
+      { role: 'student', studentId },
+      { projection: { classCode: 1 } }
+    );
+    const sessionClassCodes = getClassCodes(session);
+    if (!studentDoc || !sessionClassCodes.includes(studentDoc.classCode)) {
+      return NextResponse.json({ error: 'Siswa tidak terdaftar pada kelas sesi ini.' }, { status: 403 });
+    }
+
     const existing = await db.collection('attendances').findOne({
       sessionId: sessionId.toString(),
       studentId,
@@ -61,7 +76,7 @@ export async function PATCH(request, { params }) {
         sessionId: sessionId.toString(),
         studentId,
         subjectId: session.subjectId,
-        classCode: session.classCode,
+        classCode: studentDoc.classCode,
         date: session.date,
         status,
         note,

@@ -3,6 +3,12 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 
+function getClassCodes(source) {
+  return Array.isArray(source?.classCodes) && source.classCodes.length
+    ? source.classCodes
+    : [source?.classCode].filter(Boolean);
+}
+
 /**
  * GET /api/teacher/attendance/recap
  * Returns attendance recap (percentage) for each student per subject.
@@ -34,16 +40,17 @@ export async function GET(request) {
     const sessionIds = sessions.map(s => s._id.toString());
     const totalSessions = sessions.length;
 
-    // Get all students in the class
+    // Get all students in the mapped classes
+    const subjectClassCodes = getClassCodes(subject);
     const students = await db.collection('users')
-      .find({ role: 'student', classCode: subject.classCode })
-      .project({ studentId: 1, fullName: 1 })
+      .find({ role: 'student', classCode: { $in: subjectClassCodes } })
+      .project({ studentId: 1, fullName: 1, classCode: 1 })
       .sort({ fullName: 1 })
       .toArray();
 
     if (students.length === 0 || totalSessions === 0) {
       return NextResponse.json({
-        subject: { _id: subjectId, subjectName: subject.subjectName, classCode: subject.classCode },
+        subject: { _id: subjectId, subjectName: subject.subjectName, classCode: subjectClassCodes.join(', '), classCodes: subjectClassCodes },
         totalSessions,
         recap: [],
       });
@@ -68,6 +75,7 @@ export async function GET(request) {
       return {
         studentId: student.studentId,
         fullName: student.fullName,
+        classCode: student.classCode,
         hadir,
         sakit,
         izin,
@@ -82,7 +90,8 @@ export async function GET(request) {
       subject: {
         _id: subjectId,
         subjectName: subject.subjectName,
-        classCode: subject.classCode,
+        classCode: subjectClassCodes.join(', '),
+        classCodes: subjectClassCodes,
       },
       totalSessions,
       recap,

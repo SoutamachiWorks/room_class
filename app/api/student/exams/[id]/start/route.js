@@ -28,7 +28,9 @@ function shuffleMcOptions(question) {
   const shuffledOptions = shuffledIndices.map((idx) => originalOptions[idx]);
 
   const originalCorrect = question.multipleChoice.correctAnswer;
-  const shuffledCorrect = shuffledIndices.indexOf(originalCorrect);
+  const shuffledCorrect = Array.isArray(originalCorrect)
+    ? originalCorrect.map((idx) => shuffledIndices.indexOf(idx)).filter((idx) => idx >= 0).sort((a, b) => a - b)
+    : shuffledIndices.indexOf(originalCorrect);
 
   return {
     ...question,
@@ -61,6 +63,8 @@ async function sanitizeQuestions(questions) {
       sanitized.multipleChoice = {
         questionText: sanitized.multipleChoice.questionText,
         options: sanitized.multipleChoice.options,
+        multipleAnswers: !!sanitized.multipleChoice.multipleAnswers || Array.isArray(sanitized.multipleChoice.correctAnswer),
+        minSelections: Math.max(1, Number(sanitized.multipleChoice.minSelections || 1)),
         // Do NOT send correctAnswer to client
       };
     }
@@ -111,7 +115,10 @@ export async function POST(request, { params }) {
 
     // Verify the exam's subject classCode matches student's classCode
     const subject = await db.collection('subjects').findOne({ _id: new ObjectId(exam.subjectId) });
-    if (!subject || subject.classCode !== classCode) {
+    const subjectClassCodes = Array.isArray(subject?.classCodes) && subject.classCodes.length
+      ? subject.classCodes
+      : [subject?.classCode].filter(Boolean);
+    if (!subject || !subjectClassCodes.includes(classCode)) {
       return NextResponse.json({ error: 'Anda tidak memiliki akses ke ujian ini.' }, { status: 403 });
     }
 
@@ -186,7 +193,7 @@ export async function POST(request, { params }) {
       examId: examId.toString(),
       studentId,
       academicYearId: exam.academicYearId || null,
-      classCodeSnapshot: exam.classCodeSnapshot || subject.classCode || null,
+      classCodeSnapshot: classCode,
       subjectNameSnapshot: exam.subjectNameSnapshot || subject.subjectName || null,
       examTitleSnapshot: exam.title || null,
       exitCount: 0,

@@ -125,7 +125,7 @@
 }
 
 .tableWrap {
-  overflow-x: auto;
+  overflow: visible;
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background: var(--bg-card);
@@ -282,7 +282,7 @@
   border-radius: 10px;
   background: var(--bg-card);
   padding: 4px;
-  z-index: 10;
+  z-index: 100;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
