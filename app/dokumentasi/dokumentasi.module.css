@@ -603,6 +603,21 @@
   font-weight: 800;
 }
 
+.downloadTemplateLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  padding: 0 18px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #132033;
+  box-shadow: 0 12px 28px rgba(19, 32, 51, 0.18);
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .linkRow {
   display: flex;
   flex-wrap: wrap;

@@ -133,6 +133,9 @@ function ImportWordGuide() {
         <strong>Catatan:</strong> Jika kunci berisi lebih dari satu huruf seperti <code>A,C,E</code>,
         sistem otomatis membuat soal multi-jawaban. Opsi boleh memakai A/B/C atau checkbox Word.
       </div>
+      <a className={styles.downloadTemplateLink} href="/api/exams/import-word-template">
+        Download template Word
+      </a>
     </section>
   );
 }

@@ -1121,6 +1121,9 @@ export default function ExamBuilderPage() {
             <details className={styles.importGuide}>
               <summary>Panduan format Word</summary>
               <div>
+                <a className={styles.importGuideLink} href="/api/exams/import-word-template">
+                  Download template Word
+                </a>
                 <p>Gunakan nomor soal, opsi, lalu baris kunci.</p>
                 <pre>{`1. Teks soal
 A. Opsi pertama

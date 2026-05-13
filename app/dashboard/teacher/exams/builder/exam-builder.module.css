@@ -557,6 +557,20 @@
   line-height: 1.5;
 }
 
+.importGuideLink {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-blue) 48%, var(--border));
+  border-radius: 8px;
+  color: #fff;
+  background: var(--accent-blue);
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .importGuide pre {
   overflow-x: auto;
   margin: 8px 0;
