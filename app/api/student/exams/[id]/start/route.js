@@ -60,11 +60,15 @@ async function sanitizeQuestions(questions) {
     }
 
     if (sanitized.multipleChoice) {
+      const multipleAnswers = !!sanitized.multipleChoice.multipleAnswers || Array.isArray(sanitized.multipleChoice.correctAnswer);
+      const exactSelections = multipleAnswers && Array.isArray(sanitized.multipleChoice.correctAnswer)
+        ? sanitized.multipleChoice.correctAnswer.length
+        : Number(sanitized.multipleChoice.minSelections || 1);
       sanitized.multipleChoice = {
         questionText: sanitized.multipleChoice.questionText,
         options: sanitized.multipleChoice.options,
-        multipleAnswers: !!sanitized.multipleChoice.multipleAnswers || Array.isArray(sanitized.multipleChoice.correctAnswer),
-        minSelections: Math.max(1, Number(sanitized.multipleChoice.minSelections || 1)),
+        multipleAnswers,
+        minSelections: Math.max(1, exactSelections),
         // Do NOT send correctAnswer to client
       };
     }

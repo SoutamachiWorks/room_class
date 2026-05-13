@@ -1060,10 +1060,16 @@ export default function TakeExamPage() {
     setIsDirty(true);
   };
 
-  const toggleMultipleChoiceAnswer = (questionOrder, optionIndex) => {
+  const toggleMultipleChoiceAnswer = (questionOrder, optionIndex, requiredSelections = null) => {
     setAnswers(prev => {
       const current = normalizeSelectedAnswers(prev[questionOrder]?.mcAnswer);
       const exists = current.includes(optionIndex);
+      const maxSelections = Number.isFinite(Number(requiredSelections)) ? Number(requiredSelections) : null;
+      if (!exists && maxSelections && current.length >= maxSelections) {
+        setToastMessage(`Soal ${questionOrder}: maksimal pilih ${maxSelections} jawaban.`);
+        setTimeout(() => setToastMessage(''), 4000);
+        return prev;
+      }
       const next = exists
         ? current.filter((idx) => idx !== optionIndex)
         : [...current, optionIndex].sort((a, b) => a - b);
@@ -1105,18 +1111,6 @@ export default function TakeExamPage() {
     if (!isOnline) {
       await saveLocalDraft({ pendingSync: true });
       setError('Tidak bisa mengumpulkan jawaban saat offline. Sambungkan internet terlebih dahulu, lalu coba kumpulkan lagi.');
-      return;
-    }
-
-    const incompleteMultiAnswer = questions.find((q) => {
-      if (!q.multipleChoice?.multipleAnswers) return false;
-      const minSelections = Math.max(1, Number(q.multipleChoice.minSelections || 1));
-      return normalizeSelectedAnswers(answers[q.displayOrder]?.mcAnswer).length < minSelections;
-    });
-    if (incompleteMultiAnswer) {
-      const minSelections = Math.max(1, Number(incompleteMultiAnswer.multipleChoice.minSelections || 1));
-      setError(`Soal ${incompleteMultiAnswer.displayOrder}: pilih minimal ${minSelections} jawaban.`);
-      setCurrentQuestionIndex(Math.max(0, incompleteMultiAnswer.displayOrder - 1));
       return;
     }
 
@@ -1357,7 +1351,7 @@ export default function TakeExamPage() {
                   />
                   {q.multipleChoice.multipleAnswers && (
                     <p className={ex.examQuestionHint}>
-                      Pilih minimal {q.multipleChoice.minSelections || 1} jawaban yang paling tepat.
+                      Pilih maksimal {q.multipleChoice.minSelections || 1} jawaban yang paling tepat. Jawaban kurang dari itu tetap dinilai parsial jika sesuai kunci.
                     </p>
                   )}
                   <div className={ex.examOptionsList}>
@@ -1373,7 +1367,7 @@ export default function TakeExamPage() {
                             name={`mc-${q.displayOrder}`}
                             checked={isSelected}
                             onChange={() => {
-                              if (isMulti) toggleMultipleChoiceAnswer(q.displayOrder, idx);
+                              if (isMulti) toggleMultipleChoiceAnswer(q.displayOrder, idx, q.multipleChoice.minSelections || 1);
                               else updateAnswer(q.displayOrder, 'mcAnswer', idx);
                             }}
                             className={ex.examOptionRadio}

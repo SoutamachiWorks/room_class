@@ -41,9 +41,7 @@ function normalizeMultipleChoice(multipleChoice) {
     options,
     correctAnswer,
     multipleAnswers,
-    minSelections: multipleAnswers
-      ? Math.max(1, Math.min(options.length, Number(multipleChoice.minSelections || 1)))
-      : 1,
+    minSelections: multipleAnswers ? Math.max(1, correctAnswer.length) : 1,
     explanation: sanitizeRichText(multipleChoice.explanation),
   };
 }

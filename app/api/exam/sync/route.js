@@ -18,13 +18,21 @@ function normalizeAnswerSet(value) {
   return value === null || value === undefined ? [] : [Number(value)];
 }
 
-function isCorrectMultipleChoiceAnswer(answer, correctAnswer) {
-  if (Array.isArray(correctAnswer)) {
-    const selected = normalizeAnswerSet(answer);
-    const correct = normalizeAnswerSet(correctAnswer);
-    return selected.length === correct.length && selected.every((value, index) => value === correct[index]);
+function scoreMultipleChoiceAnswer(answer, correctAnswer) {
+  if (!Array.isArray(correctAnswer)) {
+    return answer === correctAnswer ? 100 : 0;
   }
-  return answer === correctAnswer;
+
+  const selected = normalizeAnswerSet(answer);
+  const correct = normalizeAnswerSet(correctAnswer);
+  if (selected.length === 0 || selected.length > correct.length) return 0;
+
+  const correctSet = new Set(correct);
+  const correctSelectedCount = selected.filter((value) => correctSet.has(value)).length;
+  if (correctSelectedCount === 0) return 0;
+  if (correctSelectedCount === correct.length && selected.length === correct.length) return 100;
+
+  return Number(((correctSelectedCount / (correct.length + 1)) * 100).toFixed(1));
 }
 
 function calculateCacheTtlSeconds({ exam, session }) {
@@ -73,7 +81,7 @@ function buildFinalAnswers({ session, answers }) {
     };
 
     if (question.multipleChoice) {
-      answer.score = isCorrectMultipleChoiceAnswer(answer.mcAnswer, question.multipleChoice.correctAnswer) ? 100 : 0;
+      answer.score = scoreMultipleChoiceAnswer(answer.mcAnswer, question.multipleChoice.correctAnswer);
     }
 
     if (question.essay || question.fileUpload) {

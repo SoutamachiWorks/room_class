@@ -749,10 +749,9 @@ export default function ExamBuilderPage() {
         options: q.multipleChoice?.options || [],
         correctAnswer: normalizeCorrectAnswerForMode(q.multipleChoice?.correctAnswer, !!q.multipleChoice?.multipleAnswers),
         multipleAnswers: !!q.multipleChoice?.multipleAnswers,
-        minSelections: Math.max(1, Math.min(
-          q.multipleChoice?.options?.length || 1,
-          Number(q.multipleChoice?.minSelections || 1)
-        )),
+        minSelections: q.multipleChoice?.multipleAnswers
+          ? Math.max(1, normalizeCorrectAnswerForMode(q.multipleChoice?.correctAnswer, true).length)
+          : 1,
         explanation: q.multipleChoice?.explanation || '',
       } : null,
       essay: q.type === 'essay' ? {
@@ -826,9 +825,9 @@ export default function ExamBuilderPage() {
           return { ok: false };
         }
         if (q.multipleChoice?.multipleAnswers) {
-          const minSelections = Number(q.multipleChoice?.minSelections || 1);
-          if (!Number.isFinite(minSelections) || minSelections < 1 || minSelections > opts.length) {
-            const msg = `Soal #${i + 1}: Minimal pilihan siswa harus antara 1 sampai jumlah opsi jawaban.`;
+          const correctCount = normalizeCorrectAnswerForMode(q.multipleChoice?.correctAnswer, true).length;
+          if (correctCount < 2 || correctCount > opts.length) {
+            const msg = `Soal #${i + 1}: Pilih minimal dua jawaban benar untuk mode multi-jawaban.`;
             setError(msg);
             alert(msg);
             return { ok: false };
@@ -1219,7 +1218,14 @@ Pembahasan: Opsional`}</pre>
                               const next = e.target.checked
                                 ? [...selected, optIdx].sort((a, b) => a - b)
                                 : selected.filter((idx) => idx !== optIdx);
-                              return { ...q, multipleChoice: { ...q.multipleChoice, correctAnswer: next } };
+                              return {
+                                ...q,
+                                multipleChoice: {
+                                  ...q.multipleChoice,
+                                  correctAnswer: next,
+                                  minSelections: Math.max(1, next.length),
+                                },
+                              };
                             })}
                           />
                         ) : (
@@ -1352,19 +1358,13 @@ Pembahasan: Opsional`}</pre>
                     </label>
                     {selectedQuestion.multipleChoice?.multipleAnswers && (
                       <label className={styles.minSelectField}>
-                        Minimal pilihan siswa
+                        Jumlah pilihan siswa
                         <input
                           type="number"
                           min="1"
                           max={(selectedQuestion.multipleChoice?.options || []).length}
-                          value={selectedQuestion.multipleChoice?.minSelections || 1}
-                          onChange={(e) => updateQuestion(selectedQuestionIndex, (q) => ({
-                            ...q,
-                            multipleChoice: {
-                              ...q.multipleChoice,
-                              minSelections: Math.max(1, Math.min((q.multipleChoice?.options || []).length, Number(e.target.value || 1))),
-                            },
-                          }))}
+                          value={normalizeCorrectAnswerForMode(selectedQuestion.multipleChoice?.correctAnswer, true).length || 1}
+                          readOnly
                         />
                       </label>
                     )}

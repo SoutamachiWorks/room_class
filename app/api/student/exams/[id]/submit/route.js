@@ -18,13 +18,33 @@ function normalizeAnswerSet(value) {
   return value === null || value === undefined ? [] : [Number(value)];
 }
 
-function isCorrectMultipleChoiceAnswer(answer, correctAnswer) {
-  if (Array.isArray(correctAnswer)) {
-    const selected = normalizeAnswerSet(answer);
-    const correct = normalizeAnswerSet(correctAnswer);
-    return selected.length === correct.length && selected.every((value, index) => value === correct[index]);
+function scoreMultipleChoiceAnswer(answer, correctAnswer) {
+  if (!Array.isArray(correctAnswer)) {
+    return answer === correctAnswer ? 100 : 0;
   }
-  return answer === correctAnswer;
+
+  const selected = normalizeAnswerSet(answer);
+  const correct = normalizeAnswerSet(correctAnswer);
+  if (selected.length === 0 || selected.length > correct.length) return 0;
+
+  const correctSet = new Set(correct);
+  const correctSelectedCount = selected.filter((value) => correctSet.has(value)).length;
+  if (correctSelectedCount === 0) return 0;
+  if (correctSelectedCount === correct.length && selected.length === correct.length) return 100;
+
+  return Number(((correctSelectedCount / (correct.length + 1)) * 100).toFixed(1));
+}
+
+function validateMultipleAnswerSelection(answer, question) {
+  if (!question?.multipleChoice?.multipleAnswers) return null;
+  const requiredSelections = Array.isArray(question.multipleChoice.correctAnswer)
+    ? Math.max(1, question.multipleChoice.correctAnswer.length)
+    : Math.max(1, Number(question.multipleChoice.minSelections || 1));
+  const selectedCount = normalizeAnswerSet(answer?.mcAnswer).length;
+  if (selectedCount > requiredSelections) {
+    return `Soal ${answer?.questionOrder || ''}: maksimal pilih ${requiredSelections} jawaban.`;
+  }
+  return null;
 }
 
 /**
@@ -203,13 +223,13 @@ export async function POST(request, { params }) {
       const sessionQuestion = Array.isArray(session.questions)
         ? session.questions[(ans.questionOrder || 0) - 1]
         : null;
+      const selectionError = validateMultipleAnswerSelection(ans, sessionQuestion);
+      if (selectionError) {
+        return NextResponse.json({ error: selectionError }, { status: 400 });
+      }
       if (sessionQuestion) {
         if (sessionQuestion.multipleChoice) {
-          if (isCorrectMultipleChoiceAnswer(ans.mcAnswer, sessionQuestion.multipleChoice.correctAnswer)) {
-            ans.score = 100;
-          } else {
-            ans.score = 0;
-          }
+          ans.score = scoreMultipleChoiceAnswer(ans.mcAnswer, sessionQuestion.multipleChoice.correctAnswer);
         }
         if (sessionQuestion.essay || sessionQuestion.fileUpload) {
           ans.score = null; // Pending review
