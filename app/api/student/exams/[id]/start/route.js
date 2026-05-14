@@ -142,7 +142,16 @@ export async function POST(request, { params }) {
         return NextResponse.json({ error: 'Anda sudah menyelesaikan ujian ini.' }, { status: 400 });
       }
       if (existingSession.status === 'locked') {
-        return NextResponse.json({ error: 'Sesi ujian Anda telah dikunci karena pelanggaran. Hubungi guru Anda.', locked: true }, { status: 403 });
+        return NextResponse.json({
+          error: existingSession.manualLockReason || 'Sesi ujian Anda telah dikunci. Hubungi guru Anda.',
+          locked: true,
+        }, { status: 403 });
+      }
+      if (existingSession.status === 'disqualified') {
+        return NextResponse.json({
+          error: existingSession.disqualifyReason || 'Anda didiskualifikasi dari ujian ini. Hubungi guru Anda.',
+          disqualified: true,
+        }, { status: 403 });
       }
       if (existingSession.status === 'in-progress') {
         // Resume: return existing randomized questions

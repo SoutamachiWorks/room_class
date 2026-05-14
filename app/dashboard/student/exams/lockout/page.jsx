@@ -1,10 +1,13 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import styles from '../../../admin/admin.module.css';
 
 export default function ExamLockoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const reason = searchParams.get('reason');
+  const isDisqualified = reason === 'disqualified';
 
   return (
     <div className={styles.lockoutWrapper}>
@@ -17,15 +20,19 @@ export default function ExamLockoutPage() {
         </div>
 
         <h1 className={styles.lockoutTitle}>
-          Sesi Ujian Terkunci
+          {isDisqualified ? 'Siswa Didiskualifikasi' : 'Sesi Ujian Terkunci'}
         </h1>
 
         <p className={styles.lockoutBody}>
-          Anda telah dikeluarkan dari sesi ujian ini karena meninggalkan tab ujian lebih dari 2 kali.
+          {isDisqualified
+            ? 'Anda didiskualifikasi dari ujian ini oleh guru atau pengawas.'
+            : 'Anda telah dikeluarkan dari sesi ujian ini karena sesi dikunci oleh sistem, guru, atau pengawas.'}
         </p>
 
         <p className={styles.lockoutHint}>
-          Sesi yang terkunci tidak dapat dilanjutkan. Silakan hubungi guru Anda untuk informasi lebih lanjut.
+          {isDisqualified
+            ? 'Status diskualifikasi bersifat final. Silakan hubungi guru Anda untuk informasi lebih lanjut.'
+            : 'Sesi yang terkunci tidak dapat dilanjutkan sampai guru membuka akses kembali.'}
         </p>
 
         <button

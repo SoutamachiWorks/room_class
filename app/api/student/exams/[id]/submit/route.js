@@ -96,6 +96,10 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Sesi ujian telah dikunci.', locked: true }, { status: 403 });
     }
 
+    if (session.status === 'disqualified') {
+      return NextResponse.json({ error: 'Anda didiskualifikasi dari ujian ini.', disqualified: true }, { status: 403 });
+    }
+
     // We still need exam metadata for notification/logging.
     const exam = await db.collection('exams').findOne({ _id: new ObjectId(examId) });
     if (!exam) return NextResponse.json({ error: 'Ujian tidak ditemukan.' }, { status: 404 });

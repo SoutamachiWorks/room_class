@@ -144,7 +144,127 @@
   margin-bottom: 20px;
 }
 
+.examOfflineInstruction {
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.38);
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--color-heading);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+}
+
+.examOfflineInstruction strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--color-warning);
+  font-size: 0.95rem;
+}
+
+.examOfflineInstruction p {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.examOfflineInstruction p + p {
+  margin-top: 6px;
+  color: var(--color-subtext);
+}
+
 /* ── Question list ───────────────────────────────────────────────────────── */
+.examQuestionShortcut {
+  margin-bottom: 20px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+
+.examQuestionShortcutHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.examQuestionShortcutHead strong {
+  color: var(--color-heading);
+  font-size: 0.95rem;
+}
+
+.examQuestionShortcutHead span {
+  color: var(--color-subtext);
+  font-size: 0.78rem;
+}
+
+.examQuestionShortcutToggle {
+  display: none;
+}
+
+.examQuestionShortcutGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+  gap: 8px;
+}
+
+.examQuestionShortcutBtn {
+  position: relative;
+  min-width: 0;
+  height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--bg-app);
+  color: var(--color-heading);
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.15s;
+}
+
+.examQuestionShortcutBtn:hover {
+  border-color: rgba(120, 163, 255, 0.65);
+  background: rgba(120, 163, 255, 0.1);
+}
+
+.examQuestionShortcutBtn:active {
+  transform: scale(0.96);
+}
+
+.examQuestionShortcutAnswered {
+  border-color: rgba(34, 197, 94, 0.45);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.examQuestionShortcutAnswered::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-success);
+}
+
+.examQuestionShortcutActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: white;
+  box-shadow: 0 0 0 3px rgba(120, 163, 255, 0.18);
+}
+
+.examQuestionShortcutActive::after {
+  background: white;
+}
+
+.examQuestionShortcutBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .examQuestionList {
   display: flex;
   flex-direction: column;
@@ -624,6 +744,68 @@
   .examStickyBottom {
     padding: 10px 16px;
     padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .examQuestionShortcut {
+    padding: 12px;
+    margin-bottom: 16px;
+    border-radius: 10px;
+  }
+
+  .examQuestionShortcutHead {
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .examQuestionShortcutHead span {
+    display: none;
+  }
+
+  .examQuestionShortcutToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid rgba(120, 163, 255, 0.45);
+    border-radius: 9px;
+    background: rgba(120, 163, 255, 0.12);
+    color: var(--color-heading);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .examQuestionShortcutToggle span {
+    display: inline;
+    color: var(--color-primary);
+    font-size: 0.75rem;
+  }
+
+  .examQuestionShortcutGrid {
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+    gap: 7px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  .examQuestionShortcutGridCollapsed {
+    display: none;
+  }
+
+  .examQuestionShortcutBtn {
+    height: 38px;
+    border-radius: 9px;
+    font-size: 0.8125rem;
+  }
+
+  .examQuestionShortcutAnswered::after {
+    right: 5px;
+    bottom: 5px;
+    width: 5px;
+    height: 5px;
   }
 
   .examStickyBtn, .examBtnSecondary {

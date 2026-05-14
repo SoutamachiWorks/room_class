@@ -62,6 +62,7 @@ function normalizeOfflineEvents(offlineEvents) {
         at: typeof event?.at === 'string' ? event.at : null,
         durationMs: Number.isFinite(Number(event?.durationMs)) ? Number(event.durationMs) : null,
         answerChanges: Number.isFinite(Number(event?.answerChanges)) ? Number(event.answerChanges) : null,
+        reason: typeof event?.reason === 'string' ? event.reason.slice(0, 80) : null,
       }))
     : [];
 }
@@ -151,15 +152,24 @@ export async function POST(request) {
     let exam = null;
 
     if (sessionId) {
-      session = await db.collection('examSessions').findOne({
+      const existingSession = await db.collection('examSessions').findOne({
         _id: new ObjectId(sessionId),
         examId: examId.toString(),
         studentId: userDoc.studentId,
-        status: { $in: ['in-progress'] },
       });
-      if (!session) {
+      if (!existingSession) {
         return NextResponse.json({ error: 'Sesi ujian tidak valid atau sudah berakhir.' }, { status: 400 });
       }
+      if (existingSession.status === 'locked') {
+        return NextResponse.json({ error: existingSession.manualLockReason || 'Sesi ujian dikunci.', locked: true }, { status: 403 });
+      }
+      if (existingSession.status === 'disqualified') {
+        return NextResponse.json({ error: existingSession.disqualifyReason || 'Siswa didiskualifikasi.', disqualified: true }, { status: 403 });
+      }
+      if (existingSession.status !== 'in-progress') {
+        return NextResponse.json({ error: 'Sesi ujian tidak valid atau sudah berakhir.' }, { status: 400 });
+      }
+      session = existingSession;
 
       exam = await db.collection('exams').findOne({ _id: new ObjectId(examId) });
       if (!exam) {
@@ -224,6 +234,7 @@ export async function POST(request) {
             draftHashAlgorithm: safePayload.hashAlgorithm,
             draftViolationCount: safePayload.violationCount,
             draftUpdatedAt: new Date(),
+            lastSeenAt: new Date(),
             offlineEvents: safeOfflineEvents,
           },
         }

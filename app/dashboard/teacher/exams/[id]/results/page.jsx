@@ -87,6 +87,8 @@ function getEventLabel(type) {
     'explicit-violation': 'Pelanggaran eksplisit',
     'unexpected-exit-start': 'Keluar tak terduga',
     'unexpected-exit-return': 'Kembali ke ujian',
+    'manual-lock': 'Dikunci guru',
+    'manual-disqualify': 'Diskualifikasi guru',
   }[type] || type || 'Event ujian';
 }
 
@@ -118,13 +120,37 @@ function getStatusLabel(status) {
   if (status === 'in-progress') return 'SEDANG MENGERJAKAN';
   if (status === 'submitted') return 'SELESAI';
   if (status === 'locked') return 'TERKUNCI';
+  if (status === 'disqualified') return 'DISKUALIFIKASI';
   return 'BELUM MULAI';
 }
 
 function getGradingLabel(sess) {
+  if (sess.status === 'disqualified') return 'Diskualifikasi';
   if (sess.status !== 'submitted') return 'Belum Dikoreksi';
   if (sess.gradingStatus === 'fully-graded' || sess.gradingStatus === 'auto-graded') return 'Sudah Dikoreksi';
   return 'Belum Dikoreksi';
+}
+
+function getProgressMeta(sess) {
+  if (sess.status !== 'in-progress') return '';
+  if (sess.draftUpdatedAt) return `Auto-save: ${formatTime(sess.draftUpdatedAt)}`;
+  if (sess.lastSeenAt || sess.lastHeartbeatAt) return `Terakhir aktif: ${formatTime(sess.lastSeenAt || sess.lastHeartbeatAt)}`;
+  return '';
+}
+
+function getOptionLetter(index) {
+  return String.fromCharCode(65 + Number(index));
+}
+
+function getCorrectAnswerLabel(correctAnswer) {
+  const answers = Array.isArray(correctAnswer)
+    ? correctAnswer
+    : correctAnswer !== null && correctAnswer !== undefined
+      ? [correctAnswer]
+      : [];
+
+  if (answers.length === 0) return '-';
+  return answers.map((answer) => getOptionLetter(answer)).join(', ');
 }
 
 function buildPagination(currentPage, totalPages) {
@@ -154,6 +180,10 @@ export default function ExamResultsPage() {
   const [endExamLoading, setEndExamLoading] = useState(false);
   const [visibilityLoading, setVisibilityLoading] = useState(false);
   const [violationDetail, setViolationDetail] = useState(null);
+  const [isQuestionPreviewOpen, setIsQuestionPreviewOpen] = useState(false);
+  const [questionPreviewExam, setQuestionPreviewExam] = useState(null);
+  const [questionPreviewLoading, setQuestionPreviewLoading] = useState(false);
+  const [questionPreviewError, setQuestionPreviewError] = useState('');
 
   const searchTerm = searchInput.trim().toLowerCase();
 
@@ -195,6 +225,7 @@ export default function ExamResultsPage() {
     const inProgress = sessions.filter((s) => s.status === 'in-progress').length;
     const submitted = sessions.filter((s) => s.status === 'submitted').length;
     const locked = sessions.filter((s) => s.status === 'locked').length;
+    const disqualified = sessions.filter((s) => s.status === 'disqualified').length;
     const totalParticipants = sessions.length;
     const base = totalStudents || totalParticipants || 1;
     const notStarted = Math.max(base - totalParticipants, 0);
@@ -204,11 +235,13 @@ export default function ExamResultsPage() {
       inProgress,
       submitted,
       locked,
+      disqualified,
       notStarted,
       pctTotal: `${((totalParticipants / base) * 100).toFixed(1)}%`,
       pctInProgress: pct(inProgress),
       pctSubmitted: pct(submitted),
       pctLocked: pct(locked),
+      pctDisqualified: pct(disqualified),
       pctNotStarted: pct(notStarted),
     };
   }, [sessions, totalStudents]);
@@ -217,7 +250,7 @@ export default function ExamResultsPage() {
     return sessions.filter((sess) => {
       const studentName = (sess.studentInfo?.fullName || '').toLowerCase();
       const matchedSearch = !searchTerm || studentName.includes(searchTerm);
-      const mappedStatus = ['in-progress', 'submitted', 'locked'].includes(sess.status) ? sess.status : 'not-started';
+      const mappedStatus = ['in-progress', 'submitted', 'locked', 'disqualified'].includes(sess.status) ? sess.status : 'not-started';
       const matchedStatus = !statusFilter || mappedStatus === statusFilter;
       return matchedSearch && matchedStatus;
     });
@@ -232,7 +265,7 @@ export default function ExamResultsPage() {
   const examEnd = sessions.length ? sessions.reduce((max, s) => (!max || new Date(s.submittedAt || 0) > new Date(max || 0) ? s.submittedAt : max), null) : null;
   const isExamOpen = examMeta?.isExamOpen === true;
   const hasExamEverStarted = useMemo(
-    () => sessions.some((sess) => sess.startedAt || sess.submittedAt || sess.status === 'in-progress' || sess.status === 'submitted' || sess.status === 'locked'),
+    () => sessions.some((sess) => sess.startedAt || sess.submittedAt || ['in-progress', 'submitted', 'locked', 'disqualified'].includes(sess.status)),
     [sessions]
   );
   const openCloseBtnLabel = isExamOpen ? 'Akhiri Ujian' : hasExamEverStarted ? 'Buka Ujian Lagi' : 'Buka Ujian';
@@ -242,17 +275,61 @@ export default function ExamResultsPage() {
     setIsConfirmOpen(true);
   };
 
+  const requestControlAction = (sessionId, studentName, type) => {
+    const defaultReason = type === 'lock'
+      ? 'Dikunci manual oleh guru saat monitoring.'
+      : 'Diskualifikasi oleh guru saat monitoring.';
+    const reason = window.prompt(
+      type === 'lock' ? 'Alasan mengunci ujian siswa:' : 'Alasan diskualifikasi siswa:',
+      defaultReason
+    );
+    if (reason === null) return;
+    setConfirmConfig({ sessionId, studentName, type, reason: reason.trim() || defaultReason });
+    setIsConfirmOpen(true);
+  };
+
   const openViolationDetail = (session) => {
     setViolationDetail(session);
   };
 
+  const openQuestionPreview = async () => {
+    setIsQuestionPreviewOpen(true);
+    setQuestionPreviewError('');
+
+    if (questionPreviewExam) return;
+
+    setQuestionPreviewLoading(true);
+    try {
+      const res = await fetch(`/api/teacher/exams/${examId}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memuat soal ujian.');
+      setQuestionPreviewExam(data.exam || null);
+    } catch (err) {
+      setQuestionPreviewError(err.message || 'Gagal memuat soal ujian.');
+    } finally {
+      setQuestionPreviewLoading(false);
+    }
+  };
+
   const handleConfirmAction = async () => {
-    const { sessionId, type } = confirmConfig;
+    const { sessionId, type, reason } = confirmConfig;
     if (!sessionId) return;
     setActionLoading(true);
     try {
-      const method = type === 'unlock' ? 'PATCH' : 'DELETE';
-      const res = await fetch(`/api/teacher/exams/${examId}/sessions/${sessionId}/unlock`, { method });
+      const isControlAction = type === 'lock' || type === 'disqualify';
+      const method = isControlAction ? 'PATCH' : type === 'unlock' ? 'PATCH' : 'DELETE';
+      const url = isControlAction
+        ? `/api/teacher/exams/${examId}/sessions/${sessionId}/control`
+        : `/api/teacher/exams/${examId}/sessions/${sessionId}/unlock`;
+      const res = await fetch(url, {
+        method,
+        ...(isControlAction
+          ? {
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: type, reason }),
+            }
+          : {}),
+      });
       const data = await res.json();
       if (!res.ok) alert(data.error || 'Gagal mengeksekusi aksi.');
       else await fetchResults();
@@ -354,7 +431,10 @@ export default function ExamResultsPage() {
         title="Monitor Ujian"
         subtitle="Pantau progres ujian siswa, lihat aktivitas perpindahan tab, dan berikan akses kembali jika siswa terkunci."
       >
-        <button className={styles.backBtn} onClick={() => router.push('/dashboard/teacher/exams')}>
+        <button type="button" className={styles.questionBtn} onClick={openQuestionPreview}>
+          Soal
+        </button>
+        <button type="button" className={styles.backBtn} onClick={() => router.push('/dashboard/teacher/exams')}>
           ← Kembali ke Bank Ujian
         </button>
       </PageHeader>
@@ -390,6 +470,14 @@ export default function ExamResultsPage() {
             <p>Terkunci</p>
             <strong>{stats.locked}</strong>
             <small>{stats.pctLocked} peserta terkunci</small>
+          </div>
+        </article>
+        <article className={styles.statCard}>
+          <div className={`${styles.statIcon} ${styles.iconRed}`}>!</div>
+          <div>
+            <p>Diskualifikasi</p>
+            <strong>{stats.disqualified}</strong>
+            <small>{stats.pctDisqualified} peserta diskualifikasi</small>
           </div>
         </article>
         <article className={styles.statCard}>
@@ -456,6 +544,7 @@ export default function ExamResultsPage() {
             <option value="in-progress">Sedang Mengerjakan</option>
             <option value="submitted">Selesai</option>
             <option value="locked">Terkunci</option>
+            <option value="disqualified">Diskualifikasi</option>
             <option value="not-started">Belum Mulai</option>
           </select>
           <button className={styles.exportBtn} onClick={exportResults}>
@@ -487,6 +576,7 @@ export default function ExamResultsPage() {
                 sess.status === 'in-progress' ? styles.statusInProgress
                 : sess.status === 'submitted'  ? styles.statusDone
                 : sess.status === 'locked'     ? styles.statusLocked
+                : sess.status === 'disqualified' ? styles.statusDisqualified
                 : styles.statusNotStarted;
 
               return (
@@ -517,6 +607,9 @@ export default function ExamResultsPage() {
                       <div className={styles.progressBar} style={{ marginTop: '4px' }}>
                         <div style={{ width: `${progress}%` }} />
                       </div>
+                      {getProgressMeta(sess) && (
+                        <div className={styles.mobileMetaLabel} style={{ marginTop: 4 }}>{getProgressMeta(sess)}</div>
+                      )}
                     </div>
                     <div>
                       <div className={styles.mobileMetaLabel}>Pelanggaran</div>
@@ -557,12 +650,22 @@ export default function ExamResultsPage() {
                         Detail Pelanggaran
                       </button>
                     )}
+                    {sess.status === 'in-progress' && (
+                      <button className={styles.actionWarning} onClick={() => requestControlAction(sess._id, sess.studentInfo?.fullName, 'lock')}>
+                        Kunci
+                      </button>
+                    )}
                     {(sess.status === 'locked' || (sess.status === 'in-progress' && (sess.exitCount || 0) > 0)) && (
                       <button className={styles.actionWarning} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'unlock')}>
                         Buka Kunci
                       </button>
                     )}
-                    {sess.status !== 'not-started' && (
+                    {(sess.status === 'in-progress' || sess.status === 'locked') && (
+                      <button className={styles.actionDanger} onClick={() => requestControlAction(sess._id, sess.studentInfo?.fullName, 'disqualify')}>
+                        Diskualifikasi
+                      </button>
+                    )}
+                    {sess.status !== 'not-started' && sess.status !== 'disqualified' && (
                       <button className={styles.actionDanger} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'reset')}>
                         Reset
                       </button>
@@ -601,6 +704,8 @@ export default function ExamResultsPage() {
                       ? styles.statusDone
                       : sess.status === 'locked'
                         ? styles.statusLocked
+                        : sess.status === 'disqualified'
+                          ? styles.statusDisqualified
                         : styles.statusNotStarted;
                 return (
                   <tr key={sess._id}>
@@ -622,6 +727,9 @@ export default function ExamResultsPage() {
                       <div className={styles.progressBar}>
                         <div style={{ width: `${progress}%` }} />
                       </div>
+                      {getProgressMeta(sess) && (
+                        <div className={styles.studentId}>{getProgressMeta(sess)}</div>
+                      )}
                     </td>
                     <td data-label="Pelanggaran">
                       <span className={`${styles.violationText} ${sess.exitCount > 1 ? styles.violationHigh : sess.exitCount === 1 ? styles.violationMed : ''}`}>
@@ -653,17 +761,27 @@ export default function ExamResultsPage() {
                             Detail Pelanggaran
                           </button>
                         )}
+                        {sess.status === 'in-progress' && (
+                          <button className={styles.actionWarning} onClick={() => requestControlAction(sess._id, sess.studentInfo?.fullName, 'lock')}>
+                            Kunci
+                          </button>
+                        )}
                         {(sess.status === 'locked' || (sess.status === 'in-progress' && (sess.exitCount || 0) > 0)) && (
                           <button className={styles.actionWarning} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'unlock')}>
                             Buka Kunci
                           </button>
                         )}
-                        {sess.status !== 'not-started' && (
+                        {(sess.status === 'in-progress' || sess.status === 'locked') && (
+                          <button className={styles.actionDanger} onClick={() => requestControlAction(sess._id, sess.studentInfo?.fullName, 'disqualify')}>
+                            Diskualifikasi
+                          </button>
+                        )}
+                        {sess.status !== 'not-started' && sess.status !== 'disqualified' && (
                           <button className={styles.actionDanger} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'reset')}>
                             Reset
                           </button>
                         )}
-                        {!['in-progress', 'submitted', 'locked'].includes(sess.status) && <span className={styles.noAction}>-</span>}
+                        {!['in-progress', 'submitted', 'locked', 'disqualified'].includes(sess.status) && <span className={styles.noAction}>-</span>}
                       </div>
                     </td>
                   </tr>
@@ -789,15 +907,106 @@ export default function ExamResultsPage() {
         )}
       </Modal>
 
+      <Modal
+        isOpen={isQuestionPreviewOpen}
+        onClose={() => setIsQuestionPreviewOpen(false)}
+        title="Soal Ujian"
+        maxWidth="860px"
+      >
+        <div className={styles.questionPreviewModal}>
+          {questionPreviewLoading && <p className={styles.questionPreviewState}>Memuat soal...</p>}
+          {questionPreviewError && <div className={styles.previewError}>{questionPreviewError}</div>}
+          {!questionPreviewLoading && !questionPreviewError && (!questionPreviewExam?.questions || questionPreviewExam.questions.length === 0) && (
+            <p className={styles.questionPreviewState}>Belum ada soal untuk ujian ini.</p>
+          )}
+          {!questionPreviewLoading && !questionPreviewError && questionPreviewExam?.questions?.length > 0 && (
+            <>
+              <div className={styles.questionPreviewSummary}>
+                <strong>{questionPreviewExam.title || examMeta?.title || 'Ujian'}</strong>
+                <span>{questionPreviewExam.questions.length} soal</span>
+              </div>
+              <div className={styles.questionPreviewList}>
+                {questionPreviewExam.questions.map((question, index) => {
+                  const mc = question.multipleChoice;
+                  const essay = question.essay;
+                  const questionText = mc?.questionText || essay?.questionText || '-';
+                  const explanation = mc?.explanation || essay?.explanation || '';
+                  return (
+                    <article key={question._id || question.order || index} className={styles.questionPreviewItem}>
+                      <div className={styles.questionPreviewHead}>
+                        <span>Soal {index + 1}</span>
+                        <strong>{mc ? (mc.multipleAnswers ? 'Pilihan Ganda Multi-Jawaban' : 'Pilihan Ganda') : 'Esai'}</strong>
+                      </div>
+                      {question.previewUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={question.previewUrl} alt={`Gambar soal ${index + 1}`} className={styles.questionPreviewImage} />
+                      )}
+                      <div className={styles.questionPreviewText} dangerouslySetInnerHTML={{ __html: questionText }} />
+                      {mc && (
+                        <div className={styles.questionPreviewOptions}>
+                          {mc.options.map((option, optionIndex) => {
+                            const correctAnswers = Array.isArray(mc.correctAnswer) ? mc.correctAnswer : [mc.correctAnswer];
+                            const isCorrect = correctAnswers.map(Number).includes(optionIndex);
+                            return (
+                              <div key={`${option}-${optionIndex}`} className={`${styles.questionPreviewOption} ${isCorrect ? styles.questionPreviewOptionCorrect : ''}`}>
+                                <span>{getOptionLetter(optionIndex)}</span>
+                                <p>{option}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {mc && (
+                        <div className={styles.questionPreviewAnswer}>
+                          <span>Kunci Jawaban</span>
+                          <strong>{getCorrectAnswerLabel(mc.correctAnswer)}</strong>
+                        </div>
+                      )}
+                      {explanation && (
+                        <div className={styles.questionPreviewExplanation}>
+                          <span>Pembahasan</span>
+                          <div dangerouslySetInnerHTML={{ __html: explanation }} />
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
+
       <ConfirmDialog
         isOpen={isConfirmOpen}
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={handleConfirmAction}
-        title={confirmConfig.type === 'unlock' ? 'Buka Akses Siswa' : 'Hapus & Reset Total'}
+        title={
+          confirmConfig.type === 'unlock'
+            ? 'Buka Akses Siswa'
+            : confirmConfig.type === 'lock'
+              ? 'Kunci Ujian Siswa'
+              : confirmConfig.type === 'disqualify'
+                ? 'Diskualifikasi Siswa'
+                : 'Hapus & Reset Total'
+        }
         message={
           confirmConfig.type === 'unlock'
             ? `Siswa ${confirmConfig.studentName} akan diizinkan melanjutkan ujian dan pelanggaran di-reset ke 0. Lanjutkan?`
-            : `Sesi ujian ${confirmConfig.studentName} akan dihapus total dan siswa harus mulai dari awal. Lanjutkan?`
+            : confirmConfig.type === 'lock'
+              ? `Sesi ujian ${confirmConfig.studentName} akan dikunci sementara. Jawaban/draft tetap tersimpan. Lanjutkan?`
+              : confirmConfig.type === 'disqualify'
+                ? `Siswa ${confirmConfig.studentName} akan didiskualifikasi dan nilai ditetapkan 0. Tindakan ini bersifat final. Lanjutkan?`
+                : `Sesi ujian ${confirmConfig.studentName} akan dihapus total dan siswa harus mulai dari awal. Lanjutkan?`
+        }
+        confirmLabel={
+          confirmConfig.type === 'unlock'
+            ? 'Buka Akses'
+            : confirmConfig.type === 'lock'
+              ? 'Kunci Ujian'
+              : confirmConfig.type === 'disqualify'
+                ? 'Diskualifikasi'
+                : 'Hapus & Reset'
         }
         loading={actionLoading}
       />

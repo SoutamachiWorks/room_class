@@ -449,7 +449,7 @@ export default function SubjectManagementPage() {
                     ) : formData.classCodes.map((code) => (
                        <span key={code} className={styles.selectedClassChip}>
                           {getClassLabel(code)}
-                          <button type="button" onClick={() => removeClassCode(code)} aria-label={`Hapus ${code}`}>
+                          <button type="button" onClick={() => removeClassCode(code)} aria-label={`Lepas relasi ${code}`}>
                              ×
                           </button>
                        </span>

@@ -157,6 +157,7 @@ export default function TakeExamPage() {
   const [strikeMessage, setStrikeMessage] = useState('');
   
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [showQuestionShortcut, setShowQuestionShortcut] = useState(false);
 
   const violationTimerRef = useRef(null);
   const leftTabAtRef = useRef(null);
@@ -304,14 +305,19 @@ export default function TakeExamPage() {
       await deleteExamDraft(examId);
 
       if (isLockout) {
-        router.replace('/dashboard/student/exams/lockout');
+        router.replace('/dashboard/student/exams/lockout?reason=locked');
       } else {
         router.replace('/dashboard/student/exams?submitted=1');
       }
     } catch (err) {
       if (err.payload && err.payload.locked) {
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-        router.replace('/dashboard/student/exams/lockout');
+        router.replace('/dashboard/student/exams/lockout?reason=locked');
+        return;
+      }
+      if (err.payload && err.payload.disqualified) {
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        router.replace('/dashboard/student/exams/lockout?reason=disqualified');
         return;
       }
       setError(err.message || 'Koneksi ke server gagal.');
@@ -393,6 +399,13 @@ export default function TakeExamPage() {
           (message.includes('Sesi ujian tidak valid') || message.includes('sudah berakhir'));
 
         if (isTerminalSessionError || res.status === 403) {
+          if (data.locked || data.disqualified) {
+            syncTerminatedRef.current = true;
+            setSyncState('idle');
+            if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+            router.replace(`/dashboard/student/exams/lockout?reason=${data.disqualified ? 'disqualified' : 'locked'}`);
+            return;
+          }
           syncTerminatedRef.current = true;
           setSyncState('idle');
           await saveLocalDraft({ pendingSync: false, lastSyncError: message });
@@ -498,6 +511,8 @@ export default function TakeExamPage() {
     lastViolationAtRef.current = now;
 
     try {
+      await syncExamCache(true);
+
       const res = await fetch(`/api/student/exams/${examId}/violation`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -508,7 +523,7 @@ export default function TakeExamPage() {
       if (data.locked) {
         setLocked(true);
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-        router.replace('/dashboard/student/exams/lockout');
+        router.replace('/dashboard/student/exams/lockout?reason=locked');
         return;
       }
 
@@ -519,10 +534,27 @@ export default function TakeExamPage() {
       
     } catch (err) {
       console.error('Failed to record violation:', err);
+      if (typeof navigator !== 'undefined' && (!navigator.onLine || !isOnline)) {
+        offlineEventsRef.current = [
+          ...offlineEventsRef.current,
+          {
+            type: 'offline-tab-activity',
+            at: new Date().toISOString(),
+            durationMs: null,
+            answerChanges: null,
+            reason,
+          },
+        ].slice(-20);
+        setNeedsManualSync(true);
+        setSyncState('offline');
+        setToastMessage('Aktivitas keluar tab terdeteksi saat offline. Catatan akan dikirim saat internet kembali.');
+        setTimeout(() => setToastMessage(''), 6000);
+        await saveLocalDraft({ pendingSync: true });
+      }
     } finally {
       violationInFlightRef.current = false;
     }
-  }, [sessionId, examId, router, locked, showConsentModal, syncExamCache]);
+  }, [sessionId, examId, router, locked, showConsentModal, syncExamCache, isOnline, saveLocalDraft]);
 
   const verifyFilePickerReturn = useCallback(async (selectedFileCount = 0) => {
     const openedAt = filePickerOpenedAtRef.current;
@@ -764,11 +796,19 @@ export default function TakeExamPage() {
     const sendHeartbeat = async () => {
       if (syncTerminatedRef.current || !navigator.onLine) return;
       try {
-        await fetch(`/api/student/exams/${examId}/heartbeat`, {
+        const res = await fetch(`/api/student/exams/${examId}/heartbeat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId }),
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (data.locked || data.disqualified) {
+            syncTerminatedRef.current = true;
+            if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+            router.replace(`/dashboard/student/exams/lockout?reason=${data.disqualified ? 'disqualified' : 'locked'}`);
+          }
+        }
       } catch (err) {
         console.error('Heartbeat ujian gagal:', err);
       }
@@ -777,7 +817,7 @@ export default function TakeExamPage() {
     void sendHeartbeat();
     const interval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [examId, locked, questions.length, sessionId, showConsentModal]);
+  }, [examId, locked, questions.length, router, sessionId, showConsentModal]);
 
   useEffect(() => {
     if (!sessionId || questions.length === 0) return;
@@ -844,7 +884,7 @@ export default function TakeExamPage() {
       if (result.locked) {
         setLocked(true);
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-        router.replace('/dashboard/student/exams/lockout');
+        router.replace('/dashboard/student/exams/lockout?reason=locked');
         return;
       }
 
@@ -947,8 +987,8 @@ export default function TakeExamPage() {
         const data = await res.json();
 
         if (!res.ok) {
-          if (data.locked) {
-            router.replace('/dashboard/student/exams/lockout');
+          if (data.locked || data.disqualified) {
+            router.replace(`/dashboard/student/exams/lockout?reason=${data.disqualified ? 'disqualified' : 'locked'}`);
             return;
           }
           setError(data.error || 'Gagal memulai ujian.');
@@ -1001,7 +1041,7 @@ export default function TakeExamPage() {
         }
 
         if (data.exitCount >= MAX_VIOLATIONS) {
-          router.replace('/dashboard/student/exams/lockout');
+          router.replace('/dashboard/student/exams/lockout?reason=locked');
           return;
         }
       } catch {
@@ -1124,6 +1164,25 @@ export default function TakeExamPage() {
 
   const hasPendingLocalDraft = needsManualSync || syncState === 'offline' || localDraftStatus === 'restored';
   const canManualSync = isOnline && hasPendingLocalDraft && syncState !== 'syncing';
+  const isQuestionAnswered = useCallback((question) => {
+    if (!question) return false;
+    const answer = answers[question.displayOrder] || {};
+
+    if (question.multipleChoice) {
+      if (Array.isArray(answer.mcAnswer)) return answer.mcAnswer.length > 0;
+      if (answer.mcAnswer !== null && answer.mcAnswer !== undefined) return true;
+    }
+
+    if (question.essay && typeof answer.essayAnswer === 'string' && answer.essayAnswer.trim() !== '') {
+      return true;
+    }
+
+    if (question.fileUpload && Array.isArray(fileAnswers[question.displayOrder]) && fileAnswers[question.displayOrder].length > 0) {
+      return true;
+    }
+
+    return false;
+  }, [answers, fileAnswers]);
 
   // ── Loading state ──────────────────────────────────────────────────────
   if (loading) {
@@ -1321,6 +1380,60 @@ export default function TakeExamPage() {
       </div>
 
       {error && <div className={`${styles.formError} ${ex.examErrorBar}`}>{error}</div>}
+      {!isOnline && (
+        <div className={ex.examOfflineInstruction} role="status" aria-live="polite">
+          <strong>Koneksi internet terputus</strong>
+          <p>
+            Jangan tutup tab, jangan refresh halaman, dan jangan keluar dari mode layar penuh. Tetap kerjakan soal; jawaban disimpan di perangkat ini dan akan disinkronkan otomatis saat internet kembali.
+          </p>
+          <p>
+            Deteksi aktivitas tab tetap berjalan di browser, tetapi pencatatan ke server baru dikirim setelah koneksi aktif lagi.
+          </p>
+        </div>
+      )}
+      {questions.length > 1 && (
+        <nav className={ex.examQuestionShortcut} aria-label="Navigasi nomor soal">
+          <div className={ex.examQuestionShortcutHead}>
+            <strong>Nomor Soal</strong>
+            <span>Klik nomor untuk pindah soal</span>
+            <button
+              type="button"
+              className={ex.examQuestionShortcutToggle}
+              onClick={() => setShowQuestionShortcut((prev) => !prev)}
+              aria-expanded={showQuestionShortcut}
+              aria-controls="exam-question-shortcut-grid"
+            >
+              Soal {questions[currentQuestionIndex]?.displayOrder || currentQuestionIndex + 1}
+              <span>{showQuestionShortcut ? 'Tutup' : 'Buka'}</span>
+            </button>
+          </div>
+          <div
+            id="exam-question-shortcut-grid"
+            className={`${ex.examQuestionShortcutGrid} ${!showQuestionShortcut ? ex.examQuestionShortcutGridCollapsed : ''}`}
+          >
+            {questions.map((question, index) => {
+              const isCurrent = index === currentQuestionIndex;
+              const isAnswered = isQuestionAnswered(question);
+              return (
+                <button
+                  key={`${question.displayOrder}-${index}`}
+                  type="button"
+                  className={`${ex.examQuestionShortcutBtn} ${isCurrent ? ex.examQuestionShortcutActive : ''} ${isAnswered ? ex.examQuestionShortcutAnswered : ''}`}
+                  onClick={() => {
+                    setCurrentQuestionIndex(index);
+                    setShowQuestionShortcut(false);
+                  }}
+                  disabled={submitting}
+                  aria-current={isCurrent ? 'step' : undefined}
+                  aria-label={`Buka soal ${question.displayOrder}${isAnswered ? ', sudah dijawab' : ', belum dijawab'}`}
+                >
+                  {question.displayOrder}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
       {/* Question cards */}
       <div className={ex.examQuestionList}>

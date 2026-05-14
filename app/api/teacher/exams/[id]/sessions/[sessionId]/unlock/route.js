@@ -41,8 +41,15 @@ export async function PATCH(request, { params }) {
     const { db } = await verifyOwnership(request, examId, sessionId);
 
     const result = await db.collection('examSessions').updateOne(
-      { _id: new ObjectId(sessionId), examId: examId.toString() },
-      { $set: { status: 'in-progress', exitCount: 0 } }
+      { _id: new ObjectId(sessionId), examId: examId.toString(), status: { $ne: 'disqualified' } },
+      {
+        $set: { status: 'in-progress', exitCount: 0 },
+        $unset: {
+          manualLockedAt: '',
+          manualLockedBy: '',
+          manualLockReason: '',
+        },
+      }
     );
 
     if (result.matchedCount === 0) {

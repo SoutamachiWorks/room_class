@@ -3,6 +3,30 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 
+function normalizeSelectedAnswers(value) {
+  if (Array.isArray(value)) {
+    return value.filter((item) => Number.isInteger(Number(item))).map((item) => Number(item));
+  }
+  return value === null || value === undefined ? [] : [Number(value)];
+}
+
+function hasSubmittedAnswer(answer = {}) {
+  if (normalizeSelectedAnswers(answer.mcAnswer).length > 0) return true;
+  if (answer.essayAnswer?.trim()) return true;
+  if (Array.isArray(answer.uploadedFiles) && answer.uploadedFiles.length > 0) return true;
+  return false;
+}
+
+function countDraftAnswers(draftAnswers = {}, questions = []) {
+  const multipleChoice = Array.isArray(draftAnswers.multipleChoice) ? draftAnswers.multipleChoice : [];
+  const essay = Array.isArray(draftAnswers.essay) ? draftAnswers.essay : [];
+  return questions.filter((question, index) => {
+    if (question.multipleChoice) return normalizeSelectedAnswers(multipleChoice[index]).length > 0;
+    if (question.essay || question.fileUpload) return typeof essay[index] === 'string' && essay[index].trim().length > 0;
+    return false;
+  }).length;
+}
+
 /**
  * GET /api/teacher/exams/[id]/sessions
  * Gets all student sessions for a specific exam.
@@ -60,9 +84,14 @@ export async function GET(request, { params }) {
           examEvents: 1,
           unexpectedExitCount: 1,
           activeUnexpectedExit: 1,
+          draftAnswers: 1,
           draftUpdatedAt: 1,
           lastHeartbeatAt: 1,
           lastSeenAt: 1,
+          disqualifiedAt: 1,
+          disqualifyReason: 1,
+          manualLockedAt: 1,
+          manualLockReason: 1,
           'studentInfo.fullName': 1,
           'studentInfo.studentId': 1,
           'studentInfo.classCode': 1
@@ -75,15 +104,19 @@ export async function GET(request, { params }) {
 
     const mappedSessions = sessions.map((sess) => {
       const questionCount = Array.isArray(sess.questions) ? sess.questions.length : (exam.questions?.length || 0);
-      const answeredCount = Array.isArray(sess.answers) ? sess.answers.filter((ans) => {
-        if (ans.mcAnswer === 0) return true;
-        if (ans.mcAnswer) return true;
-        if (ans.essayAnswer?.trim()) return true;
-        if (Array.isArray(ans.uploadedFiles) && ans.uploadedFiles.length > 0) return true;
-        return false;
-      }).length : 0;
+      const submittedAnsweredCount = Array.isArray(sess.answers) ? sess.answers.filter(hasSubmittedAnswer).length : 0;
+      const draftAnsweredCount = sess.status === 'in-progress'
+        ? countDraftAnswers(sess.draftAnswers, Array.isArray(sess.questions) ? sess.questions : exam.questions || [])
+        : 0;
+      const answeredCount = sess.status === 'in-progress'
+        ? Math.max(submittedAnsweredCount, draftAnsweredCount)
+        : submittedAnsweredCount;
       let calculatedScore = null;
+      if (sess.status === 'disqualified') {
+        calculatedScore = 0;
+      }
       if (
+        calculatedScore === null &&
         Array.isArray(sess.answers) &&
         sess.answers.length > 0 &&
         (sess.gradingStatus === 'fully-graded' || sess.gradingStatus === 'auto-graded')
@@ -93,8 +126,11 @@ export async function GET(request, { params }) {
       }
       return {
         ...sess,
+        draftAnswers: undefined,
         questionCount,
         answeredCount,
+        draftAnsweredCount,
+        progressSource: sess.status === 'in-progress' && draftAnsweredCount > submittedAnsweredCount ? 'draft' : 'answers',
         calculatedScore,
       };
     });

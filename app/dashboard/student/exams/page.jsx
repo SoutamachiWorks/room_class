@@ -31,6 +31,7 @@ const FILTER_TABS = [
   { key: 'submitted', label: 'Sudah Dikerjakan' },
   { key: 'review', label: 'Menunggu Koreksi' },
   { key: 'locked', label: 'Terkunci' },
+  { key: 'disqualified', label: 'Diskualifikasi' },
 ];
 
 const STATS_META = {
@@ -180,6 +181,8 @@ function StudentExamsContent() {
   const getSessionStatus = useCallback((exam) => {
     const baseStatus = exam.session?.status || 'available';
 
+    if (baseStatus === 'disqualified') return 'disqualified';
+
     if (exam.isExamOpen !== true && baseStatus !== 'submitted' && baseStatus !== 'in-progress') {
       return 'locked';
     }
@@ -194,10 +197,10 @@ function StudentExamsContent() {
       return 'review';
     }
 
-    if (baseStatus === 'in-progress') return 'ongoing';
-    if (baseStatus === 'submitted') return 'submitted';
-    if (baseStatus === 'locked') return 'locked';
-    return 'available';
+  if (baseStatus === 'in-progress') return 'ongoing';
+  if (baseStatus === 'submitted') return 'submitted';
+  if (baseStatus === 'locked') return 'locked';
+  return 'available';
   }, [currentTime]);
 
   const enrichedExams = useMemo(() => exams.map((exam) => ({ ...exam, uiStatus: getSessionStatus(exam) })), [exams, getSessionStatus]);
@@ -252,7 +255,7 @@ function StudentExamsContent() {
       const res = await fetch(`/api/student/exams/${exam._id}/start`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) {
-        if (data.locked) router.push('/dashboard/student/exams/lockout');
+        if (data.locked || data.disqualified) router.push(`/dashboard/student/exams/lockout?reason=${data.disqualified ? 'disqualified' : 'locked'}`);
         else alert(data.error || 'Gagal memulai ujian.');
         setStartingId(null);
         return;
@@ -462,6 +465,7 @@ function StudentExamsContent() {
                             {status === 'ongoing' && (<><span className={`${styles.stateBadge} ${styles.stateAvailable}`}>Sedang Dikerjakan</span><span className={styles.stateSub}>{draftUpdatedAt ? `Draft: ${formatIdDateTime(draftUpdatedAt)}` : 'Sesi ujian masih aktif'}</span></>)}
                             {status === 'review' && (<><span className={`${styles.stateBadge} ${styles.stateReview}`}>Menunggu Koreksi</span><span className={styles.stateSub}>Dikumpulkan: {formatIdDateTime(submittedAt)}</span></>)}
                             {status === 'locked' && (<><span className={`${styles.stateBadge} ${styles.stateLocked}`}>Terkunci</span><span className={styles.stateSub}>Tersedia: {formatIdDateTime(exam.createdAt)}</span></>)}
+                            {status === 'disqualified' && (<><span className={`${styles.stateBadge} ${styles.stateLocked}`}>Diskualifikasi</span><span className={styles.stateSub}>Hubungi guru</span></>)}
                           </div>
                         </td>
                         <td>
@@ -473,7 +477,7 @@ function StudentExamsContent() {
                           {status === 'submitted' && score !== undefined && score !== null && !isWaitingReview && (
                             <span className={styles.scoreTag}>{Math.round(Number(score))}</span>
                           )}
-                          {(status === 'review' || status === 'locked' || status === 'submitted') && (
+                          {(status === 'review' || status === 'locked' || status === 'disqualified' || status === 'submitted') && (
                             <>
                               {(status !== 'submitted' || score === undefined || score === null || isWaitingReview) && (
                                 <span className={styles.noScore}>-</span>
@@ -510,6 +514,7 @@ function StudentExamsContent() {
                     ongoing: styles.stateAvailable,
                     review: styles.stateReview,
                     locked: styles.stateLocked,
+                    disqualified: styles.stateLocked,
                   }[status];
 
                   const badgeLabel = {
@@ -518,6 +523,7 @@ function StudentExamsContent() {
                     ongoing: 'Sedang Dikerjakan',
                     review: 'Menunggu Koreksi',
                     locked: 'Terkunci',
+                    disqualified: 'Diskualifikasi',
                   }[status];
 
                   return (
@@ -569,6 +575,7 @@ function StudentExamsContent() {
                         {status === 'ongoing' && (draftUpdatedAt ? `Draft terakhir: ${formatIdDateTime(draftUpdatedAt)}` : 'Sesi ujian masih aktif')}
                         {status === 'review' && `Dikumpulkan: ${formatIdDateTime(submittedAt)}`}
                         {status === 'locked' && `Akan tersedia: ${formatIdDateTime(exam.createdAt)}`}
+                        {status === 'disqualified' && 'Diskualifikasi oleh guru atau pengawas'}
                       </div>
 
                       {/* Action / Score */}
@@ -613,8 +620,8 @@ function StudentExamsContent() {
         const remainHour = Math.max(0, Math.floor(timeLeftMs / 3600000));
         const remainMinute = Math.max(0, Math.floor((timeLeftMs % 3600000) / 60000));
 
-        const badgeClass = { submitted: styles.stateDone, available: styles.stateAvailable, ongoing: styles.stateAvailable, review: styles.stateReview, locked: styles.stateLocked }[status];
-        const badgeLabel = { submitted: 'Sudah Dikumpulkan', available: 'Tersedia', ongoing: 'Sedang Dikerjakan', review: 'Menunggu Koreksi', locked: 'Terkunci' }[status];
+        const badgeClass = { submitted: styles.stateDone, available: styles.stateAvailable, ongoing: styles.stateAvailable, review: styles.stateReview, locked: styles.stateLocked, disqualified: styles.stateLocked }[status];
+        const badgeLabel = { submitted: 'Sudah Dikumpulkan', available: 'Tersedia', ongoing: 'Sedang Dikerjakan', review: 'Menunggu Koreksi', locked: 'Terkunci', disqualified: 'Diskualifikasi' }[status];
 
         return (
           <Modal isOpen onClose={() => setDetailExam(null)} title="Detail Ujian">
@@ -695,6 +702,12 @@ function StudentExamsContent() {
                 <div className={styles.detailInfoBox} style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', color: 'var(--color-failed-text, #ef4444)' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                   Ujian ini terkunci. Hubungi guru jika ada masalah.
+                </div>
+              )}
+              {status === 'disqualified' && (
+                <div className={styles.detailInfoBox} style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', color: 'var(--color-failed-text, #ef4444)' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                  Anda didiskualifikasi dari ujian ini. Hubungi guru untuk informasi lebih lanjut.
                 </div>
               )}
 

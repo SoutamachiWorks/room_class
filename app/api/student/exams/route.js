@@ -116,7 +116,10 @@ export async function GET(request) {
       if (!sessionMap[sess.examId]) {
         // Calculate score
         let calculatedScore = null;
-        if (sess.gradingStatus !== 'pending-manual' && Array.isArray(sess.answers)) {
+        if (sess.status === 'disqualified') {
+          calculatedScore = '0.0';
+        }
+        if (calculatedScore === null && sess.gradingStatus !== 'pending-manual' && Array.isArray(sess.answers)) {
           const totalPoints = sess.answers.reduce((acc, curr) => acc + (curr.score || 0), 0);
           const divisor = sess.answers.length > 0 ? sess.answers.length : 1;
           calculatedScore = (totalPoints / divisor).toFixed(1);
@@ -130,6 +133,8 @@ export async function GET(request) {
           submittedAt: sess.submittedAt,
           exitCount: sess.exitCount || 0,
           draftUpdatedAt: sess.draftUpdatedAt || null,
+          disqualifiedAt: sess.disqualifiedAt || null,
+          disqualifyReason: sess.disqualifyReason || null,
           calculatedScore
         };
       }

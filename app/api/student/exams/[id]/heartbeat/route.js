@@ -24,6 +24,24 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Profil siswa tidak lengkap.' }, { status: 403 });
     }
 
+    const session = await db.collection('examSessions').findOne({
+      _id: new ObjectId(sessionId),
+      examId: examId.toString(),
+      studentId,
+    });
+
+    if (!session) {
+      return NextResponse.json({ success: false, ignored: true });
+    }
+
+    if (session.status === 'locked') {
+      return NextResponse.json({ success: false, locked: true, error: session.manualLockReason || 'Sesi ujian dikunci.' }, { status: 403 });
+    }
+
+    if (session.status === 'disqualified') {
+      return NextResponse.json({ success: false, disqualified: true, error: session.disqualifyReason || 'Siswa didiskualifikasi.' }, { status: 403 });
+    }
+
     const heartbeatAt = new Date();
     const result = await db.collection('examSessions').updateOne(
       {
