@@ -18,6 +18,8 @@ type ExamEvent = {
   violationRule?: string | null;
   exitCount?: number | null;
   unexpectedExitCount?: number | null;
+  disconnectAt?: string | null;
+  reconnectAt?: string | null;
 };
 
 function useIsMobile(breakpoint = 640) {
@@ -54,6 +56,12 @@ type StudentRow = {
     countedAsViolation: boolean;
   } | null;
   examEvents?: ExamEvent[];
+  disconnectAt?: string | null;
+  reconnectAt?: string | null;
+  disconnectReason?: string | null;
+  manualLockedAt?: string | null;
+  manualLockReason?: string | null;
+  sessionStatus?: string;
 };
 
 type MonitorResponse = {
@@ -143,6 +151,8 @@ export default function MonitoringClient({ examId, examTitle }: { examId: string
     'explicit-violation': 'Pelanggaran eksplisit',
     'unexpected-exit-start': 'Keluar tak terduga',
     'unexpected-exit-return': 'Kembali ke ujian',
+    'disconnect-lock': 'Sesi Terkunci (Disconnect)',
+    'disconnect-reconnect-success': 'Reconnect (Berhasil)',
   }[type] || type);
 
   const eventReasonLabel = (reason?: string | null) => ({
@@ -156,6 +166,8 @@ export default function MonitoringClient({ examId, examTitle }: { examId: string
     'page-hidden-or-closed': 'Halaman ditutup/disembunyikan',
     'page-exit': 'Keluar halaman',
     'exam-page-resumed': 'Masuk kembali ke ujian',
+    'offline-disconnect': 'Koneksi terputus (Offline)',
+    'offline/disconnect': 'Koneksi terputus (Offline)',
   }[reason || ''] || reason || '-');
 
   const handleWarn = async () => {
@@ -477,6 +489,14 @@ export default function MonitoringClient({ examId, examTitle }: { examId: string
               </div>
             </div>
 
+            {historyTarget.sessionStatus === 'locked' && historyTarget.disconnectReason === 'offline/disconnect' && (
+              <div className={styles.historyAlert} style={{ backgroundColor: '#FEF2F2', borderColor: '#FCA5A5', color: '#991B1B', borderLeftWidth: '4px' }}>
+                <strong>Sesi Terkunci Otomatis (Disconnect):</strong>
+                <br />
+                Siswa terputus dari server pada <strong>{formatFullDateTime(historyTarget.disconnectAt)}</strong> dan mencoba menghubungkan kembali pada <strong>{formatFullDateTime(historyTarget.reconnectAt)}</strong> (melebihi batas waktu toleransi 2 menit).
+              </div>
+            )}
+
             {historyTarget.hasActiveUnexpectedExit && (
               <div className={styles.historyAlert}>
                 Siswa tercatat keluar dari halaman ujian dan belum kembali pada refresh terakhir.
@@ -528,6 +548,18 @@ export default function MonitoringClient({ examId, examTitle }: { examId: string
                         <div>
                           <span>Aturan</span>
                           <strong>{event.violationRule}</strong>
+                        </div>
+                      )}
+                      {event.disconnectAt && (
+                        <div>
+                          <span>Waktu Disconnect</span>
+                          <strong>{formatFullDateTime(event.disconnectAt)}</strong>
+                        </div>
+                      )}
+                      {event.reconnectAt && (
+                        <div>
+                          <span>Waktu Reconnect</span>
+                          <strong>{formatFullDateTime(event.reconnectAt)}</strong>
                         </div>
                       )}
                     </div>

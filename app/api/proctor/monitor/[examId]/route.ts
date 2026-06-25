@@ -54,6 +54,8 @@ function normalizeExamEvents(session: any) {
     violationRule: typeof event?.violationRule === 'string' ? event.violationRule : null,
     exitCount: Number.isFinite(Number(event?.exitCount)) ? Number(event.exitCount) : null,
     unexpectedExitCount: Number.isFinite(Number(event?.unexpectedExitCount)) ? Number(event.unexpectedExitCount) : null,
+    disconnectAt: event?.disconnectAt ? new Date(event.disconnectAt).toISOString() : null,
+    reconnectAt: event?.reconnectAt ? new Date(event.reconnectAt).toISOString() : null,
   }));
 }
 
@@ -122,6 +124,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ exam
             lastHeartbeatAt: 1,
             lastSeenAt: 1,
             activeUnexpectedExit: 1,
+            disconnectAt: 1,
+            reconnectAt: 1,
+            disconnectReason: 1,
+            manualLockedAt: 1,
+            manualLockReason: 1,
           },
           sort: { startedAt: -1 },
         }
@@ -182,6 +189,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ exam
         hasActiveUnexpectedExit,
         lastExamEvent: extractLastExamEvent(session),
         examEvents: normalizeExamEvents(session),
+        disconnectAt: session?.disconnectAt ? new Date(session.disconnectAt).toISOString() : null,
+        reconnectAt: session?.reconnectAt ? new Date(session.reconnectAt).toISOString() : null,
+        disconnectReason: session?.disconnectReason || null,
+        manualLockedAt: session?.manualLockedAt ? new Date(session.manualLockedAt).toISOString() : null,
+        manualLockReason: session?.manualLockReason || null,
+        sessionStatus: session?.status || 'not-started',
       };
     });
 

@@ -92,6 +92,9 @@ export async function GET(request, { params }) {
           disqualifyReason: 1,
           manualLockedAt: 1,
           manualLockReason: 1,
+          disconnectAt: 1,
+          reconnectAt: 1,
+          disconnectReason: 1,
           'studentInfo.fullName': 1,
           'studentInfo.studentId': 1,
           'studentInfo.classCode': 1

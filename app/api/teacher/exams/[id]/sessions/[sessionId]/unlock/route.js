@@ -43,7 +43,12 @@ export async function PATCH(request, { params }) {
     const result = await db.collection('examSessions').updateOne(
       { _id: new ObjectId(sessionId), examId: examId.toString(), status: { $ne: 'disqualified' } },
       {
-        $set: { status: 'in-progress', exitCount: 0 },
+        $set: {
+          status: 'in-progress',
+          exitCount: 0,
+          lastSeenAt: new Date(),
+          lastHeartbeatAt: new Date(),
+        },
         $unset: {
           manualLockedAt: '',
           manualLockedBy: '',

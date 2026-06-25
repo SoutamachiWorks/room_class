@@ -3,7 +3,8 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 import redis, { buildExamCacheKey } from '@/lib/redis';
-import { createAnswerHash, getAnswerHashAlgorithm } from '@/lib/examIntegrity';
+import { createAnswerHash, getAnswerHashAlgorithm, checkDisconnectLock } from '@/lib/examIntegrity';
+
 
 const FALLBACK_CACHE_TTL_SECONDS = 1800;
 const MIN_CACHE_TTL_SECONDS = 60;
@@ -160,16 +161,22 @@ export async function POST(request) {
       if (!existingSession) {
         return NextResponse.json({ error: 'Sesi ujian tidak valid atau sudah berakhir.' }, { status: 400 });
       }
-      if (existingSession.status === 'locked') {
-        return NextResponse.json({ error: existingSession.manualLockReason || 'Sesi ujian dikunci.', locked: true }, { status: 403 });
+      const disconnectCheck = await checkDisconnectLock(db, existingSession);
+      if (disconnectCheck.locked) {
+        return NextResponse.json({ error: disconnectCheck.error || 'Sesi ujian dikunci karena terputus.', locked: true }, { status: 403 });
       }
-      if (existingSession.status === 'disqualified') {
-        return NextResponse.json({ error: existingSession.disqualifyReason || 'Siswa didiskualifikasi.', disqualified: true }, { status: 403 });
+      const activeSession = disconnectCheck.session;
+
+      if (activeSession.status === 'locked') {
+        return NextResponse.json({ error: activeSession.manualLockReason || 'Sesi ujian dikunci.', locked: true }, { status: 403 });
       }
-      if (existingSession.status !== 'in-progress') {
+      if (activeSession.status === 'disqualified') {
+        return NextResponse.json({ error: activeSession.disqualifyReason || 'Siswa didiskualifikasi.', disqualified: true }, { status: 403 });
+      }
+      if (activeSession.status !== 'in-progress') {
         return NextResponse.json({ error: 'Sesi ujian tidak valid atau sudah berakhir.' }, { status: 400 });
       }
-      session = existingSession;
+      session = activeSession;
 
       exam = await db.collection('exams').findOne({ _id: new ObjectId(examId) });
       if (!exam) {

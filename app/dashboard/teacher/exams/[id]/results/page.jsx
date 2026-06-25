@@ -89,6 +89,8 @@ function getEventLabel(type) {
     'unexpected-exit-return': 'Kembali ke ujian',
     'manual-lock': 'Dikunci guru',
     'manual-disqualify': 'Diskualifikasi guru',
+    'disconnect-lock': 'Sesi Terkunci (Disconnect)',
+    'disconnect-reconnect-success': 'Reconnect (Berhasil)',
   }[type] || type || 'Event ujian';
 }
 
@@ -113,6 +115,8 @@ function getReasonLabel(reason) {
     'file-picker-open-too-long': 'Pemilih file terbuka terlalu lama',
     'file-picker-open-too-long-without-file': 'Pemilih file terbuka lama tanpa memilih file',
     'file-picker-return-lost-focus': 'Fokus hilang setelah pemilih file',
+    'offline-disconnect': 'Koneksi terputus (Offline)',
+    'offline/disconnect': 'Koneksi terputus (Offline)',
   }[reason] || reason || '-';
 }
 
@@ -843,6 +847,14 @@ export default function ExamResultsPage() {
               </div>
             </div>
 
+            {violationDetail.status === 'locked' && violationDetail.disconnectReason === 'offline/disconnect' && (
+              <div className={styles.violationAlert} style={{ backgroundColor: '#FEF2F2', borderColor: '#FCA5A5', color: '#991B1B', borderLeftWidth: '4px' }}>
+                <strong>Sesi Terkunci Otomatis (Disconnect):</strong>
+                <br />
+                Siswa terputus dari server pada <strong>{formatDateTimeFull(violationDetail.disconnectAt)}</strong> dan mencoba menghubungkan kembali pada <strong>{formatDateTimeFull(violationDetail.reconnectAt)}</strong> (melebihi batas waktu toleransi 2 menit).
+              </div>
+            )}
+
             {violationDetail.activeUnexpectedExit?.at && (
               <div className={styles.violationAlert}>
                 Siswa tercatat keluar dari halaman ujian dan belum kembali.
@@ -896,6 +908,18 @@ export default function ExamResultsPage() {
                         <div>
                           <span>Aturan</span>
                           <strong>{event.violationRule}</strong>
+                        </div>
+                      )}
+                      {event.disconnectAt && (
+                        <div>
+                          <span>Waktu Disconnect</span>
+                          <strong>{formatDateTimeFull(event.disconnectAt)}</strong>
+                        </div>
+                      )}
+                      {event.reconnectAt && (
+                        <div>
+                          <span>Waktu Reconnect</span>
+                          <strong>{formatDateTimeFull(event.reconnectAt)}</strong>
                         </div>
                       )}
                     </div>

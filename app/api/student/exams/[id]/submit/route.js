@@ -5,7 +5,7 @@ import { requireRole, handleAuthError } from '@/lib/auth';
 import { uploadToR2 } from '@/lib/s3Client';
 import { createNotification } from '@/lib/notification';
 import redis, { buildExamCacheKey } from '@/lib/redis';
-import { createAnswerHash } from '@/lib/examIntegrity';
+import { createAnswerHash, checkDisconnectLock } from '@/lib/examIntegrity';
 import { validateFiles } from '@/lib/fileValidation';
 
 const SERVER_SUBMIT_GRACE_MS = 60_000;
@@ -88,17 +88,25 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Sesi ujian tidak ditemukan.' }, { status: 404 });
     }
 
-    if (session.status === 'submitted') {
+    const disconnectCheck = await checkDisconnectLock(db, session);
+    if (disconnectCheck.locked) {
+      return NextResponse.json({ error: disconnectCheck.error || 'Sesi ujian dikunci karena terputus.', locked: true }, { status: 403 });
+    }
+    const activeSession = disconnectCheck.session;
+
+    if (activeSession.status === 'submitted') {
       return NextResponse.json({ error: 'Jawaban sudah dikumpulkan sebelumnya.' }, { status: 400 });
     }
 
-    if (session.status === 'locked') {
+    if (activeSession.status === 'locked') {
       return NextResponse.json({ error: 'Sesi ujian telah dikunci.', locked: true }, { status: 403 });
     }
 
-    if (session.status === 'disqualified') {
+    if (activeSession.status === 'disqualified') {
       return NextResponse.json({ error: 'Anda didiskualifikasi dari ujian ini.', disqualified: true }, { status: 403 });
     }
+
+    session = activeSession;
 
     // We still need exam metadata for notification/logging.
     const exam = await db.collection('exams').findOne({ _id: new ObjectId(examId) });

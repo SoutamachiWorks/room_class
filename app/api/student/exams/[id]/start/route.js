@@ -3,11 +3,13 @@ import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
 import { generatePresignedUrl } from '@/lib/s3Client';
+import { checkDisconnectLock } from '@/lib/examIntegrity';
 
 /**
  * Fisher-Yates shuffle — server-side randomization.
  * Returns a new shuffled array without mutating the original.
  */
+
 function fisherYatesShuffle(array) {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -138,33 +140,42 @@ export async function POST(request, { params }) {
     }, { sort: { startedAt: -1 } });
 
     if (existingSession) {
-      if (existingSession.status === 'submitted') {
-        return NextResponse.json({ error: 'Anda sudah menyelesaikan ujian ini.' }, { status: 400 });
-      }
-      if (existingSession.status === 'locked') {
+      const disconnectCheck = await checkDisconnectLock(db, existingSession);
+      if (disconnectCheck.locked) {
         return NextResponse.json({
-          error: existingSession.manualLockReason || 'Sesi ujian Anda telah dikunci. Hubungi guru Anda.',
+          error: disconnectCheck.error || 'Sesi ujian Anda dikunci karena terputus.',
           locked: true,
         }, { status: 403 });
       }
-      if (existingSession.status === 'disqualified') {
+      const activeSession = disconnectCheck.session;
+
+      if (activeSession.status === 'submitted') {
+        return NextResponse.json({ error: 'Anda sudah menyelesaikan ujian ini.' }, { status: 400 });
+      }
+      if (activeSession.status === 'locked') {
         return NextResponse.json({
-          error: existingSession.disqualifyReason || 'Anda didiskualifikasi dari ujian ini. Hubungi guru Anda.',
+          error: activeSession.manualLockReason || 'Sesi ujian Anda telah dikunci. Hubungi guru Anda.',
+          locked: true,
+        }, { status: 403 });
+      }
+      if (activeSession.status === 'disqualified') {
+        return NextResponse.json({
+          error: activeSession.disqualifyReason || 'Anda didiskualifikasi dari ujian ini. Hubungi guru Anda.',
           disqualified: true,
         }, { status: 403 });
       }
-      if (existingSession.status === 'in-progress') {
+      if (activeSession.status === 'in-progress') {
         // Resume: return existing randomized questions
         return NextResponse.json({
-          sessionId: existingSession._id,
-          questions: await sanitizeQuestions(existingSession.questions),
-          exitCount: existingSession.exitCount,
+          sessionId: activeSession._id,
+          questions: await sanitizeQuestions(activeSession.questions),
+          exitCount: activeSession.exitCount,
           examTitle: exam.title,
           examDuration: exam.duration,
-          startedAt: existingSession.startedAt,
-          draftAnswers: existingSession.draftAnswers || null,
-          draftUpdatedAt: existingSession.draftUpdatedAt || null,
-          offlineEvents: existingSession.offlineEvents || [],
+          startedAt: activeSession.startedAt,
+          draftAnswers: activeSession.draftAnswers || null,
+          draftUpdatedAt: activeSession.draftUpdatedAt || null,
+          offlineEvents: activeSession.offlineEvents || [],
         });
       }
     }

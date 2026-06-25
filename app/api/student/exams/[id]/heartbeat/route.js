@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { getDb } from '@/lib/mongodb';
 import { requireRole, handleAuthError } from '@/lib/auth';
+import { checkDisconnectLock } from '@/lib/examIntegrity';
 
 export async function POST(request, { params }) {
   try {
@@ -34,12 +35,18 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, ignored: true });
     }
 
-    if (session.status === 'locked') {
-      return NextResponse.json({ success: false, locked: true, error: session.manualLockReason || 'Sesi ujian dikunci.' }, { status: 403 });
+    const disconnectCheck = await checkDisconnectLock(db, session);
+    if (disconnectCheck.locked) {
+      return NextResponse.json({ success: false, locked: true, error: disconnectCheck.error || 'Sesi ujian dikunci.' }, { status: 403 });
+    }
+    const activeSession = disconnectCheck.session;
+
+    if (activeSession.status === 'locked') {
+      return NextResponse.json({ success: false, locked: true, error: activeSession.manualLockReason || 'Sesi ujian dikunci.' }, { status: 403 });
     }
 
-    if (session.status === 'disqualified') {
-      return NextResponse.json({ success: false, disqualified: true, error: session.disqualifyReason || 'Siswa didiskualifikasi.' }, { status: 403 });
+    if (activeSession.status === 'disqualified') {
+      return NextResponse.json({ success: false, disqualified: true, error: activeSession.disqualifyReason || 'Siswa didiskualifikasi.' }, { status: 403 });
     }
 
     const heartbeatAt = new Date();
