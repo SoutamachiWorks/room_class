@@ -31,17 +31,77 @@ function openExamDraftDb() {
     request.onerror = () => reject(request.error);
   });
 }
+async function getCryptoKey(sessionId) {
+  const enc = new TextEncoder();
+  const rawKey = enc.encode(String(sessionId || '').padEnd(32, '0').slice(0, 32));
+  return window.crypto.subtle.importKey(
+    'raw',
+    rawKey,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
 
-async function readExamDraft(examId) {
+async function encryptData(data, sessionId) {
+  try {
+    if (!sessionId) return data;
+    const key = await getCryptoKey(sessionId);
+    const enc = new TextEncoder();
+    const encodedData = enc.encode(JSON.stringify(data));
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await window.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      encodedData
+    );
+    return {
+      iv: Array.from(iv),
+      ciphertext: Array.from(new Uint8Array(ciphertext))
+    };
+  } catch (err) {
+    console.error('Encryption failed:', err);
+    return data;
+  }
+}
+
+async function decryptData(encryptedObj, sessionId) {
+  try {
+    if (!encryptedObj || !encryptedObj.iv || !encryptedObj.ciphertext || !sessionId) {
+      return encryptedObj;
+    }
+    const key = await getCryptoKey(sessionId);
+    const iv = new Uint8Array(encryptedObj.iv);
+    const ciphertext = new Uint8Array(encryptedObj.ciphertext);
+    const decrypted = await window.crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      ciphertext
+    );
+    const dec = new TextDecoder();
+    return JSON.parse(dec.decode(decrypted));
+  } catch (err) {
+    console.error('Decryption failed:', err);
+    return null;
+  }
+}
+
+async function readExamDraft(examId, sessionId) {
   try {
     const db = await openExamDraftDb();
-    return await new Promise((resolve, reject) => {
+    const rawResult = await new Promise((resolve, reject) => {
       const tx = db.transaction(EXAM_DRAFT_STORE, 'readonly');
       const request = tx.objectStore(EXAM_DRAFT_STORE).get(examId);
       request.onsuccess = () => resolve(request.result || null);
       request.onerror = () => reject(request.error);
       tx.oncomplete = () => db.close();
     });
+
+    if (!rawResult) return null;
+    if (rawResult.encryptedData && sessionId) {
+      return await decryptData(rawResult.encryptedData, sessionId);
+    }
+    return rawResult;
   } catch {
     return null;
   }
@@ -50,9 +110,16 @@ async function readExamDraft(examId) {
 async function writeExamDraft(draft) {
   try {
     const db = await openExamDraftDb();
+    const { examId, sessionId } = draft;
+    const encryptedPayload = await encryptData(draft, sessionId);
+
     await new Promise((resolve, reject) => {
       const tx = db.transaction(EXAM_DRAFT_STORE, 'readwrite');
-      tx.objectStore(EXAM_DRAFT_STORE).put(draft);
+      tx.objectStore(EXAM_DRAFT_STORE).put({
+        examId,
+        sessionId,
+        encryptedData: encryptedPayload
+      });
       tx.oncomplete = () => {
         db.close();
         resolve();
@@ -365,7 +432,7 @@ export default function TakeExamPage() {
     if (!force && !isDirty) return;
 
     await saveLocalDraft({ pendingSync: true });
-    const localDraft = await readExamDraft(examId);
+    const localDraft = await readExamDraft(examId, sessionId);
     const answersForSync =
       localDraft?.sessionId === sessionId && localDraft.redisAnswers
         ? localDraft.redisAnswers
@@ -1005,7 +1072,7 @@ export default function TakeExamPage() {
         setStartedAt(data.startedAt || null);
 
         const loadedQuestions = data.questions || [];
-        const localDraft = await readExamDraft(examId);
+        const localDraft = await readExamDraft(examId, data.sessionId);
         if (localDraft?.sessionId === data.sessionId && localDraft.answers && typeof localDraft.answers === 'object') {
           setAnswers(localDraft.answers);
           setIsDirty(!!localDraft.pendingSync);
