@@ -78,7 +78,7 @@ export async function POST(request, { params }) {
     }
 
     // Verify session ownership and status
-    const session = await db.collection('examSessions').findOne({
+    let session = await db.collection('examSessions').findOne({
       _id: new ObjectId(sessionId),
       examId: examId.toString(),
       studentId,
