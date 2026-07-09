@@ -659,7 +659,7 @@ export default function ExamResultsPage() {
                         Kunci
                       </button>
                     )}
-                    {(sess.status === 'locked' || (sess.status === 'in-progress' && (sess.exitCount || 0) > 0)) && (
+                    {(sess.status === 'locked' || sess.status === 'disqualified' || (sess.status === 'in-progress' && (sess.exitCount || 0) > 0)) && (
                       <button className={styles.actionWarning} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'unlock')}>
                         Buka Kunci
                       </button>
@@ -669,7 +669,7 @@ export default function ExamResultsPage() {
                         Diskualifikasi
                       </button>
                     )}
-                    {sess.status !== 'not-started' && sess.status !== 'disqualified' && (
+                    {sess.status !== 'not-started' && (
                       <button className={styles.actionDanger} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'reset')}>
                         Reset
                       </button>
@@ -770,7 +770,7 @@ export default function ExamResultsPage() {
                             Kunci
                           </button>
                         )}
-                        {(sess.status === 'locked' || (sess.status === 'in-progress' && (sess.exitCount || 0) > 0)) && (
+                        {(sess.status === 'locked' || sess.status === 'disqualified' || (sess.status === 'in-progress' && (sess.exitCount || 0) > 0)) && (
                           <button className={styles.actionWarning} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'unlock')}>
                             Buka Kunci
                           </button>
@@ -780,7 +780,7 @@ export default function ExamResultsPage() {
                             Diskualifikasi
                           </button>
                         )}
-                        {sess.status !== 'not-started' && sess.status !== 'disqualified' && (
+                        {sess.status !== 'not-started' && (
                           <button className={styles.actionDanger} onClick={() => requestSessionAction(sess._id, sess.studentInfo?.fullName, 'reset')}>
                             Reset
                           </button>

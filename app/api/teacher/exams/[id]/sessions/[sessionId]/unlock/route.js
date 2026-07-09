@@ -41,7 +41,7 @@ export async function PATCH(request, { params }) {
     const { db } = await verifyOwnership(request, examId, sessionId);
 
     const result = await db.collection('examSessions').updateOne(
-      { _id: new ObjectId(sessionId), examId: examId.toString(), status: { $ne: 'disqualified' } },
+      { _id: new ObjectId(sessionId), examId: examId.toString() },
       {
         $set: {
           status: 'in-progress',
@@ -53,6 +53,11 @@ export async function PATCH(request, { params }) {
           manualLockedAt: '',
           manualLockedBy: '',
           manualLockReason: '',
+          disqualifiedAt: '',
+          disqualifiedBy: '',
+          disqualifyReason: '',
+          gradingStatus: '',
+          calculatedScore: '',
         },
       }
     );
