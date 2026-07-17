@@ -20,7 +20,7 @@ export const metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'RoomClass',
+    title: 'Classroom',
   },
   formatDetection: {
     telephone: false,
