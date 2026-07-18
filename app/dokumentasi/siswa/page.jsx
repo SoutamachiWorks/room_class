@@ -48,7 +48,7 @@ const studentGuides = [
 ];
 
 const studentScenario = [
-  'Siswa login ke RoomClass.',
+  'Siswa login ke Classroom.',
   'Siswa membuka dashboard utama untuk melihat ringkasan tugas, materi, dan ujian.',
   'Siswa membuka menu Tugas untuk mengecek daftar tugas dari guru.',
   'Siswa mengunggah file jawaban atau melengkapi jawaban, lalu mengirim tugas.',
@@ -68,7 +68,7 @@ function GuideCards() {
       <div className={styles.sectionHeading}>
         <span className={`${styles.eyebrow} ${styles.studentTone}`}>Panduan Siswa</span>
         <h2>Cara pemakaian dashboard siswa</h2>
-        <p>Siswa menggunakan RoomClass untuk membaca materi, mengumpulkan tugas, dan mengikuti ujian.</p>
+        <p>Siswa menggunakan Classroom untuk membaca materi, mengumpulkan tugas, dan mengikuti ujian.</p>
       </div>
       <div className={styles.guideGrid}>
         {studentGuides.map((guide) => (
@@ -155,7 +155,7 @@ export default function StudentDocumentationPage() {
             <div className={styles.roleDocImageFrame}>
               <Image
                 src={item.image}
-                alt={`Screenshot ${item.title} pada alur siswa RoomClass`}
+                alt={`Screenshot ${item.title} pada alur siswa Classroom`}
                 width={item.width}
                 height={item.height}
                 sizes="(max-width: 1100px) 100vw, 1120px"

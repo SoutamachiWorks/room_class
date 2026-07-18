@@ -39,7 +39,7 @@ const adminGuides = [
 ];
 
 const adminScenario = [
-  'Admin login ke aplikasi RoomClass.',
+  'Admin login ke aplikasi Classroom.',
   'Admin mengecek dashboard utama sebagai verifikasi awal data sistem.',
   'Admin membuat atau mengecek kode kelas yang akan digunakan.',
   'Admin memastikan tahun ajaran aktif sudah sesuai.',
@@ -53,7 +53,7 @@ function GuideCards() {
       <div className={styles.sectionHeading}>
         <span className={`${styles.eyebrow} ${styles.adminTone}`}>Panduan Admin</span>
         <h2>Cara pemakaian dashboard admin</h2>
-        <p>Admin menyiapkan data dasar agar guru dan siswa bisa langsung mencoba alur utama RoomClass.</p>
+        <p>Admin menyiapkan data dasar agar guru dan siswa bisa langsung mencoba alur utama Classroom.</p>
       </div>
       <div className={styles.guideGrid}>
         {adminGuides.map((guide) => (
@@ -118,7 +118,7 @@ export default function AdminDocumentationPage() {
             <div className={styles.roleDocImageFrame}>
               <Image
                 src={item.image}
-                alt={`Screenshot ${item.title} pada alur admin RoomClass`}
+                alt={`Screenshot ${item.title} pada alur admin Classroom`}
                 width={item.width}
                 height={item.height}
                 sizes="(max-width: 1100px) 100vw, 1120px"

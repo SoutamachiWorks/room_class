@@ -1,7 +1,7 @@
 import AccountDetail from '@/components/AccountDetail';
 
 export const metadata = {
-  title: 'Detail Akun — Siswa | RoomClass',
+  title: 'Detail Akun — Siswa | Classroom',
   description: 'Kelola informasi profil dan keamanan akun Siswa',
 };
 

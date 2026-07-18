@@ -77,7 +77,7 @@ export default function InstallPwaPrompt() {
           <line x1="12" y1="15" x2="12" y2="3"></line>
         </svg>
         <span style={{ fontSize: '0.85rem', fontWeight: '500', lineHeight: '1.2' }}>
-          Instal Room Class di HP Anda untuk pengalaman lebih cepat!
+          Instal Classroom di HP Anda untuk pengalaman lebih cepat!
         </span>
       </div>
       

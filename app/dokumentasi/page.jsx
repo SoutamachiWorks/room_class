@@ -8,11 +8,11 @@ export default function DocumentationPage() {
         <div className={styles.heroContent}>
           <div className={styles.heroTopBar}>
             <Link href="/" className={styles.homeBadgeLink}>Ke Halaman Awal</Link>
-            <span className={styles.heroBadge}>Panduan Pemakaian RoomClass</span>
+            <span className={styles.heroBadge}>Panduan Pemakaian Classroom</span>
           </div>
           <h1>Dokumentasi dashboard untuk admin, guru, dan siswa</h1>
           <p>
-            Halaman ini menjadi pintu masuk dokumentasi RoomClass. Panduan detail, alur uji coba,
+            Halaman ini menjadi pintu masuk dokumentasi Classroom. Panduan detail, alur uji coba,
             dan catatan anti-cheat dipisahkan ke halaman masing-masing role agar screenshot tampil
             lebih besar dan mudah dibaca.
           </p>
@@ -22,7 +22,7 @@ export default function DocumentationPage() {
             <Link href="/dokumentasi/siswa" className={styles.secondaryAction}>Panduan Siswa</Link>
           </div>
         </div>
-        <div className={styles.heroPanel} aria-label="Ringkasan dokumentasi RoomClass">
+        <div className={styles.heroPanel} aria-label="Ringkasan dokumentasi Classroom">
           <div>
             <span>01</span>
             <strong>Admin</strong>
@@ -70,7 +70,7 @@ export default function DocumentationPage() {
         </article>
         <article className={styles.noticeCard}>
           <span className={styles.noticeLabel}>Judul penelitian</span>
-          <h2>RoomClass dengan fitur anti-cheat.</h2>
+          <h2>Classroom dengan fitur anti-cheat.</h2>
           <p>
             Detail Tab Activity Detection tidak ditaruh di halaman utama, tetapi dijelaskan pada
             halaman guru dan siswa karena fitur tersebut muncul saat alur ujian diuji.

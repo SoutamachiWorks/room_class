@@ -88,7 +88,7 @@ export default function AdminHomePage() {
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>🛡️ Panel Kontrol Admin</h1>
-          <p className={styles.pageSubtitle}>Pusat kendali sistem RoomClass — pantau, kelola, dan konfigurasi semua data.</p>
+          <p className={styles.pageSubtitle}>Pusat kendali sistem Classroom — pantau, kelola, dan konfigurasi semua data.</p>
         </div>
         <div className={styles.headerMeta}>
           <span className={styles.dateBadge}>
