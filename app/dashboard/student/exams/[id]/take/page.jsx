@@ -189,6 +189,8 @@ export default function TakeExamPage() {
   const IMMEDIATE_VIOLATION_COOLDOWN_MS = 2500;
   const FILE_PICKER_SUSPICIOUS_AWAY_MS = 45_000;
   const FILE_PICKER_RETURN_WATCH_MS = 1500;
+  const MOBILE_LEAVE_VIOLATION_DELAY_MS = 6000;
+  const MOBILE_FOCUS_LOSS_VIOLATION_DELAY_MS = 3000;
   const { id: examId } = useParams();
   const router = useRouter();
 
@@ -236,6 +238,8 @@ export default function TakeExamPage() {
   const wakeLockRef = useRef(null);
   const mobileHiddenAtRef = useRef(null);
   const mobileSleepWarningRef = useRef(false);
+  const activeViolationReasonRef = useRef(null);
+  const activeViolationDelayRef = useRef(null);
 
   const [showFullscreenOverlay, setShowFullscreenOverlay] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -659,17 +663,22 @@ export default function TakeExamPage() {
 
   const handleLeaveTab = useCallback((reason = 'focus-loss', delayMs = LEAVE_VIOLATION_DELAY_MS) => {
     if (locked || !fullscreenGranted || isChoosingFileRef.current || showConsentModal) return;
+    
     if (isMobileClient && (reason === 'visibility-hidden' || reason === 'window-blur')) {
       mobileHiddenAtRef.current = Date.now();
       mobileSleepWarningRef.current = true;
-      return;
     }
     
     if (!violationTimerRef.current) {
       leftTabAtRef.current = Date.now();
+      activeViolationReasonRef.current = reason;
+      activeViolationDelayRef.current = delayMs;
+      
       violationTimerRef.current = setTimeout(() => {
-        triggerStrike(reason);
+        void triggerStrike(reason);
         violationTimerRef.current = null;
+        activeViolationReasonRef.current = null;
+        activeViolationDelayRef.current = null;
       }, delayMs);
     }
   }, [isMobileClient, locked, fullscreenGranted, showConsentModal, triggerStrike]);
@@ -677,14 +686,27 @@ export default function TakeExamPage() {
   const handleReturnTab = useCallback(async () => {
     if (locked || !fullscreenGranted || showConsentModal) return;
 
+    let triggeredStrikeNow = false;
+
     if (violationTimerRef.current) {
       clearTimeout(violationTimerRef.current);
       violationTimerRef.current = null;
       
       const timeAway = Date.now() - leftTabAtRef.current;
-      if (timeAway < LEAVE_VIOLATION_DELAY_MS && !isChoosingFileRef.current) {
-        setToastMessage('Peringatan: Jangan keluar dari layar ujian!');
-        setTimeout(() => setToastMessage(''), 4000);
+      const allowedDelay = activeViolationDelayRef.current || LEAVE_VIOLATION_DELAY_MS;
+      const reason = activeViolationReasonRef.current || 'focus-loss';
+      
+      activeViolationReasonRef.current = null;
+      activeViolationDelayRef.current = null;
+
+      if (timeAway < allowedDelay) {
+        if (!isChoosingFileRef.current) {
+          setToastMessage('Peringatan: Jangan keluar dari layar ujian!');
+          setTimeout(() => setToastMessage(''), 4000);
+        }
+      } else {
+        void triggerStrike(reason);
+        triggeredStrikeNow = true;
       }
     }
 
@@ -692,19 +714,23 @@ export default function TakeExamPage() {
       mobileSleepWarningRef.current = false;
       const sleepDuration = mobileHiddenAtRef.current ? Math.round((Date.now() - mobileHiddenAtRef.current) / 1000) : null;
       mobileHiddenAtRef.current = null;
-      setToastMessage(
-        sleepDuration && sleepDuration > 3
-          ? `Layar Anda sempat mati/terkunci sekitar ${sleepDuration} detik. Pastikan layar tetap aktif selama ujian!`
-          : 'Layar Anda sempat mati/terkunci. Pastikan layar tetap aktif selama ujian!'
-      );
-      setTimeout(() => setToastMessage(''), 6000);
+      
+      if (!triggeredStrikeNow) {
+        setToastMessage(
+          sleepDuration && sleepDuration > 3
+            ? `Layar Anda sempat mati/terkunci sekitar ${sleepDuration} detik. Pastikan layar tetap aktif selama ujian!`
+            : 'Layar Anda sempat mati/terkunci. Pastikan layar tetap aktif selama ujian!'
+        );
+        setTimeout(() => setToastMessage(''), 6000);
+      }
+      
       void requestWakeLock();
       if (!document.fullscreenElement) {
         setShowFullscreenOverlay(true);
       }
     }
 
-  }, [isMobileClient, locked, fullscreenGranted, requestWakeLock, showConsentModal]);
+  }, [isMobileClient, locked, fullscreenGranted, requestWakeLock, showConsentModal, triggerStrike]);
 
   const handleUnsafeShortcut = useCallback((event) => {
     if (locked || !fullscreenGranted || isChoosingFileRef.current || showConsentModal) return;
@@ -762,7 +788,8 @@ export default function TakeExamPage() {
   useEffect(() => {
     const onVisibilityChange = () => {
       if (document.hidden) {
-        handleLeaveTab('visibility-hidden');
+        const delay = isMobileClient ? MOBILE_LEAVE_VIOLATION_DELAY_MS : LEAVE_VIOLATION_DELAY_MS;
+        handleLeaveTab('visibility-hidden', delay);
         void syncExamCache(true);
       } else handleReturnTab();
     };
@@ -773,14 +800,16 @@ export default function TakeExamPage() {
           setShowFullscreenOverlay(true);
           return;
         }
-        handleLeaveTab('fullscreen-exit');
+        const delay = isMobileClient ? MOBILE_LEAVE_VIOLATION_DELAY_MS : LEAVE_VIOLATION_DELAY_MS;
+        handleLeaveTab('fullscreen-exit', delay);
       }
       else handleReturnTab();
     };
 
     const onBlur = () => {
       if (isChoosingFileRef.current) return;
-      handleLeaveTab('window-blur', FOCUS_LOSS_VIOLATION_DELAY_MS);
+      const delay = isMobileClient ? MOBILE_FOCUS_LOSS_VIOLATION_DELAY_MS : FOCUS_LOSS_VIOLATION_DELAY_MS;
+      handleLeaveTab('window-blur', delay);
       void syncExamCache(true);
     };
 
