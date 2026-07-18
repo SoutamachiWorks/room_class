@@ -18,7 +18,7 @@ function paragraph(text = '') {
 
 function buildDocumentXml() {
   const lines = [
-    'Template Import Soal RoomClass',
+    'Template Import Soal Classroom',
     '',
     'PETUNJUK',
     '1. Simpan file ini sebagai .docx setelah diedit.',
@@ -93,7 +93,7 @@ export async function GET() {
   return new NextResponse(buffer, {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'Content-Disposition': 'attachment; filename="Template_Import_Soal_RoomClass.docx"',
+      'Content-Disposition': 'attachment; filename="Template_Import_Soal_Classroom.docx"',
       'Cache-Control': 'no-store',
     },
   });

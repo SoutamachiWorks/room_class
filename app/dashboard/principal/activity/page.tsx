@@ -23,7 +23,7 @@ export default function PrincipalActivityPage() {
       <div className={styles.header}>
         <div>
           <div className={styles.eyebrow}>Kepala Sekolah</div>
-          <h1 className={styles.title}>Log Aktivitas Pengembangan RoomClass</h1>
+          <h1 className={styles.title}>Log Aktivitas Pengembangan Classroom</h1>
           <p className={styles.subtitle}>Pantau pembuatan ujian, tugas, dan materi terbaru.</p>
         </div>
       </div>

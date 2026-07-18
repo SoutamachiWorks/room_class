@@ -84,7 +84,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <div>
-            <div className={styles.brandName}>RoomClass</div>
+            <div className={styles.brandName}>Classroom</div>
             <div className={styles.brandTagline}>Sistem Manajemen Pembelajaran</div>
           </div>
         </div>
@@ -286,7 +286,7 @@ export default function LoginPage() {
             </a>
             <p className={styles.footerText}>
               © 2026{' '}
-              <span className={styles.footerBrand}>RoomClass</span>
+              <span className={styles.footerBrand}>Classroom</span>
               {' '}— Sistem Manajemen Kelas
             </p>
           </div>

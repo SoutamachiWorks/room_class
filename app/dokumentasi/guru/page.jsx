@@ -40,7 +40,7 @@ const teacherGuides = [
 ];
 
 const teacherScenario = [
-  'Guru login ke RoomClass.',
+  'Guru login ke Classroom.',
   'Guru mengecek dashboard utama untuk melihat ringkasan aktivitas pembelajaran.',
   'Guru membuka Materi Pelajaran dan menambahkan satu materi untuk siswa.',
   'Guru membuka Penugasan dan menambahkan satu tugas untuk kelas tujuan.',
@@ -212,7 +212,7 @@ export default function TeacherDocumentationPage() {
             <div className={styles.roleDocImageFrame}>
               <Image
                 src={item.image}
-                alt={`Screenshot ${item.title} pada alur guru RoomClass`}
+                alt={`Screenshot ${item.title} pada alur guru Classroom`}
                 width={item.width}
                 height={item.height}
                 sizes="(max-width: 1100px) 100vw, 1120px"

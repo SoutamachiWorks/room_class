@@ -91,7 +91,7 @@ export default function PrincipalDashboard() {
             <div className={styles.muted}>Lihat nilai ujian dan export laporan.</div>
           </Link>
           <Link href="/dashboard/principal/activity" className={styles.moduleLink}>
-            <div className={styles.primaryText}>Log Aktivitas RoomClass</div>
+            <div className={styles.primaryText}>Log Aktivitas Classroom</div>
             <div className={styles.muted}>Ujian, tugas, dan materi terbaru.</div>
           </Link>
         </div>

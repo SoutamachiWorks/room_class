@@ -1,7 +1,7 @@
 export default function manifest() {
   return {
-    name: 'Room Class',
-    short_name: 'RoomClass',
+    name: 'Classroom',
+    short_name: 'Classroom',
     description: 'Aplikasi Ujian dan Manajemen Kelas Terpadu',
     start_url: '/dashboard',
     display: 'standalone',

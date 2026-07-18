@@ -68,7 +68,7 @@ const withPWA = withPWAInit({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Allow the Dev environment origins from the local loopback and WiFi IP address so CORS blocks don't kill auth fetches
-  allowedDevOrigins: ['127.0.0.1', '192.168.1.6', 'localhost', '172.16.0.2'],
+  allowedDevOrigins: ['127.0.0.1', '192.168.1.6', '192.168.1.7', 'localhost', '172.16.0.2'],
   // Fix Next.js 16 Turbopack error when using next-pwa (which modifies webpack config internally)
   turbopack: {},
   async headers() {

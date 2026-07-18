@@ -37,7 +37,7 @@ export default function PrincipalActiveUsersPage() {
         <div>
           <div className={styles.eyebrow}>Kepala Sekolah</div>
           <h1 className={styles.title}>Daftar Siswa dan Guru Aktif</h1>
-          <p className={styles.subtitle}>Pantau akun aktif yang terdaftar di RoomClass.</p>
+          <p className={styles.subtitle}>Pantau akun aktif yang terdaftar di Classroom.</p>
         </div>
       </div>
 
