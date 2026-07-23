@@ -67,6 +67,8 @@ const withPWA = withPWAInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Required for Docker: produce a self-contained server bundle
+  output: 'standalone',
   // Allow the Dev environment origins from the local loopback and WiFi IP address so CORS blocks don't kill auth fetches
   allowedDevOrigins: [
     '127.0.0.1',
